@@ -1,0 +1,183 @@
+From 10f4a01f6312cf97cc2e6023a511539964c76c77 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Tue, 7 Apr 2020 14:03:21 +0800
+Subject: [PATCH] lavc/vaapi_encode_h265: add private b_strategy option for
+ hevc_vaapi
+
+Allow user to choose between I/P/B frames:
+
+- normal
+    Ordinary IB..BPB..B GOP structure.
+- low delay B-frames:
+    IB..B GOP structure, P frames replaced by B frames, allows forward-predict
+    only for all B frames, L0 == L1, required by VDENC(low_power),
+    optional for VMEPAK.
+- reference B-frames:
+    Convert P-frames to low delay B-frames, normal B frames still have
+    2 different ref_lists and allow bi-prediction.
+
+Low delay B:
+<http://what-when-how.com/Tutorial/topic-397pct9eq3/High-Efficiency-Video-Coding-HEVC-288.html>
+
+There is an on-going work in libva and media-driver to add querys
+support for low delay b, would add it once it's ready:
+https://github.com/intel/libva/pull/220
+https://github.com/intel/libva/pull/364
+https://github.com/intel/media-driver/issues/721
+
+Rebased a bit for this internal branch.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ doc/encoders.texi              | 16 ++++++++++++++++
+ libavcodec/vaapi_encode.c      | 21 ++++++++++++++++-----
+ libavcodec/vaapi_encode.h      |  1 +
+ libavcodec/vaapi_encode_h265.c | 29 ++++++++++++++++++++++++++++-
+ 4 files changed, 61 insertions(+), 6 deletions(-)
+
+diff --git a/doc/encoders.texi b/doc/encoders.texi
+index 749c387086..c3ece1d988 100644
+--- a/doc/encoders.texi
++++ b/doc/encoders.texi
+@@ -3267,6 +3267,22 @@ Some combination of the following values:
+ Include HDR metadata if the input frames have it
+ (@emph{mastering_display_colour_volume} and @emph{content_light_level}
+ messages).
++
++@item b_strategy
++Allow user to choose between I/P/B frames and specify the type of B-frames.
++@table @samp
++@item normal
++Normal IBBPBB strategy.
++
++@item low_delay_b
++Convert P-frames to B-frames, only forward-predict is allowed for all B frames,
++ref_list0 equals to ref_list1, required by VDENC(low_power).
++
++@item ref_b
++Convert P-frames to low delay B-frames as references, while normal B frames
++still have 2 different ref_lists and allow bi-prediction.
++@end table
++
+ @end table
+ 
+ @item tiles
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index 75a029c4c5..e5fbbc85ed 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -1910,15 +1910,26 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+                "reference frames.\n");
+         return AVERROR(EINVAL);
+     } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
+-               ref_l1 < 1 || avctx->max_b_frames < 1) {
+-        av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
+-               "(supported references: %d / %d).\n", ref_l0, ref_l1);
++               ref_l1 < 1 || avctx->max_b_frames < 1 ||
++               ctx->b_frame_strategy == 1) {
++        if (ctx->b_frame_strategy == 1)
++            av_log(avctx, AV_LOG_VERBOSE, "Using intra and low delay "
++                   "B-frames (supported references: %d / %d).\n",
++                   ref_l0, ref_l1);
++        else
++            av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
++                   "(supported references: %d / %d).\n", ref_l0, ref_l1);
+         ctx->gop_size = avctx->gop_size;
+         ctx->p_per_i  = INT_MAX;
+         ctx->b_per_p  = 0;
+     } else {
+-        av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
+-               "(supported references: %d / %d).\n", ref_l0, ref_l1);
++        if (ctx->b_frame_strategy == 2)
++            av_log(avctx, AV_LOG_VERBOSE, "Using intra, reference B- and "
++                   "B-frames (supported references: %d / %d).\n",
++                   ref_l0, ref_l1);
++        else
++            av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
++                   "(supported references: %d / %d).\n", ref_l0, ref_l1);
+         ctx->gop_size = avctx->gop_size;
+         ctx->p_per_i  = INT_MAX;
+         ctx->b_per_p  = avctx->max_b_frames;
+diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
+index 0f094ec5c1..5a17316917 100644
+--- a/libavcodec/vaapi_encode.h
++++ b/libavcodec/vaapi_encode.h
+@@ -338,6 +338,7 @@ typedef struct VAAPIEncodeContext {
+     int idr_counter;
+     int gop_counter;
+     int end_of_stream;
++    int b_frame_strategy;
+     uint8_t *delta_qp;
+ 
+     // Whether the driver supports ROI at all.
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index a9b5a8c8d5..307ed732b5 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -62,6 +62,7 @@ typedef struct VAAPIEncodeH265Context {
+     int tier;
+     int level;
+     int sei;
++    int b_frame_strategy;
+ 
+     // Derived settings.
+     int fixed_qp_idr;
+@@ -939,7 +940,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+ 
+     sh->slice_type = hpic->slice_type;
+     // driver requires low delay B frame in low power mode
+-    if (sh->slice_type == HEVC_SLICE_P && ctx->low_power)
++    if (sh->slice_type == HEVC_SLICE_P && priv->b_frame_strategy)
+         sh->slice_type = HEVC_SLICE_B;
+ 
+     sh->slice_pic_order_cnt_lsb = hpic->pic_order_cnt &
+@@ -1100,6 +1101,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+         av_assert0(pic->type == PICTURE_TYPE_P ||
+                    pic->type == PICTURE_TYPE_B);
+         vslice->ref_pic_list0[0] = vpic->reference_frames[0];
++        if (priv->b_frame_strategy && pic->type == PICTURE_TYPE_P)
++            // Reference for low delay B-frame, L0 == L1
++            vslice->ref_pic_list1[0] = vpic->reference_frames[0];
+     }
+     if (pic->nb_refs >= 2) {
+         // Forward reference for B-frame.
+@@ -1246,6 +1250,21 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
+     if (priv->qp > 0)
+         ctx->explicit_qp = priv->qp;
+ 
++    // Low delay B-frames is required for low power encoding.
++    if (ctx->low_power && priv->b_frame_strategy != 1) {
++        priv->b_frame_strategy = 1;
++        av_log(avctx, AV_LOG_WARNING, "Low delay B-frames required "
++               "for low power encoding.\n");
++    }
++
++    if (priv->b_frame_strategy) {
++        ctx->b_frame_strategy = priv->b_frame_strategy;
++        if (ctx->b_frame_strategy == 1)
++            av_log(avctx, AV_LOG_VERBOSE, "Low delay B-frames enabled.\n");
++        else
++            av_log(avctx, AV_LOG_VERBOSE, "Reference B-frames enabled.\n");
++    }
++
+     return ff_vaapi_encode_init(avctx);
+ }
+ 
+@@ -1321,6 +1340,14 @@ static const AVOption vaapi_encode_h265_options[] = {
+       0, AV_OPT_TYPE_CONST,
+       { .i64 = SEI_MASTERING_DISPLAY | SEI_CONTENT_LIGHT_LEVEL },
+       INT_MIN, INT_MAX, FLAGS, "sei" },
++    { "b_strategy", "Strategy to choose between I/P/B-frames",
++      OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 2, FLAGS, "b_strategy" },
++        { "normal",      "Normal IB..BPB..B strategy",
++                          0, AV_OPT_TYPE_CONST, { .i64 = 0 }, INT_MIN, INT_MAX, FLAGS, "b_strategy" },
++        { "low_delay_b", "Use low delay B-frames with forward-prediction only",
++                          0, AV_OPT_TYPE_CONST, { .i64 = 1 }, INT_MIN, INT_MAX, FLAGS, "b_strategy" },
++        { "ref_b",       "Only convert P-frames to low delay B-frames as references",
++                          0, AV_OPT_TYPE_CONST, { .i64 = 2 }, INT_MIN, INT_MAX, FLAGS, "b_strategy" },
+ 
+     { "tiles", "Tile columns x rows",
+       OFFSET(common.tile_cols), AV_OPT_TYPE_IMAGE_SIZE,
+-- 
+2.17.1
+

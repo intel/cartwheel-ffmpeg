@@ -1,0 +1,63 @@
+From 893c67dc1a278dd64d5773dde1a6d1eaefbcef76 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Tue, 14 Jul 2020 10:12:26 +0800
+Subject: [PATCH] lavc/hevcdec: add vaapi decoding support for 444
+
+Also include 420P12, 444P12.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavcodec/hevcdec.c      | 8 +++++++-
+ libavcodec/vaapi_decode.c | 5 +++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index c7eba45..71ef8c9 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -432,6 +432,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+ #endif
+         break;
+     case AV_PIX_FMT_YUV444P:
++#if CONFIG_HEVC_VAAPI_HWACCEL
++        *fmt++ = AV_PIX_FMT_VAAPI;
++#endif
+ #if CONFIG_HEVC_VDPAU_HWACCEL
+         *fmt++ = AV_PIX_FMT_VDPAU;
+ #endif
+@@ -442,12 +445,15 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+     case AV_PIX_FMT_YUV422P:
+     case AV_PIX_FMT_YUV422P10LE:
+ #if CONFIG_HEVC_VAAPI_HWACCEL
+-       *fmt++ = AV_PIX_FMT_VAAPI;
++        *fmt++ = AV_PIX_FMT_VAAPI;
+ #endif
+         break;
+     case AV_PIX_FMT_YUV420P12:
+     case AV_PIX_FMT_YUV444P10:
+     case AV_PIX_FMT_YUV444P12:
++#if CONFIG_HEVC_VAAPI_HWACCEL
++        *fmt++ = AV_PIX_FMT_VAAPI;
++#endif
+ #if CONFIG_HEVC_VDPAU_HWACCEL
+         *fmt++ = AV_PIX_FMT_VDPAU;
+ #endif
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index a0352c7..f314724 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -265,6 +265,11 @@ static const struct {
+     MAP(422V, YUV440P),
+     // 4:4:4
+     MAP(444P, YUV444P),
++    MAP(AYUV,    0YUV),
++    // 4:4:4 10-bit
++#ifdef VA_FOURCC_Y410
++    MAP(Y410,    Y410),
++#endif
+     // 4:2:0 10-bit
+ #ifdef VA_FOURCC_P010
+     MAP(P010, P010),
+-- 
+2.7.4
+

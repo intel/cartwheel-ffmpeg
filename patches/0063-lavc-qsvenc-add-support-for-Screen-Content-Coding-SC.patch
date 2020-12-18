@@ -1,0 +1,48 @@
+From ac118963bfb57abd1b1f1f57d33cafb985d18bac Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Mon, 28 Sep 2020 14:14:42 +0800
+Subject: [PATCH] lavc/qsvenc: add support for Screen Content Coding (SCC)
+ extension
+
+This patch adds support for SCC encoding on ICL+ platform
+
+Sample pipeline:
+ffmpeg -init_hw_device qsv=qsv:hw -f lavfi -i testsrc -vf \
+"format=nv12,hwupload=extra_hw_frames=64,format=qsv" -c:v hevc_qsv \
+-profile:v scc -low_power 1 out.h265
+---
+ libavcodec/qsvenc.c      | 3 +++
+ libavcodec/qsvenc_hevc.c | 3 +++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 3070478874..8d16a11aa2 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -69,6 +69,9 @@ static const struct {
+     { MFX_PROFILE_HEVC_MAINSP,                  "mainsp"                },
+     { MFX_PROFILE_HEVC_REXT,                    "rext"                  },
+ #endif
++#if QSV_VERSION_ATLEAST(1, 32)
++    { MFX_PROFILE_HEVC_SCC,                     "scc"                   },
++#endif
+ };
+ 
+ static const char *print_profile(mfxU16 profile)
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index 347f30655e..663f21439f 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -241,6 +241,9 @@ static const AVOption options[] = {
+     { "main10",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_HEVC_MAIN10  }, INT_MIN, INT_MAX,     VE, "profile" },
+     { "mainsp",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_HEVC_MAINSP  }, INT_MIN, INT_MAX,     VE, "profile" },
+     { "rext",    NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_HEVC_REXT    }, INT_MIN, INT_MAX,     VE, "profile" },
++#if QSV_VERSION_ATLEAST(1, 32)
++    { "scc",     NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_HEVC_SCC     }, INT_MIN, INT_MAX,     VE, "profile" },
++#endif
+ 
+     { "gpb", "1: GPB (generalized P/B frame); 0: regular P frame", OFFSET(qsv.gpb), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, VE},
+ 
+-- 
+2.25.1
+

@@ -1,0 +1,45 @@
+From b9f3a9d20f9471bb644bf64bd109f6a1933ad461 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Mon, 9 Nov 2020 10:39:08 -0500
+Subject: [PATCH 13/15] lavc/hevc_refs: refine ref picture lists construction
+
+1. update current frame's POC info into reference list when the frame
+is added into reference list.
+2. remove limition of slice P when adding current pic to ref.
+3. correct current pic's index in ref list.
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavcodec/hevc_refs.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
+index e6054696a3..51f72cd35f 100644
+--- a/libavcodec/hevc_refs.c
++++ b/libavcodec/hevc_refs.c
+@@ -344,6 +344,7 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+             }
+             // Construct RefPicList0, RefPicList1 (8-8, 8-10)
+             if (s->ps.pps->pps_curr_pic_ref_enabled_flag) {
++                rpl_tmp.list[rpl_tmp.nb_refs]           = s->ref->poc;
+                 rpl_tmp.ref[rpl_tmp.nb_refs]            = s->ref;
+                 rpl_tmp.isLongTerm[rpl_tmp.nb_refs]     = 1;
+                 rpl_tmp.nb_refs++;
+@@ -371,9 +372,11 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+         }
+ 
+         // 8-9
+-        if (s->ps.pps->pps_curr_pic_ref_enabled_flag && sh->slice_type == HEVC_SLICE_P &&
+-            !sh->rpl_modification_flag[list_idx] && rpl_tmp.nb_refs > sh->nb_refs[L0]) {
+-            rpl->ref[sh->nb_refs[L0]] = s->ref;
++        if (s->ps.pps->pps_curr_pic_ref_enabled_flag &&
++            !sh->rpl_modification_flag[list_idx] &&
++            rpl_tmp.nb_refs > sh->nb_refs[L0]) {
++            rpl->list[sh->nb_refs[L0] - 1] = s->ref->poc;
++            rpl->ref[sh->nb_refs[L0] - 1]  = s->ref;
+         }
+ 
+         if (sh->collocated_list == list_idx &&
+-- 
+2.17.1
+

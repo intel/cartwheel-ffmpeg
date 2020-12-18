@@ -1,0 +1,35 @@
+From c6223577074f3de319cb14b637d920bfc0b9f6fa Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Mon, 11 May 2020 14:26:18 +0800
+Subject: [PATCH 2/2] lavc/vaapi_vp9: support 420/444 12bit dec
+
+420 12bit dec:
+ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -v debug -i colorbar_420_12_vp9.ivf -vsync passthrough -y ffmpeg.vaapi.yuv
+
+444 12bit dec:
+ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -v debug -i colorbar_444_12_vp9.ivf -vsync passthrough -y ffmpeg.vaapi.yuv
+---
+ libavcodec/vp9.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/libavcodec/vp9.c b/libavcodec/vp9.c
+index 20b0a1025c..5521a2bf44 100644
+--- a/libavcodec/vp9.c
++++ b/libavcodec/vp9.c
+@@ -231,6 +231,13 @@ static int update_size(AVCodecContext *avctx, int w, int h)
+             *fmtp++ = AV_PIX_FMT_VAAPI;
+ #endif
+             break;
++        case AV_PIX_FMT_YUV422P12:
++        case AV_PIX_FMT_YUV444P12:
++#if CONFIG_VP9_VAAPI_HWACCEL
++            *fmtp++ = AV_PIX_FMT_VAAPI;
++#endif
++            break;
++
+         }
+ 
+         *fmtp++ = s->pix_fmt;
+-- 
+2.17.1
+

@@ -1,0 +1,29 @@
+From 3475e399119009ff07e7fd3989737afb8b65a7b4 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 10 Sep 2020 14:42:44 +0800
+Subject: [PATCH 06/15] lavc/hevcdec: Set max_num_merge_cand to uint8_t
+
+uint8_t is big enough and keep consistent with the definition in
+cbs_h265.h.
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+---
+ libavcodec/hevcdec.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
+index d1f3028fc1..97dd4ac53e 100644
+--- a/libavcodec/hevcdec.h
++++ b/libavcodec/hevcdec.h
+@@ -301,7 +301,7 @@ typedef struct SliceHeader {
+     int beta_offset;    ///< beta_offset_div2 * 2
+     int tc_offset;      ///< tc_offset_div2 * 2
+ 
+-    unsigned int max_num_merge_cand; ///< 5 - 5_minus_max_num_merge_cand
++    uint8_t max_num_merge_cand; ///< 5 - 5_minus_max_num_merge_cand
+     uint8_t use_integer_mv_flag;
+ 
+     unsigned *entry_point_offset;
+-- 
+2.17.1
+

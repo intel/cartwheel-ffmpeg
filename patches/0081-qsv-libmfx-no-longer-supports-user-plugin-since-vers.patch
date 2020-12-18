@@ -1,0 +1,55 @@
+From af94719f6d3314814494f1bcc03c50da154d02ee Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Tue, 18 Aug 2020 15:20:38 +0800
+Subject: [PATCH 2/6] qsv: libmfx no longer supports user plugin since version
+ 2.0 (oneVPL)
+
+See
+https://spec.oneapi.com/versions/latest/elements/oneVPL/source/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
+https://github.com/oneapi-src/oneVPL
+---
+ libavcodec/qsv.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index d91a121fec..b5c11af910 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -19,7 +19,6 @@
+  */
+ 
+ #include <mfxvideo.h>
+-#include <mfxplugin.h>
+ #include <mfxjpeg.h>
+ 
+ #include <stdio.h>
+@@ -42,6 +41,10 @@
+ #include "mfxvp8.h"
+ #endif
+ 
++#if !QSV_VERSION_ATLEAST(2, 0)
++#include <mfxplugin.h>
++#endif
++
+ int ff_qsv_codec_id_to_mfx(enum AVCodecID codec_id)
+ {
+     switch (codec_id) {
+@@ -336,6 +339,7 @@ enum AVPictureType ff_qsv_map_pictype(int mfx_pic_type)
+ static int qsv_load_plugins(mfxSession session, const char *load_plugins,
+                             void *logctx)
+ {
++#if !QSV_VERSION_ATLEAST(2, 0)
+     if (!load_plugins || !*load_plugins)
+         return 0;
+ 
+@@ -379,6 +383,7 @@ load_plugin_fail:
+         if (err < 0)
+             return err;
+     }
++#endif
+ 
+     return 0;
+ 
+-- 
+2.25.1
+

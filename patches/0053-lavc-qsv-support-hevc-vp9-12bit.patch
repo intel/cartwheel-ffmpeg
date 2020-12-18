@@ -1,0 +1,109 @@
+From 8760768257e850e3f9e7d750bf85801f0760f9ca Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Thu, 28 May 2020 14:14:32 -0400
+Subject: [PATCH] lavc/qsv: support hevc/vp9 12bit
+
+ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v hevc_qsv -i GENERAL_12b_420_RExt_Sony_1.bit -vf hwdownload,format=p012 -vsync passthrough -frames 25 -f md5 -y qsv_out.md5
+
+ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v hevc_qsv -i GENERAL_12b_422_RExt_Sony_1.bit -vf hwdownload,format=y212 -vsync passthrough -frames 25 -f md5 -y qsv_out.md5
+
+ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v hevc_qsv -i GENERAL_12b_444_RExt_Sony_2.bit -vf hwdownload,format=y412 -vsync passthrough -frames 25 -f md5 -y qsv_out.md5
+
+ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v vp9_qsv -i  colorbar_444_12_vp9.ivf -vf hwdownload,format=y412 -vsync passthrough -f md5 -y qsv_out.md5
+
+ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v vp9_qsv -i  colorbar_420_12_vp9.ivf -vf hwdownload,format=p012 -vsync passthrough -f md5 -y qsv_out.md5
+
+ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -f rawvideo -pix_fmt p012le -s:v 320x240 -r:v 25 -i colorbar_320x240.p016 -vf 'format=p012le,hwupload=extra_hw_frames=120' -an -c:v hevc_qsv -profile:v rext -g 30 -slices 1 -bf 2 -b:v 100k -maxrate 100k  -y test.h265
+---
+ libavcodec/qsv.c          | 19 +++++++++++++++++++
+ libavutil/hwcontext_qsv.c | 16 ++++++++++++++++
+ 2 files changed, 35 insertions(+)
+
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index 8709c872b9..92fdf7a4f3 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -206,6 +206,11 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+     case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
+     case MFX_FOURCC_Y410: return AV_PIX_FMT_Y410;
+ #endif
++#if QSV_VERSION_ATLEAST(1, 31)
++    case MFX_FOURCC_P016: return AV_PIX_FMT_P012;
++    case MFX_FOURCC_Y216: return AV_PIX_FMT_Y212;
++    case MFX_FOURCC_Y416: return AV_PIX_FMT_Y412;
++#endif
+ #endif
+     }
+     return AV_PIX_FMT_NONE;
+@@ -244,6 +249,20 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+         *fourcc = MFX_FOURCC_Y410;
+         return AV_PIX_FMT_Y410;
+ #endif
++#if QSV_VERSION_ATLEAST(1, 31)
++    case AV_PIX_FMT_YUV420P12:
++    case AV_PIX_FMT_P012:
++        *fourcc = MFX_FOURCC_P016;
++        return AV_PIX_FMT_P012;
++    case AV_PIX_FMT_YUV422P12:
++    case AV_PIX_FMT_Y212:
++        *fourcc = MFX_FOURCC_Y216;
++        return AV_PIX_FMT_Y212;
++    case AV_PIX_FMT_YUV444P12:
++    case AV_PIX_FMT_Y412:
++        *fourcc = MFX_FOURCC_Y416;
++        return AV_PIX_FMT_Y412;
++#endif
+ #endif
+     default:
+         return AVERROR(ENOSYS);
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index 8285ce03b5..34ff5e5572 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -113,6 +113,14 @@ static const struct {
+     { AV_PIX_FMT_Y410,
+                        MFX_FOURCC_Y410 },
+ #endif
++#if QSV_VERSION_ATLEAST(1, 31)
++    { AV_PIX_FMT_P012,
++                       MFX_FOURCC_P016 },
++    { AV_PIX_FMT_Y212,
++                       MFX_FOURCC_Y216 },
++    { AV_PIX_FMT_Y412,
++                       MFX_FOURCC_Y416 },
++#endif
+ #endif
+ };
+ 
+@@ -905,6 +913,7 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+     switch (frame->format) {
+     case AV_PIX_FMT_NV12:
+     case AV_PIX_FMT_P010:
++    case AV_PIX_FMT_P012:
+         surface->Data.Y  = frame->data[0];
+         surface->Data.UV = frame->data[1];
+         break;
+@@ -929,6 +938,7 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+         break;
+ 
+     case AV_PIX_FMT_Y210:
++    case AV_PIX_FMT_Y212:
+         surface->Data.Y16 = (mfxU16 *)frame->data[0];
+         surface->Data.U16 = (mfxU16 *)frame->data[0] + 1;
+         surface->Data.V16 = (mfxU16 *)frame->data[0] + 3;
+@@ -942,6 +952,12 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+     case AV_PIX_FMT_Y410:
+         surface->Data.U = frame->data[0];
+         break;
++    case AV_PIX_FMT_Y412:
++        surface->Data.U = frame->data[0];
++        surface->Data.Y = frame->data[0] + 1;
++        surface->Data.V = frame->data[0] + 2;
++        surface->Data.A = frame->data[0] + 3;
++        break;
+ #endif
+     default:
+         return MFX_ERR_UNSUPPORTED;
+-- 
+2.17.1
+

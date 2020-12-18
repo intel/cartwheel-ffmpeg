@@ -1,0 +1,32 @@
+From d6023f523799a581e217c7ed8bfbd938c292ee70 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Fri, 21 Jun 2019 00:39:08 +0800
+Subject: [PATCH 11/28] doc/vaapi_encode: add documentations for max_frame_size
+
+Add docs for max_frame_size option.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ doc/encoders.texi | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/doc/encoders.texi b/doc/encoders.texi
+index e23b6b3..79937ed 100644
+--- a/doc/encoders.texi
++++ b/doc/encoders.texi
+@@ -3004,6 +3004,12 @@ will refer only to P- or I-frames.  When set to greater values multiple layers
+ of B-frames will be present, frames in each layer only referring to frames in
+ higher layers.
+ 
++@item max_frame_size
++Set the allowed max size in bytes for each frame. If the frame size exceeds
++the limitation, encoder will adjust the QP value by adding delta_qp for each 
++pass to control the frame size. To simplify the usage, delta_qp is set to
++default.
++
+ @item rc_mode
+ Set the rate control mode to use.  A given driver may only support a subset of
+ modes.
+-- 
+2.7.4
+

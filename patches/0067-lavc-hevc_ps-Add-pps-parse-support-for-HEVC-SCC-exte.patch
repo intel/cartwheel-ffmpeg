@@ -1,0 +1,143 @@
+From b61d7cd06b6001215642a532f104590f0d00c62d Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 10 Sep 2020 14:42:41 +0800
+Subject: [PATCH 03/15] lavc/hevc_ps: Add pps parse support for HEVC SCC
+ extension
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
+---
+ libavcodec/hevc_ps.c | 70 +++++++++++++++++++++++++++++++++++++++++++-
+ libavcodec/hevc_ps.h | 17 +++++++++++
+ 2 files changed, 86 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
+index d65efc1aef..704b666756 100644
+--- a/libavcodec/hevc_ps.c
++++ b/libavcodec/hevc_ps.c
+@@ -1400,6 +1400,48 @@ static int pps_range_extensions(GetBitContext *gb, AVCodecContext *avctx,
+     return(0);
+ }
+ 
++static int pps_scc_extension(GetBitContext *gb, AVCodecContext *avctx,
++                             HEVCPPS *pps, HEVCSPS *sps)
++{
++    int num_comps;
++    int i, ret;
++
++    pps->pps_curr_pic_ref_enabled_flag = get_bits1(gb);
++    if (pps->residual_adaptive_colour_transform_enabled_flag = get_bits1(gb)) {
++        pps->pps_slice_act_qp_offsets_present_flag = get_bits1(gb);
++        pps->pps_act_y_qp_offset  = get_se_golomb_long(gb) - 5;
++        pps->pps_act_cb_qp_offset = get_se_golomb_long(gb) - 5;
++        pps->pps_act_cr_qp_offset = get_se_golomb_long(gb) - 3;
++
++#define CHECK_QP_OFFSET(name) (pps->pps_act_ ## name ## _qp_offset < -12 || \
++                               pps->pps_act_ ## name ## _qp_offset > 12)
++        ret = CHECK_QP_OFFSET(y) || CHECK_QP_OFFSET(cb) || CHECK_QP_OFFSET(cr);
++#undef CHECK_QP_OFFSET
++        if (ret) {
++            av_log(avctx, AV_LOG_ERROR,
++                   "PpsActQpOffsetY/Cb/Cr shall be in the range of [-12, 12].\n");
++            return AVERROR_INVALIDDATA;
++        }
++    }
++
++    if (pps->pps_palette_predictor_initializers_present_flag = get_bits1(gb)) {
++        if ((pps->pps_num_palette_predictor_initializers = get_ue_golomb_long(gb)) > 0) {
++            pps->monochrome_palette_flag = get_bits1(gb);
++            pps->luma_bit_depth_entry_minus8 = get_ue_golomb_long(gb);
++            if (!pps->monochrome_palette_flag)
++                pps->chroma_bit_depth_entry_minus8 = get_ue_golomb_long(gb);
++            num_comps = pps->monochrome_palette_flag ? 1 : 3;
++            for (int comp = 0; comp < num_comps; comp++)
++                for (i = 0; i < pps->pps_num_palette_predictor_initializers; i++)
++                    pps->pps_palette_predictor_initializer[comp][i] =
++                        get_bits(gb, 8 + (!comp ? pps->luma_bit_depth_entry_minus8 :
++                                          pps->chroma_bit_depth_entry_minus8));
++        }
++    }
++
++    return 0;
++}
++
+ static inline int setup_pps(AVCodecContext *avctx, GetBitContext *gb,
+                             HEVCPPS *pps, HEVCSPS *sps)
+ {
+@@ -1753,11 +1795,37 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
+ 
+     if (get_bits1(gb)) { // pps_extension_present_flag
+         pps->pps_range_extensions_flag = get_bits1(gb);
+-        skip_bits(gb, 7); // pps_extension_7bits
++
++        /* hevc-conformance-PS_A_VIDYO_3 in fate has pps_multilayer_extension_flag (1),
++         * pps_3d_extension_flag (1) and pps_scc_extension_flag (1) but has the wrong
++         * data for pps_multilayer_extension(), pps_3d_extension(), and pps_scc_extension().
++         * To avoid regression for hevc-conformance-PS_A_VIDYO_3, here check
++         * pps_multilayer_extension_flag, pps_3d_extension_flag and pps_scc_extension_flag
++         * only for SCC streams */
++        if (sps->ptl.general_ptl.profile_idc == FF_PROFILE_HEVC_SCC) {
++            pps->pps_multilayer_extension_flag = get_bits1(gb);
++            pps->pps_3d_extension_flag         = get_bits1(gb);
++            pps->pps_scc_extension_flag        = get_bits1(gb);
++            skip_bits(gb, 4); // pps_extension_4bits
++        } else
++            skip_bits(gb, 7);
++
+         if (sps->ptl.general_ptl.profile_idc == FF_PROFILE_HEVC_REXT && pps->pps_range_extensions_flag) {
+             if ((ret = pps_range_extensions(gb, avctx, pps, sps)) < 0)
+                 goto err;
+         }
++
++        if (pps->pps_multilayer_extension_flag || pps->pps_3d_extension_flag) {
++            av_log(avctx, AV_LOG_ERROR,
++                   "multilayer_extension or 3d_extension not yet implemented\n");
++            ret = AVERROR_PATCHWELCOME;
++            goto err;
++        }
++
++        if (pps->pps_scc_extension_flag) {
++            if ((ret = pps_scc_extension(gb, avctx, pps, sps)) < 0)
++                goto err;
++        }
+     }
+ 
+     ret = setup_pps(avctx, gb, pps, sps);
+diff --git a/libavcodec/hevc_ps.h b/libavcodec/hevc_ps.h
+index be23758008..155b66062e 100644
+--- a/libavcodec/hevc_ps.h
++++ b/libavcodec/hevc_ps.h
+@@ -312,6 +312,9 @@ typedef struct HEVCPPS {
+     uint8_t slice_header_extension_present_flag;
+     uint8_t log2_max_transform_skip_block_size;
+     uint8_t pps_range_extensions_flag;
++    uint8_t pps_multilayer_extension_flag;
++    uint8_t pps_3d_extension_flag;
++    uint8_t pps_scc_extension_flag;
+     uint8_t cross_component_prediction_enabled_flag;
+     uint8_t chroma_qp_offset_list_enabled_flag;
+     uint8_t diff_cu_chroma_qp_offset_depth;
+@@ -321,6 +324,20 @@ typedef struct HEVCPPS {
+     uint8_t log2_sao_offset_scale_luma;
+     uint8_t log2_sao_offset_scale_chroma;
+ 
++    // SCC extension parameters
++    uint8_t pps_curr_pic_ref_enabled_flag;
++    uint8_t residual_adaptive_colour_transform_enabled_flag;
++    uint8_t pps_slice_act_qp_offsets_present_flag;
++    int8_t  pps_act_y_qp_offset;  // _plus5
++    int8_t  pps_act_cb_qp_offset; // _plus5
++    int8_t  pps_act_cr_qp_offset; // _plus3
++    uint8_t pps_palette_predictor_initializers_present_flag;
++    uint8_t pps_num_palette_predictor_initializers;
++    uint8_t monochrome_palette_flag;
++    uint8_t luma_bit_depth_entry_minus8;
++    uint8_t chroma_bit_depth_entry_minus8;
++    uint8_t pps_palette_predictor_initializer[3][HEVC_MAX_PALETTE_PREDICTOR_SIZE];
++
+     // Inferred parameters
+     unsigned int *column_width;  ///< ColumnWidth
+     unsigned int *row_height;    ///< RowHeight
+-- 
+2.17.1
+

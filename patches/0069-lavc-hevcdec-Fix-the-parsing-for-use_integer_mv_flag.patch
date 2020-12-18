@@ -1,0 +1,51 @@
+From d5e54042f0c8852c8e6f165b609f8d9afddb8174 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 10 Sep 2020 14:42:43 +0800
+Subject: [PATCH 05/15] lavc/hevcdec: Fix the parsing for use_integer_mv_flag
+
+According to 7.3.6.1, use_integer_mv_flag should be parsed if
+motion_vector_resolution_control_idc equals to 2.
+
+Otherwise wrong parameters in the subsequent parsing procedures
+would be got.
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+---
+ libavcodec/hevcdec.c | 8 ++++++++
+ libavcodec/hevcdec.h | 1 +
+ 2 files changed, 9 insertions(+)
+
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index 32b428091c..770f0072d2 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -815,6 +815,14 @@ static int hls_slice_header(HEVCContext *s)
+                        sh->max_num_merge_cand);
+                 return AVERROR_INVALIDDATA;
+             }
++
++            // Syntax in 7.3.6.1
++            if (s->ps.sps->motion_vector_resolution_control_idc == 2)
++                sh->use_integer_mv_flag = get_bits1(gb);
++            else
++                // Inferred to be equal to motion_vector_resolution_control_idc if not present
++                sh->use_integer_mv_flag = s->ps.sps->motion_vector_resolution_control_idc;
++
+         }
+ 
+         sh->slice_qp_delta = get_se_golomb(gb);
+diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
+index c4618f9848..d1f3028fc1 100644
+--- a/libavcodec/hevcdec.h
++++ b/libavcodec/hevcdec.h
+@@ -302,6 +302,7 @@ typedef struct SliceHeader {
+     int tc_offset;      ///< tc_offset_div2 * 2
+ 
+     unsigned int max_num_merge_cand; ///< 5 - 5_minus_max_num_merge_cand
++    uint8_t use_integer_mv_flag;
+ 
+     unsigned *entry_point_offset;
+     int * offset;
+-- 
+2.17.1
+

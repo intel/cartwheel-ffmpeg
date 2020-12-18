@@ -1,0 +1,86 @@
+From 03b78ae246dd27602af4def7c6c3372c0a0cf2a0 Mon Sep 17 00:00:00 2001
+From: Xu Guangxin <guangxin.xu@intel.com>
+Date: Mon, 16 Mar 2020 03:51:40 -0400
+Subject: [PATCH 32/37] lavc: hevc, do not let missing ref frames invovle in
+ dpb process
+
+We will generate a new frame for a missed reference. The frame can only be used for reference.
+We assign an invalid decode sequence to it, so it will not involve any dpb process
+---
+ libavcodec/hevc_refs.c | 13 ++++++++++++-
+ libavcodec/hevcdec.c   |  4 ++--
+ libavcodec/hevcdec.h   |  3 +++
+ 3 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
+index ef1e1cf10b..e5b7e9bf34 100644
+--- a/libavcodec/hevc_refs.c
++++ b/libavcodec/hevc_refs.c
+@@ -171,8 +171,19 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
+     return 0;
+ }
+ 
++static void unref_missing_refs(HEVCContext *s)
++{
++    for (int i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
++         HEVCFrame *frame = &s->DPB[i];
++         if (frame->sequence == HEVC_DECODE_SEQUENCE_INVALID) {
++             ff_hevc_unref_frame(s, frame, ~0);
++         }
++    }
++}
++
+ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
+ {
++    unref_missing_refs(s);
+     if (IS_IRAP(s) && s->no_rasl_output_flag == 1) {
+         const static int mask = HEVC_FRAME_FLAG_BUMPING | HEVC_FRAME_FLAG_OUTPUT;
+         for (int i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+@@ -419,7 +430,7 @@ static HEVCFrame *generate_missing_ref(HEVCContext *s, int poc)
+     }
+ 
+     frame->poc      = poc;
+-    frame->sequence = s->seq_decode;
++    frame->sequence = HEVC_DECODE_SEQUENCE_INVALID;
+     frame->flags    = 0;
+ 
+     if (s->threads_type == FF_THREAD_FRAME)
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index 7448be482c..a89e998347 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -518,7 +518,7 @@ static int hls_slice_header(HEVCContext *s)
+     }
+ 
+     if ((IS_IDR(s) || IS_BLA(s)) && sh->first_slice_in_pic_flag) {
+-        s->seq_decode = (s->seq_decode + 1) & 0xff;
++        s->seq_decode = (s->seq_decode + 1) & HEVC_DECODE_SEQUENCE_MASK;
+         s->max_ra     = INT_MAX;
+         if (IS_IDR(s))
+             ff_hevc_clear_refs(s);
+@@ -563,7 +563,7 @@ static int hls_slice_header(HEVCContext *s)
+             return pix_fmt;
+         s->avctx->pix_fmt = pix_fmt;
+ 
+-        s->seq_decode = (s->seq_decode + 1) & 0xff;
++        s->seq_decode = (s->seq_decode + 1) & HEVC_DECODE_SEQUENCE_MASK;
+         s->max_ra     = INT_MAX;
+     }
+ 
+diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
+index 89e0809850..8aafc869cb 100644
+--- a/libavcodec/hevcdec.h
++++ b/libavcodec/hevcdec.h
+@@ -308,6 +308,9 @@ typedef struct DBParams {
+ #define HEVC_FRAME_FLAG_LONG_REF  (1 << 2)
+ #define HEVC_FRAME_FLAG_BUMPING   (1 << 3)
+ 
++#define HEVC_DECODE_SEQUENCE_MASK 0xff
++#define HEVC_DECODE_SEQUENCE_INVALID (HEVC_DECODE_SEQUENCE_MASK + 1)
++
+ typedef struct HEVCFrame {
+     AVFrame *frame;
+     ThreadFrame tf;
+-- 
+2.20.1
+

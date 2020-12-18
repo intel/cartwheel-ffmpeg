@@ -1,0 +1,93 @@
+From 6ceee87f23874a0a6f502876c8c2752faef8a303 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Tue, 10 Nov 2020 15:31:18 -0500
+Subject: [PATCH 15/15] lavc/vaapi_hevc: improve scc decode pass rate
+
+1. set missing flags.
+2. correct palette mode parameters.
+3. map SCC Hight Throughput 444 14 profile to SCC Main when the
+stream's bit depth is 8.
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavcodec/vaapi_hevc.c | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
+index cb9db53539..4c46f8d892 100644
+--- a/libavcodec/vaapi_hevc.c
++++ b/libavcodec/vaapi_hevc.c
+@@ -128,7 +128,7 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+     const HEVCPPS          *pps = h->ps.pps;
+ 
+     const ScalingList *scaling_list = NULL;
+-    int pic_param_size, num_comps, err, i;
++    int pic_param_size, num_comps, pre_palette_size, err, i;
+ 
+     VAPictureParameterBufferHEVC *pic_param = (VAPictureParameterBufferHEVC *)&pic->pic_param;
+ 
+@@ -251,6 +251,12 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+             pic->pic_param.rext.cr_qp_offset_list[i]        = pps->cr_qp_offset_list[i];
+     }
+ 
++    pre_palette_size = pps->pps_palette_predictor_initializers_present_flag ?
++                       pps->pps_num_palette_predictor_initializers :
++                       (sps->sps_palette_predictor_initializers_present_flag ?
++                       sps->sps_num_palette_predictor_initializers_minus1 + 1 :
++                       0);
++
+     if (avctx->profile == FF_PROFILE_HEVC_SCC) {
+         pic->pic_param.scc = (VAPictureParameterBufferHEVCScc) {
+             .screen_content_pic_fields.bits = {
+@@ -264,17 +270,22 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+             },
+             .palette_max_size                               = sps->palette_max_size,
+             .delta_palette_max_predictor_size               = sps->delta_palette_max_predictor_size,
+-            .predictor_palette_size                         = pps->pps_num_palette_predictor_initializers,
+-            .pps_act_y_qp_offset_plus5                      = pps->pps_act_y_qp_offset + 5,
+-            .pps_act_cb_qp_offset_plus5                     = pps->pps_act_cb_qp_offset + 5,
+-            .pps_act_cr_qp_offset_plus3                     = pps->pps_act_cr_qp_offset + 3,
++            .predictor_palette_size                         = pre_palette_size,
++            .pps_act_y_qp_offset_plus5                      = pps->residual_adaptive_colour_transform_enabled_flag ?
++                                                              pps->pps_act_y_qp_offset + 5 : 0,
++            .pps_act_cb_qp_offset_plus5                     = pps->residual_adaptive_colour_transform_enabled_flag ?
++                                                              pps->pps_act_cb_qp_offset + 5 : 0,
++            .pps_act_cr_qp_offset_plus3                     = pps->residual_adaptive_colour_transform_enabled_flag ?
++                                                              pps->pps_act_cr_qp_offset + 3 : 0,
+         };
+ 
+         num_comps = pps->monochrome_palette_flag ? 1 : 3;
+         for (int comp = 0; comp < num_comps; comp++)
+-            for (i = 0; i < pps->pps_num_palette_predictor_initializers; i++)
+-                pic->pic_param.scc.predictor_palette_entries[comp][i]
+-                                                            = pps->pps_palette_predictor_initializer[comp][i];
++            for (i = 0; i < pre_palette_size; i++)
++                pic->pic_param.scc.predictor_palette_entries[comp][i] =
++                    pps->pps_palette_predictor_initializers_present_flag ?
++                    pps->pps_palette_predictor_initializer[comp][i]:
++                    sps->sps_palette_predictor_initializer[comp][i];
+     }
+ 
+ #endif
+@@ -510,6 +521,7 @@ static int vaapi_hevc_decode_slice(AVCodecContext *avctx,
+         pic->last_slice_param.rext = (VASliceParameterBufferHEVCRext) {
+             .slice_ext_flags.bits = {
+                 .cu_chroma_qp_offset_enabled_flag = sh->cu_chroma_qp_offset_enabled_flag,
++                .use_integer_mv_flag = sh->use_integer_mv_flag,
+             },
+             .slice_act_y_qp_offset  = sh->slice_act_y_qp_offset,
+             .slice_act_cb_qp_offset = sh->slice_act_cb_qp_offset,
+@@ -620,7 +632,9 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
+         return VAProfileHEVCSccMain;
+     else if (!strcmp(profile->name, "Screen-Extended Main 10"))
+         return VAProfileHEVCSccMain10;
+-    else if (!strcmp(profile->name, "Screen-Extended Main 4:4:4"))
++    else if (!strcmp(profile->name, "Screen-Extended Main 4:4:4") ||
++             (!strcmp(profile->name, "Screen-Extended High Throughput 4:4:4 14") &&
++             (sps->bit_depth == 8 && sps->bit_depth_chroma == 8)))
+         return VAProfileHEVCSccMain444;
+ #if VA_CHECK_VERSION(1, 8, 0)
+     else if (!strcmp(profile->name, "Screen-Extended Main 4:4:4 10"))
+-- 
+2.17.1
+

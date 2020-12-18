@@ -1,0 +1,29 @@
+From 9a6fcd52ad17a3fcaeca865dd2e441f32fe0aceb Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 16 Jul 2020 17:08:52 +0800
+Subject: [PATCH 10/15] lavc/vaapi_hevc: Set correct rps type for scc
+
+According to 8.1.3 and 8.3.2.
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+---
+ libavcodec/vaapi_hevc.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
+index 28fe76c40e..fb9cee36bd 100644
+--- a/libavcodec/vaapi_hevc.c
++++ b/libavcodec/vaapi_hevc.c
+@@ -88,6 +88,9 @@ static int find_frame_rps_type(const HEVCContext *h, const HEVCFrame *pic)
+             return VA_PICTURE_HEVC_RPS_LT_CURR;
+     }
+ 
++    if (h->ps.pps->pps_curr_pic_ref_enabled_flag)
++        return VA_PICTURE_HEVC_LONG_TERM_REFERENCE;
++
+     return 0;
+ }
+ 
+-- 
+2.17.1
+

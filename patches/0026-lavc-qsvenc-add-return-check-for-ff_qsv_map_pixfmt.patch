@@ -1,0 +1,42 @@
+From 7e02d425f8138b2754119c575dfcc15a85284baa Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Mon, 24 Feb 2020 19:27:19 +0800
+Subject: [PATCH 26/28] lavc/qsvenc: add return check for ff_qsv_map_pixfmt
+
+Return an error directly if pixfmt is not supported for encoding, otherwise
+it may be hidden until query/check in MSDK.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavcodec/qsvenc.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index a64d0c7..8973f45 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -436,7 +436,9 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+     if (!desc)
+         return AVERROR_BUG;
+ 
+-    ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC);
++    ret = ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC);
++    if (ret < 0)
++        return AVERROR_BUG;
+ 
+     q->param.mfx.FrameInfo.CropX          = 0;
+     q->param.mfx.FrameInfo.CropY          = 0;
+@@ -537,7 +539,9 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+     if (!desc)
+         return AVERROR_BUG;
+ 
+-    ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC);
++    ret = ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC);
++    if (ret < 0)
++        return AVERROR_BUG;
+ 
+     q->param.mfx.FrameInfo.CropX          = 0;
+     q->param.mfx.FrameInfo.CropY          = 0;
+-- 
+2.7.4
+

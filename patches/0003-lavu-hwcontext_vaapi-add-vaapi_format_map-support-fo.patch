@@ -1,0 +1,38 @@
+From 410fc9255c794500193efca186761bac5160922e Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Tue, 10 Sep 2019 16:47:27 +0800
+Subject: [PATCH 03/28] lavu/hwcontext_vaapi: add vaapi_format_map support for
+ 0YUV/Y410
+
+VA_RT_FORMAT describes the desired sampling format for surface.
+
+When creating surface, VA_RT_FORMAT will be used firstly to choose
+the expected fourcc/media_format for the surface. And the fourcc
+will be revised by the value of VASurfaceAttribPixelFormat.
+
+Add vaapi_format_map support for new pixel_format.
+This is fundamental for both VA-API and QSV.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavutil/hwcontext_vaapi.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
+index b306965..96be79e 100644
+--- a/libavutil/hwcontext_vaapi.c
++++ b/libavutil/hwcontext_vaapi.c
+@@ -119,6 +119,10 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
+ #ifdef VA_FOURCC_Y210
+     MAP(Y210, YUV422_10,  Y210, 0),
+ #endif
++    MAP(AYUV, YUV444,     0YUV, 0),
++#ifdef VA_FOURCC_Y410
++    MAP(Y410, YUV444_10,  Y410, 0),
++#endif
+     MAP(411P, YUV411,  YUV411P, 0),
+     MAP(422V, YUV422,  YUV440P, 0),
+     MAP(444P, YUV444,  YUV444P, 0),
+-- 
+2.7.4
+

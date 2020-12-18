@@ -1,0 +1,368 @@
+From b3bfef9365aed29f3f8ca208eff2862b66038c66 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Tue, 8 Sep 2020 11:17:27 +0800
+Subject: [PATCH 1/6] qsv: add ${includedir}/mfx to the search path for old
+ versions of libmfx
+
+${includedir}/mfx has been added to Cflags in libmfx.pc for the current
+libmfx. We may add ${includedir}/mfx to the search path for olda
+versions of libmfx so that we may include foo.h instead of mfx/foo.h
+
+After applying this change, we won't need to change #include to include
+the right header files when the mfx header files are installed to a new
+directory for a new version of libmfx. E.g. for libmfx 2.0 (oneVPL,
+https://github.com/oneapi-src/oneVPL), the header files will be
+installed in vpl directory
+
+If your libmfx comes without pkg-config support, this patch requires a
+small change to your environment setting (e.g. adding
+/opt/intel/mediasdk/include/mfx instead of /opt/intel/mediasdk/include
+to CFLAGS) so that the build can find the headers
+---
+ configure                        | 15 ++++++++++++---
+ fftools/ffmpeg_qsv.c             |  2 +-
+ libavcodec/qsv.c                 |  8 ++++----
+ libavcodec/qsv.h                 |  2 +-
+ libavcodec/qsv_internal.h        |  2 +-
+ libavcodec/qsvdec.c              |  2 +-
+ libavcodec/qsvdec.h              |  2 +-
+ libavcodec/qsvdec_h2645.c        |  2 +-
+ libavcodec/qsvdec_other.c        |  2 +-
+ libavcodec/qsvenc.c              |  2 +-
+ libavcodec/qsvenc.h              |  2 +-
+ libavcodec/qsvenc_h264.c         |  2 +-
+ libavcodec/qsvenc_hevc.c         |  2 +-
+ libavcodec/qsvenc_jpeg.c         |  2 +-
+ libavcodec/qsvenc_mpeg2.c        |  2 +-
+ libavcodec/qsvenc_vp9.c          |  2 +-
+ libavfilter/qsvvpp.h             |  2 +-
+ libavfilter/vf_deinterlace_qsv.c |  2 +-
+ libavfilter/vf_scale_qsv.c       |  2 +-
+ libavutil/hwcontext_opencl.c     |  2 +-
+ libavutil/hwcontext_qsv.c        |  2 +-
+ libavutil/hwcontext_qsv.h        |  2 +-
+ 22 files changed, 36 insertions(+), 27 deletions(-)
+
+diff --git a/configure b/configure
+index 6c2b7d217a..271b56dd47 100755
+--- a/configure
++++ b/configure
+@@ -1458,6 +1458,14 @@ check_pkg_config(){
+         eval add_cflags \$${name}_cflags
+ }
+ 
++append_subdir_to_pkg_includedir(){
++    log append_subdir_to_pkg_includedir "$@"
++    name="$1"
++    subdir="$2"
++    incdir=$($pkg_config --variable=includedir $name)
++    add_cflags -I$incdir/$subdir
++}
++
+ test_exec(){
+     test_ld "cc" "$@" && { enabled cross_compile || $TMPE >> $logfile 2>&1; }
+ }
+@@ -6370,10 +6378,11 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
+ # Media SDK or Intel Media Server Studio, these don't come with
+ # pkg-config support.  Instead, users should make sure that the build
+ # can find the libraries and headers through other means.
+-enabled libmfx            && { check_pkg_config libmfx libmfx "mfx/mfxvideo.h" MFXInit ||
+-                               { require libmfx "mfx/mfxvideo.h" MFXInit "-llibmfx $advapi32_extralibs" && warn "using libmfx without pkg-config"; } }
++enabled libmfx            && { check_pkg_config libmfx libmfx "mfxvideo.h" MFXInit ||
++                               { check_pkg_config libmfx libmfx "mfx/mfxvideo.h" MFXInit && append_subdir_to_pkg_includedir libmfx mfx; } ||
++                               { require libmfx "mfxvideo.h" MFXInit "-llibmfx $advapi32_extralibs" && warn "using libmfx without pkg-config"; } }
+ if enabled libmfx; then
+-   check_cc MFX_CODEC_VP9 "mfx/mfxvp9.h mfx/mfxstructures.h" "MFX_CODEC_VP9"
++   check_cc MFX_CODEC_VP9 "mfxvp9.h mfxstructures.h" "MFX_CODEC_VP9"
+ fi
+ 
+ enabled libmodplug        && require_pkg_config libmodplug libmodplug libmodplug/modplug.h ModPlug_Load
+diff --git a/fftools/ffmpeg_qsv.c b/fftools/ffmpeg_qsv.c
+index 960c88b69d..0df0b5832c 100644
+--- a/fftools/ffmpeg_qsv.c
++++ b/fftools/ffmpeg_qsv.c
+@@ -16,7 +16,7 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  */
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ #include <stdlib.h>
+ 
+ #include "libavutil/dict.h"
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index fb53768193..d91a121fec 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -18,9 +18,9 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  */
+ 
+-#include <mfx/mfxvideo.h>
+-#include <mfx/mfxplugin.h>
+-#include <mfx/mfxjpeg.h>
++#include <mfxvideo.h>
++#include <mfxplugin.h>
++#include <mfxjpeg.h>
+ 
+ #include <stdio.h>
+ #include <string.h>
+@@ -39,7 +39,7 @@
+ #define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
+ 
+ #if QSV_VERSION_ATLEAST(1, 12)
+-#include "mfx/mfxvp8.h"
++#include "mfxvp8.h"
+ #endif
+ 
+ int ff_qsv_codec_id_to_mfx(enum AVCodecID codec_id)
+diff --git a/libavcodec/qsv.h b/libavcodec/qsv.h
+index b77158ec26..04ae0d6f34 100644
+--- a/libavcodec/qsv.h
++++ b/libavcodec/qsv.h
+@@ -21,7 +21,7 @@
+ #ifndef AVCODEC_QSV_H
+ #define AVCODEC_QSV_H
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/buffer.h"
+ 
+diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
+index 5d276b091c..4f0f1dae87 100644
+--- a/libavcodec/qsv_internal.h
++++ b/libavcodec/qsv_internal.h
+@@ -39,7 +39,7 @@
+ #include "libavutil/hwcontext_vaapi.h"
+ #endif
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/frame.h"
+ 
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index c666aaeb52..e49f08a41e 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -24,7 +24,7 @@
+ #include <string.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/hwcontext.h"
+diff --git a/libavcodec/qsvdec.h b/libavcodec/qsvdec.h
+index f3b7344cba..3f3882754f 100644
+--- a/libavcodec/qsvdec.h
++++ b/libavcodec/qsvdec.h
+@@ -26,7 +26,7 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/fifo.h"
+ #include "libavutil/frame.h"
+diff --git a/libavcodec/qsvdec_h2645.c b/libavcodec/qsvdec_h2645.c
+index 02c41883b6..ad0fcae3e5 100644
+--- a/libavcodec/qsvdec_h2645.c
++++ b/libavcodec/qsvdec_h2645.c
+@@ -25,7 +25,7 @@
+ #include <stdint.h>
+ #include <string.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/fifo.h"
+diff --git a/libavcodec/qsvdec_other.c b/libavcodec/qsvdec_other.c
+index 2775e07955..80bc79e9fa 100644
+--- a/libavcodec/qsvdec_other.c
++++ b/libavcodec/qsvdec_other.c
+@@ -24,7 +24,7 @@
+ #include <stdint.h>
+ #include <string.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/fifo.h"
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index ebab5486e4..8fc9efc6c5 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -23,7 +23,7 @@
+ 
+ #include <string.h>
+ #include <sys/types.h>
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/hwcontext.h"
+diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
+index 6d305f87dd..4c18f58a8b 100644
+--- a/libavcodec/qsvenc.h
++++ b/libavcodec/qsvenc.h
+@@ -26,7 +26,7 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/avutil.h"
+ #include "libavutil/fifo.h"
+diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
+index 17be0a7f14..28020b367d 100644
+--- a/libavcodec/qsvenc_h264.c
++++ b/libavcodec/qsvenc_h264.c
+@@ -24,7 +24,7 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/opt.h"
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index 987b4b4689..bdaa87272e 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -22,7 +22,7 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/opt.h"
+diff --git a/libavcodec/qsvenc_jpeg.c b/libavcodec/qsvenc_jpeg.c
+index f76af9486b..163608a725 100644
+--- a/libavcodec/qsvenc_jpeg.c
++++ b/libavcodec/qsvenc_jpeg.c
+@@ -22,7 +22,7 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/opt.h"
+diff --git a/libavcodec/qsvenc_mpeg2.c b/libavcodec/qsvenc_mpeg2.c
+index 0e34bb75dc..dd7b867ed6 100644
+--- a/libavcodec/qsvenc_mpeg2.c
++++ b/libavcodec/qsvenc_mpeg2.c
+@@ -22,7 +22,7 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/opt.h"
+diff --git a/libavcodec/qsvenc_vp9.c b/libavcodec/qsvenc_vp9.c
+index ce44c09397..159f5cb983 100644
+--- a/libavcodec/qsvenc_vp9.c
++++ b/libavcodec/qsvenc_vp9.c
+@@ -22,7 +22,7 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "libavutil/common.h"
+ #include "libavutil/opt.h"
+diff --git a/libavfilter/qsvvpp.h b/libavfilter/qsvvpp.h
+index c2bcce7548..cd3655b7a3 100644
+--- a/libavfilter/qsvvpp.h
++++ b/libavfilter/qsvvpp.h
+@@ -24,7 +24,7 @@
+ #ifndef AVFILTER_QSVVPP_H
+ #define AVFILTER_QSVVPP_H
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "avfilter.h"
+ 
+diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
+index f7f9d916db..7b61b72599 100644
+--- a/libavfilter/vf_deinterlace_qsv.c
++++ b/libavfilter/vf_deinterlace_qsv.c
+@@ -21,7 +21,7 @@
+  * deinterlace video filter - QSV
+  */
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include <stdio.h>
+ #include <string.h>
+diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
+index 9eb59325c3..3ddc3acfe0 100644
+--- a/libavfilter/vf_scale_qsv.c
++++ b/libavfilter/vf_scale_qsv.c
+@@ -21,7 +21,7 @@
+  * scale video filter - QSV
+  */
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include <stdio.h>
+ #include <string.h>
+diff --git a/libavutil/hwcontext_opencl.c b/libavutil/hwcontext_opencl.c
+index cd8638abbb..029be4034a 100644
+--- a/libavutil/hwcontext_opencl.c
++++ b/libavutil/hwcontext_opencl.c
+@@ -47,7 +47,7 @@
+ 
+ #if HAVE_OPENCL_VAAPI_INTEL_MEDIA
+ #if CONFIG_LIBMFX
+-#include <mfx/mfxstructures.h>
++#include <mfxstructures.h>
+ #endif
+ #include <va/va.h>
+ #include <CL/cl_va_api_media_sharing_intel.h>
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index 34ff5e5572..011a76dfa9 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -19,7 +19,7 @@
+ #include <stdint.h>
+ #include <string.h>
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ #include "config.h"
+ 
+diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
+index b98d611cfc..42e34d0dda 100644
+--- a/libavutil/hwcontext_qsv.h
++++ b/libavutil/hwcontext_qsv.h
+@@ -19,7 +19,7 @@
+ #ifndef AVUTIL_HWCONTEXT_QSV_H
+ #define AVUTIL_HWCONTEXT_QSV_H
+ 
+-#include <mfx/mfxvideo.h>
++#include <mfxvideo.h>
+ 
+ /**
+  * @file
+-- 
+2.25.1
+

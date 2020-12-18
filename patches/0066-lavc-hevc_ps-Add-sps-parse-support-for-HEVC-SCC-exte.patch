@@ -1,0 +1,128 @@
+From b72348b9d0d7d0a5e2956cf98f10d6e3ac2fc0e0 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 10 Sep 2020 14:42:40 +0800
+Subject: [PATCH 02/15] lavc/hevc_ps: Add sps parse support for HEVC SCC
+ extension syntax
+
+According to 7.3.2.2.3 in T-REC-H.265-201911.
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
+---
+ libavcodec/hevc.h    |  3 +++
+ libavcodec/hevc_ps.c | 44 +++++++++++++++++++++++++++++++++++++++++---
+ libavcodec/hevc_ps.h | 15 +++++++++++++++
+ 3 files changed, 59 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/hevc.h b/libavcodec/hevc.h
+index 1804755327..6b454a75c1 100644
+--- a/libavcodec/hevc.h
++++ b/libavcodec/hevc.h
+@@ -154,6 +154,9 @@ enum {
+     // get near that, though, so set a lower limit here with the maximum
+     // possible value for 4K video (at most 135 16x16 Ctb rows).
+     HEVC_MAX_ENTRY_POINT_OFFSETS = HEVC_MAX_TILE_COLUMNS * 135,
++
++    // A.3.7: Screen content coding extensions
++    HEVC_MAX_PALETTE_PREDICTOR_SIZE = 128,
+ };
+ 
+ 
+diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
+index 584e2ba0d6..d65efc1aef 100644
+--- a/libavcodec/hevc_ps.c
++++ b/libavcodec/hevc_ps.c
+@@ -909,7 +909,7 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
+     HEVCWindow *ow;
+     int ret = 0;
+     int log2_diff_max_min_transform_block_size;
+-    int bit_depth_chroma, start, vui_present, sublayer_ordering_info;
++    int bit_depth_chroma, start, vui_present, sublayer_ordering_info, num_comps;
+     int i;
+ 
+     // Coded parameters
+@@ -1130,8 +1130,20 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
+         decode_vui(gb, avctx, apply_defdispwin, sps);
+ 
+     if (get_bits1(gb)) { // sps_extension_flag
+-        sps->sps_range_extension_flag = get_bits1(gb);
+-        skip_bits(gb, 7); //sps_extension_7bits = get_bits(gb, 7);
++        sps->sps_range_extension_flag      = get_bits1(gb);
++
++        /* To keep consistency with the workaround for hevc-conformance-PS_A_VIDYO_3
++         * in PPS, here ignore sps_multilayer_extension_flag, sps_3d_extension_flag
++         * and sps_scc_extension_flag for non-SCC streams too. Note multilayer_extension
++         * or 3d_extension is not implemented in FFmpeg */
++        if (sps->ptl.general_ptl.profile_idc == FF_PROFILE_HEVC_SCC) {
++            sps->sps_multilayer_extension_flag = get_bits1(gb);
++            sps->sps_3d_extension_flag         = get_bits1(gb);
++            sps->sps_scc_extension_flag        = get_bits1(gb);
++            skip_bits(gb, 4); //sps_extension_4bits = get_bits(gb, 4);
++        } else
++            skip_bits(gb, 7);
++
+         if (sps->sps_range_extension_flag) {
+             sps->transform_skip_rotation_enabled_flag = get_bits1(gb);
+             sps->transform_skip_context_enabled_flag  = get_bits1(gb);
+@@ -1157,6 +1169,32 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
+                 av_log(avctx, AV_LOG_WARNING,
+                    "cabac_bypass_alignment_enabled_flag not yet implemented\n");
+         }
++        if (sps->sps_multilayer_extension_flag || sps->sps_3d_extension_flag) {
++            av_log(avctx, AV_LOG_ERROR,
++                   "multilayer_extension or 3d_extension not yet implemented\n");
++            return AVERROR_PATCHWELCOME;
++        }
++
++        if (sps->sps_scc_extension_flag) {
++            sps->sps_curr_pic_ref_enabled_flag = get_bits1(gb);
++            sps->palette_mode_enabled_flag     = get_bits1(gb);
++            if (sps->palette_mode_enabled_flag) {
++                sps->palette_max_size = get_ue_golomb_long(gb);
++                sps->delta_palette_max_predictor_size = get_ue_golomb_long(gb);
++                sps->sps_palette_predictor_initializers_present_flag = get_bits1(gb);
++
++                if (sps->sps_palette_predictor_initializers_present_flag) {
++                    sps->sps_num_palette_predictor_initializers_minus1 = get_ue_golomb_long(gb);
++                    num_comps = !sps->chroma_format_idc ? 1 : 3;
++                    for (int comp = 0; comp < num_comps; comp++)
++                        for (i = 0; i <= sps->sps_num_palette_predictor_initializers_minus1; i++)
++                            sps->sps_palette_predictor_initializer[comp][i] =
++                                    get_bits(gb, !comp ? sps->bit_depth : sps->bit_depth_chroma);
++                }
++            }
++            sps->motion_vector_resolution_control_idc   = get_bits(gb, 2);
++            sps->intra_boundary_filtering_disabled_flag = get_bits1(gb);
++        }
+     }
+     if (apply_defdispwin) {
+         sps->output_window.left_offset   += sps->vui.def_disp_win.left_offset;
+diff --git a/libavcodec/hevc_ps.h b/libavcodec/hevc_ps.h
+index 2a1bbf6489..be23758008 100644
+--- a/libavcodec/hevc_ps.h
++++ b/libavcodec/hevc_ps.h
+@@ -223,6 +223,21 @@ typedef struct HEVCSPS {
+     int persistent_rice_adaptation_enabled_flag;
+     int cabac_bypass_alignment_enabled_flag;
+ 
++    // Not yet implemented
++    int sps_multilayer_extension_flag;
++    int sps_3d_extension_flag;
++
++    int sps_scc_extension_flag;
++    int sps_curr_pic_ref_enabled_flag;
++    int palette_mode_enabled_flag;
++    int palette_max_size;
++    int delta_palette_max_predictor_size;
++    int sps_palette_predictor_initializers_present_flag;
++    int sps_num_palette_predictor_initializers_minus1;
++    int sps_palette_predictor_initializer[3][HEVC_MAX_PALETTE_PREDICTOR_SIZE];
++    int motion_vector_resolution_control_idc;
++    int intra_boundary_filtering_disabled_flag;
++
+     ///< coded frame dimension in various units
+     int width;
+     int height;
+-- 
+2.17.1
+

@@ -1,0 +1,32 @@
+From f8d4ef8c1779e64cb6830f5051362441d04b2c65 Mon Sep 17 00:00:00 2001
+From: Xu Guangxin <guangxin.xu@intel.com>
+Date: Tue, 9 Jun 2020 11:09:32 +0800
+Subject: [PATCH] lavc/hevc_refs: exclude current frame from long term refs
+
+suppose
+a. You have 3 frames, 0, 1, 4096.
+b. The ltMask is 0xfff and use_msb is 0.
+c. The 0, 1 are lt refs for 4096.
+d. you are decode frame 4096, and get the 0 frame.
+Since 4096 & ltMask is 0 too, even you want get 0, find_ref_idx may give you 4096.
+add_candidate_ref will report an error for this
+---
+ libavcodec/hevc_refs.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
+index 4f6d985..8736c33 100644
+--- a/libavcodec/hevc_refs.c
++++ b/libavcodec/hevc_refs.c
+@@ -366,7 +366,7 @@ static HEVCFrame *find_ref_idx(HEVCContext *s, int poc, uint8_t use_msb)
+     for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+         HEVCFrame *ref = &s->DPB[i];
+         if (ref->frame->buf[0] && ref->sequence == s->seq_decode) {
+-            if ((ref->poc & mask) == poc)
++            if ((ref->poc & mask) == poc && (use_msb || ref->poc != s->poc))
+                 return ref;
+         }
+     }
+-- 
+2.7.4
+

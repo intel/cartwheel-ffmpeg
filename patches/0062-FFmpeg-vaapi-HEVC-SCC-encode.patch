@@ -1,0 +1,230 @@
+From f024b8e0ee0c873962d131388a05053791c90a60 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Sun, 18 Oct 2020 16:15:37 -0400
+Subject: [PATCH] FFmpeg vaapi HEVC SCC encode.
+
+Depend on 0008 hevc low power enable patch.
+
+Main:
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt yuv420p -s:v 320x240 -r:v 30 -i 320x240_100.i420 -vf 'format=nv12,hwupload' -c:v hevc_vaapi -profile:v main -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+
+Main10:
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt p010 -s:v 320x240 -r:v 30 -i 320x240_100.p010 -vf 'format=p010,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+
+Main 444:
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt 0yuv -s:v 320x240 -r:v 30 -i 320x240_100.ayuv -vf 'format=0yuv,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+
+Main 444-10:
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt y410 -s:v 320x240 -r:v 30 -i 320x240_100.y410 -vf 'format=y410,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavcodec/avcodec.h           |  1 +
+ libavcodec/vaapi_encode.c      |  1 +
+ libavcodec/vaapi_encode_h265.c | 56 ++++++++++++++++++++++++++++------
+ libavutil/pixdesc.c            |  6 ++--
+ 4 files changed, 50 insertions(+), 14 deletions(-)
+
+diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
+index f870da438f..4bbdb3740f 100644
+--- a/libavcodec/avcodec.h
++++ b/libavcodec/avcodec.h
+@@ -1961,6 +1961,7 @@ typedef struct AVCodecContext {
+ #define FF_PROFILE_HEVC_MAIN_10                     2
+ #define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3
+ #define FF_PROFILE_HEVC_REXT                        4
++#define FF_PROFILE_HEVC_SCC                         9
+ 
+ #define FF_PROFILE_AV1_MAIN                         0
+ #define FF_PROFILE_AV1_HIGH                         1
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index 019d3dedfd..f561feb38d 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -1255,6 +1255,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
+     { "YUV422",    VA_RT_FORMAT_YUV422,        8, 3, 1, 0 },
+ #if VA_CHECK_VERSION(1, 2, 0)
+     { "YUV422_10", VA_RT_FORMAT_YUV422_10,    10, 3, 1, 0 },
++    { "YUV444_10", VA_RT_FORMAT_YUV444_10,    10, 3, 0, 0 },
+ #endif
+     { "YUV444",    VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
+     { "YUV411",    VA_RT_FORMAT_YUV411,        8, 3, 2, 0 },
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index 41d9968160..a246fe411d 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -315,17 +315,13 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+     ptl->general_profile_idc   = avctx->profile;
+     ptl->general_tier_flag     = priv->tier;
+ 
+-    if (chroma_format == 1) {
+-        ptl->general_profile_compatibility_flag[1] = bit_depth ==  8;
+-        ptl->general_profile_compatibility_flag[2] = bit_depth <= 10;
+-    }
+-    ptl->general_profile_compatibility_flag[4] = 1;
+-
++    ptl->general_profile_compatibility_flag[ptl->general_profile_idc] = 1;
+     ptl->general_progressive_source_flag    = 1;
+     ptl->general_interlaced_source_flag     = 0;
+     ptl->general_non_packed_constraint_flag = 1;
+     ptl->general_frame_only_constraint_flag = 1;
+ 
++    ptl->general_max_14bit_constraint_flag = bit_depth <= 14;
+     ptl->general_max_12bit_constraint_flag = bit_depth <= 12;
+     ptl->general_max_10bit_constraint_flag = bit_depth <= 10;
+     ptl->general_max_8bit_constraint_flag  = bit_depth ==  8;
+@@ -334,7 +330,8 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+     ptl->general_max_420chroma_constraint_flag  = chroma_format <= 1;
+     ptl->general_max_monochrome_constraint_flag = chroma_format == 0;
+ 
+-    ptl->general_intra_constraint_flag = ctx->gop_size == 1;
++    ptl->general_intra_constraint_flag =
++        (avctx->profile == FF_PROFILE_HEVC_SCC) ? 0 : ctx->gop_size == 1;
+ 
+     ptl->general_lower_bit_rate_constraint_flag = 1;
+ 
+@@ -530,6 +527,14 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+     vui->log2_max_mv_length_horizontal = 15;
+     vui->log2_max_mv_length_vertical   = 15;
+ 
++    if (avctx->profile == FF_PROFILE_HEVC_SCC) {
++        sps->sps_extension_present_flag = 1;
++        sps->sps_scc_extension_flag = 1;
++        sps->sps_curr_pic_ref_enabled_flag = 1;
++        sps->palette_mode_enabled_flag = 1;
++        sps->palette_max_size = 64;
++        sps->delta_palette_max_predictor_size = 32;
++    }
+ 
+     // PPS
+ 
+@@ -588,6 +593,12 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+ 
+     pps->pps_loop_filter_across_slices_enabled_flag = 1;
+ 
++    if (avctx->profile == FF_PROFILE_HEVC_SCC) {
++        pps->pps_extension_present_flag = 1;
++        pps->pps_scc_extension_flag =1;
++        pps->pps_curr_pic_ref_enabled_flag = 1;
++    }
++
+     // Fill VAAPI parameter buffers.
+ 
+     *vseq = (VAEncSequenceParameterBufferHEVC) {
+@@ -643,6 +654,11 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+             sps->log2_diff_max_min_pcm_luma_coding_block_size,
+ 
+         .vui_parameters_present_flag = 0,
++
++        .scc_fields.bits = {
++            .palette_mode_enabled_flag = sps->palette_mode_enabled_flag,
++        }
++
+     };
+ 
+     *vpic = (VAEncPictureParameterBufferHEVC) {
+@@ -693,6 +709,10 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+             .enable_gpu_weighted_prediction = 0,
+             .no_output_of_prior_pics_flag   = 0,
+         },
++
++        .scc_fields.bits = {
++            .pps_curr_pic_ref_enabled_flag = pps->pps_curr_pic_ref_enabled_flag,
++        }
+     };
+ 
+     if (pps->tiles_enabled_flag) {
+@@ -930,6 +950,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+     sh->slice_segment_address           = slice->block_start;
+ 
+     sh->slice_type = hpic->slice_type;
++
+     // driver requires low delay B frame in low power mode
+     if (sh->slice_type == HEVC_SLICE_P && priv->b_frame_strategy)
+         sh->slice_type = HEVC_SLICE_B;
+@@ -1021,8 +1042,14 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+             sh->collocated_ref_idx      = 0;
+         }
+ 
+-        sh->num_ref_idx_active_override_flag = 0;
+-        sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
++
++        if (avctx->profile == FF_PROFILE_HEVC_SCC) {
++            sh->num_ref_idx_active_override_flag = 1;
++            sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1 + 1;
++        } else {
++            sh->num_ref_idx_active_override_flag = 0;
++            sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
++        }
+         sh->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
+     }
+ 
+@@ -1044,7 +1071,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+         .slice_type                 = sh->slice_type,
+         .slice_pic_parameter_set_id = sh->slice_pic_parameter_set_id,
+ 
+-        .num_ref_idx_l0_active_minus1 = sh->num_ref_idx_l0_active_minus1,
++        .num_ref_idx_l0_active_minus1 = sh->num_ref_idx_active_override_flag ?
++                                        sh->num_ref_idx_l0_active_minus1 - 1 :
++                                        sh->num_ref_idx_l0_active_minus1,
+         .num_ref_idx_l1_active_minus1 = sh->num_ref_idx_l1_active_minus1,
+ 
+         .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
+@@ -1173,6 +1202,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+     { FF_PROFILE_HEVC_REXT,    12, 3, 1, 1, VAProfileHEVCMain12     },
+     { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
+     { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
++    { FF_PROFILE_HEVC_SCC,      8, 3, 1, 1, VAProfileHEVCSccMain    },
++    { FF_PROFILE_HEVC_SCC,     10, 3, 1, 1, VAProfileHEVCSccMain10  },
++    { FF_PROFILE_HEVC_SCC,      8, 3, 0, 0, VAProfileHEVCSccMain444 },
++#endif
++#if VA_CHECK_VERSION(1, 9, 0)
++    { FF_PROFILE_HEVC_SCC,     10, 3, 0, 0, VAProfileHEVCSccMain444_10 },
+ #endif
+ 
+     { FF_PROFILE_UNKNOWN }
+@@ -1294,6 +1329,7 @@ static const AVOption vaapi_encode_h265_options[] = {
+     { PROFILE("main",               FF_PROFILE_HEVC_MAIN) },
+     { PROFILE("main10",             FF_PROFILE_HEVC_MAIN_10) },
+     { PROFILE("rext",               FF_PROFILE_HEVC_REXT) },
++    { PROFILE("scc",                FF_PROFILE_HEVC_SCC) },
+ #undef PROFILE
+ 
+     { "tier", "Set tier (general_tier_flag)",
+diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
+index 82df9f0f9a..d42aaa989e 100644
+--- a/libavutil/pixdesc.c
++++ b/libavutil/pixdesc.c
+@@ -264,27 +264,25 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+     },
+     [AV_PIX_FMT_Y410LE] = {
+         .name = "y410le",
+-        .nb_components = 4,
++        .nb_components = 3,
+         .log2_chroma_w = 0,
+         .log2_chroma_h = 0,
+         .comp = {
+             { 0, 32, 10, 0, 10, 31, 9, 11 },        /* Y */
+             { 0, 32,  0, 0, 10, 31, 9,  1 },        /* U */
+             { 0, 32, 20, 0, 10, 31, 9, 21 },        /* V */
+-            { 0, 32, 30, 0,  2, 31, 1, 31 },        /* A */
+         },
+         .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BITSTREAM,
+     },
+     [AV_PIX_FMT_Y410BE] = {
+         .name = "y410be",
+-        .nb_components = 4,
++        .nb_components = 3,
+         .log2_chroma_w = 0,
+         .log2_chroma_h = 0,
+         .comp = {
+             { 0, 32, 10, 0, 10, 31, 9, 11 },        /* Y */
+             { 0, 32,  0, 0, 10, 31, 9,  1 },        /* U */
+             { 0, 32, 20, 0, 10, 31, 9, 21 },        /* V */
+-            { 0, 32, 30, 0,  2, 31, 1, 31 },        /* A */
+         },
+         .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BITSTREAM | AV_PIX_FMT_FLAG_BE,
+     },
+-- 
+2.17.1
+

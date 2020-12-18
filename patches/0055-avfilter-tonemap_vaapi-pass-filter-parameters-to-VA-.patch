@@ -1,0 +1,28 @@
+From dc0767ba7d001feead74e277250eb479e5f59271 Mon Sep 17 00:00:00 2001
+From: Xinpeng Sun <xinpeng.sun@intel.com>
+Date: Fri, 17 Jan 2020 11:56:50 +0800
+Subject: [PATCH 1/2] avfilter/tonemap_vaapi: pass filter parameters to VA
+ parameter buffer
+
+Signed-off-by: Xinpeng Sun <xinpeng.sun@intel.com>
+---
+ libavfilter/vf_tonemap_vaapi.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/libavfilter/vf_tonemap_vaapi.c b/libavfilter/vf_tonemap_vaapi.c
+index 2f41b90424..540d656dca 100644
+--- a/libavfilter/vf_tonemap_vaapi.c
++++ b/libavfilter/vf_tonemap_vaapi.c
+@@ -296,6 +296,9 @@ static int tonemap_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame
+     if (err < 0)
+         goto fail;
+ 
++    params.filters     = &vpp_ctx->filter_buffers[0];
++    params.num_filters = vpp_ctx->nb_filter_buffers;
++
+     err = ff_vaapi_vpp_render_picture(avctx, &params, output_frame);
+     if (err < 0)
+         goto fail;
+-- 
+2.17.1
+

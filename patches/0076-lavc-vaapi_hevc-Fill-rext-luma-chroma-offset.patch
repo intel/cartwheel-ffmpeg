@@ -1,0 +1,51 @@
+From 97c0b161ba3412223afe8b14770c89aa9e1178bf Mon Sep 17 00:00:00 2001
+From: Xu Guangxin <guangxin.xu@intel.com>
+Date: Thu, 9 Jul 2020 15:10:54 +0800
+Subject: [PATCH 12/15] lavc/vaapi_hevc: Fill rext luma/chroma offset
+
+For range extension, the luma/chroma offset is larger than 8 bits,
+hence we need the 16 bits.
+
+Signed-off-by: Xu Guangxin <guangxin.xu@intel.com>
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+---
+ libavcodec/vaapi_hevc.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
+index 1fc26590fd..cb9db53539 100644
+--- a/libavcodec/vaapi_hevc.c
++++ b/libavcodec/vaapi_hevc.c
+@@ -360,7 +360,7 @@ static void fill_pred_weight_table(const AVCodecContext *avctx,
+                                    VASliceParameterBufferHEVC *slice_param)
+ {
+ #if VA_CHECK_VERSION(1, 2, 0)
+-    int is_rext = avctx->profile == FF_PROFILE_HEVC_REXT;
++    int is_rext = avctx->profile >= FF_PROFILE_HEVC_REXT;
+ #else
+     int is_rext = 0;
+ #endif
+@@ -390,7 +390,6 @@ static void fill_pred_weight_table(const AVCodecContext *avctx,
+ 
+     for (i = 0; i < 15 && i < sh->nb_refs[L0]; i++) {
+         slice_param->delta_luma_weight_l0[i] = sh->luma_weight_l0[i] - (1 << sh->luma_log2_weight_denom);
+-
+         slice_param->delta_chroma_weight_l0[i][0] = sh->chroma_weight_l0[i][0] - (1 << sh->chroma_log2_weight_denom);
+         slice_param->delta_chroma_weight_l0[i][1] = sh->chroma_weight_l0[i][1] - (1 << sh->chroma_log2_weight_denom);
+         if (!is_rext) {
+@@ -522,6 +521,12 @@ static int vaapi_hevc_decode_slice(AVCodecContext *avctx,
+             pic->last_slice_param.rext.ChromaOffsetL0[i][1] = sh->chroma_offset_l0[i][1];
+         }
+ 
++        for (i = 0; i < 15 && i < sh->nb_refs[L0]; i++) {
++            pic->last_slice_param.rext.luma_offset_l0[i] = sh->luma_offset_l0[i];
++            pic->last_slice_param.rext.ChromaOffsetL0[i][0] = sh->chroma_offset_l0[i][0];
++            pic->last_slice_param.rext.ChromaOffsetL0[i][1] = sh->chroma_offset_l0[i][1];
++        }
++
+         if (sh->slice_type == HEVC_SLICE_B) {
+             for (i = 0; i < 15 && i < sh->nb_refs[L1]; i++) {
+                 pic->last_slice_param.rext.luma_offset_l1[i] = sh->luma_offset_l1[i];
+-- 
+2.17.1
+

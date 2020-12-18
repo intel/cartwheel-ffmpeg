@@ -1,0 +1,53 @@
+From c4425eeab954d8dd622250304ab0012e603fff25 Mon Sep 17 00:00:00 2001
+From: Xu Guangxin <guangxin.xu@intel.com>
+Date: Fri, 13 Mar 2020 09:14:48 -0400
+Subject: [PATCH 31/37] lavc: hevc, fix dpb logical for IRAP
+
+According to C.5.2.2, item 2. When we got an IRAP, and the NoOutputOfPriorPicsFlag = 0,
+we need bump all outputable frames.
+---
+ libavcodec/hevc_refs.c | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
+index 7870a72fd6..ef1e1cf10b 100644
+--- a/libavcodec/hevc_refs.c
++++ b/libavcodec/hevc_refs.c
+@@ -173,21 +173,24 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
+ 
+ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
+ {
++    if (IS_IRAP(s) && s->no_rasl_output_flag == 1) {
++        const static int mask = HEVC_FRAME_FLAG_BUMPING | HEVC_FRAME_FLAG_OUTPUT;
++        for (int i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
++            HEVCFrame *frame = &s->DPB[i];
++            if ((frame->flags & mask) == HEVC_FRAME_FLAG_OUTPUT &&
++                frame->sequence != s->seq_decode) {
++                if (s->sh.no_output_of_prior_pics_flag == 1)
++                    ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
++                else
++                    frame->flags |= HEVC_FRAME_FLAG_BUMPING;
++            }
++        }
++    }
+     do {
+         int nb_output = 0;
+         int min_poc   = INT_MAX;
+         int i, min_idx, ret;
+ 
+-        if (s->sh.no_output_of_prior_pics_flag == 1 && s->no_rasl_output_flag == 1) {
+-            for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+-                HEVCFrame *frame = &s->DPB[i];
+-                if (!(frame->flags & HEVC_FRAME_FLAG_BUMPING) && frame->poc != s->poc &&
+-                        frame->sequence == s->seq_output) {
+-                    ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
+-                }
+-            }
+-        }
+-
+         for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+             HEVCFrame *frame = &s->DPB[i];
+             if ((frame->flags & HEVC_FRAME_FLAG_OUTPUT) &&
+-- 
+2.20.1
+

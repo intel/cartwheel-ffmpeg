@@ -1,0 +1,107 @@
+From 861f7fe8571a9ec39c6ef06794f578acf7c81d84 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 10 Sep 2020 14:42:45 +0800
+Subject: [PATCH 07/15] lavc/hevc: Update reference list for SCC
+
+Screen Content Coding allows non-intra slice in an IDR frame, and would
+mark the current decoded picture as "used for long-term reference", no
+matter TwoVersionsOfCurrDecPicFlag(8.1.3), hence some previous restricts
+are not suitable any more.
+
+Constructe RefPicListTemp and RefPicList according to 8-8/9/10.
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+---
+ libavcodec/hevc_refs.c | 27 +++++++++++++++++++++++++--
+ libavcodec/hevcdec.c   |  3 ++-
+ 2 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
+index f78a690b25..e6054696a3 100644
+--- a/libavcodec/hevc_refs.c
++++ b/libavcodec/hevc_refs.c
+@@ -315,7 +315,7 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+         return ret;
+ 
+     if (!(s->rps[ST_CURR_BEF].nb_refs + s->rps[ST_CURR_AFT].nb_refs +
+-          s->rps[LT_CURR].nb_refs)) {
++          s->rps[LT_CURR].nb_refs) && !s->ps.pps->pps_curr_pic_ref_enabled_flag) {
+         av_log(s->avctx, AV_LOG_ERROR, "Zero refs in the frame RPS.\n");
+         return AVERROR_INVALIDDATA;
+     }
+@@ -342,6 +342,12 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+                     rpl_tmp.nb_refs++;
+                 }
+             }
++            // Construct RefPicList0, RefPicList1 (8-8, 8-10)
++            if (s->ps.pps->pps_curr_pic_ref_enabled_flag) {
++                rpl_tmp.ref[rpl_tmp.nb_refs]            = s->ref;
++                rpl_tmp.isLongTerm[rpl_tmp.nb_refs]     = 1;
++                rpl_tmp.nb_refs++;
++            }
+         }
+ 
+         /* reorder the references if necessary */
+@@ -364,6 +370,12 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+             rpl->nb_refs = FFMIN(rpl->nb_refs, sh->nb_refs[list_idx]);
+         }
+ 
++        // 8-9
++        if (s->ps.pps->pps_curr_pic_ref_enabled_flag && sh->slice_type == HEVC_SLICE_P &&
++            !sh->rpl_modification_flag[list_idx] && rpl_tmp.nb_refs > sh->nb_refs[L0]) {
++            rpl->ref[sh->nb_refs[L0]] = s->ref;
++        }
++
+         if (sh->collocated_list == list_idx &&
+             sh->collocated_ref_idx < rpl->nb_refs)
+             s->ref->collocated_ref = rpl->ref[sh->collocated_ref_idx];
+@@ -437,7 +449,8 @@ static int add_candidate_ref(HEVCContext *s, RefPicList *list,
+ {
+     HEVCFrame *ref = find_ref_idx(s, poc, use_msb);
+ 
+-    if (ref == s->ref || list->nb_refs >= HEVC_MAX_REFS)
++    if ((ref == s->ref && !s->ps.pps->pps_curr_pic_ref_enabled_flag) ||
++        list->nb_refs >= HEVC_MAX_REFS)
+         return AVERROR_INVALIDDATA;
+ 
+     if (!ref) {
+@@ -506,6 +519,12 @@ int ff_hevc_frame_rps(HEVCContext *s)
+             goto fail;
+     }
+ 
++    if (s->ps.pps->pps_curr_pic_ref_enabled_flag) {
++        ret = add_candidate_ref(s, &rps[LT_FOLL], s->poc, HEVC_FRAME_FLAG_LONG_REF, 1);
++        if (ret < 0)
++            goto fail;
++    }
++
+ fail:
+     /* release any frames that are now unused */
+     for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++)
+@@ -532,5 +551,9 @@ int ff_hevc_frame_nb_refs(const HEVCContext *s)
+         for (i = 0; i < long_rps->nb_refs; i++)
+             ret += !!long_rps->used[i];
+     }
++
++    if (s->ps.pps->pps_curr_pic_ref_enabled_flag)
++        ret++;
++
+     return ret;
+ }
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index 770f0072d2..74ce505a3f 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -644,7 +644,8 @@ static int hls_slice_header(HEVCContext *s)
+                    sh->slice_type);
+             return AVERROR_INVALIDDATA;
+         }
+-        if (IS_IRAP(s) && sh->slice_type != HEVC_SLICE_I) {
++        if (IS_IRAP(s) && sh->slice_type != HEVC_SLICE_I &&
++            s->ps.sps->ptl.general_ptl.profile_idc != FF_PROFILE_HEVC_SCC) {
+             av_log(s->avctx, AV_LOG_ERROR, "Inter slices in an IRAP frame.\n");
+             return AVERROR_INVALIDDATA;
+         }
+-- 
+2.17.1
+

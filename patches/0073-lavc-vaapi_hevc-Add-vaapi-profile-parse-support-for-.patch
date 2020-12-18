@@ -1,0 +1,53 @@
+From 7d54034ced95edcbd4f1a4d9bf52147dd355184f Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Tue, 2 Jun 2020 14:34:00 +0800
+Subject: [PATCH 09/15] lavc/vaapi_hevc: Add vaapi profile parse support for
+ SCC
+
+Note that Screen-Extended Main 4:4:4 and 4:4:4 10 supports
+chroma_format_idc from 0, 1 or 3, hence both 420 and 444 are
+supported.
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+---
+ libavcodec/vaapi_decode.c |  2 ++
+ libavcodec/vaapi_hevc.c   | 10 ++++++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index e9749dd458..7e2a97876a 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -416,6 +416,8 @@ static const struct {
+ #if VA_CHECK_VERSION(1, 2, 0) && CONFIG_HEVC_VAAPI_HWACCEL
+     MAP(HEVC,        HEVC_REXT,       None,
+                  ff_vaapi_parse_hevc_rext_profile ),
++    MAP(HEVC,        HEVC_SCC,        None,
++                 ff_vaapi_parse_hevc_rext_profile ),
+ #endif
+     MAP(MJPEG,       MJPEG_HUFFMAN_BASELINE_DCT,
+                                       JPEGBaseline),
+diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
+index 4e3ae6cf3b..28fe76c40e 100644
+--- a/libavcodec/vaapi_hevc.c
++++ b/libavcodec/vaapi_hevc.c
+@@ -608,6 +608,16 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
+     else if (!strcmp(profile->name, "Main 4:4:4 12") ||
+              !strcmp(profile->name, "Main 4:4:4 12 Intra"))
+         return VAProfileHEVCMain444_12;
++    else if (!strcmp(profile->name, "Screen-Extended Main"))
++        return VAProfileHEVCSccMain;
++    else if (!strcmp(profile->name, "Screen-Extended Main 10"))
++        return VAProfileHEVCSccMain10;
++    else if (!strcmp(profile->name, "Screen-Extended Main 4:4:4"))
++        return VAProfileHEVCSccMain444;
++#if VA_CHECK_VERSION(1, 8, 0)
++    else if (!strcmp(profile->name, "Screen-Extended Main 4:4:4 10"))
++        return VAProfileHEVCSccMain444_10;
++#endif
+ #else
+     av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
+            "not supported with this VA version.\n", profile->name);
+-- 
+2.17.1
+

@@ -1,0 +1,29 @@
+From 185062f64334ee548b14cefca9043fee643291f9 Mon Sep 17 00:00:00 2001
+From: Wenbinc-Bin <wenbin.chen@intel.com>
+Date: Mon, 30 Nov 2020 13:30:49 +0800
+Subject: [PATCH]     libavcodec/qsvenc.c: add max_frame_size support for
+ hevc_qsv
+
+    The max_frame_size parameter is set only when codec is h264. Now I add hevc in that conditional statement.
+
+    Signed-off-by: Wenbin CHEN <wenbin.chen@intel.com>
+---
+ libavcodec/qsvenc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 4e22ec82f2..90ce27bd3d 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -711,7 +711,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
+         q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extco;
+ 
+ #if QSV_HAVE_CO2
+-        if (avctx->codec_id == AV_CODEC_ID_H264) {
++        if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
+             if (q->int_ref_type >= 0)
+                 q->extco2.IntRefType = q->int_ref_type;
+             if (q->int_ref_cycle_size >= 0)
+-- 
+2.25.1
+

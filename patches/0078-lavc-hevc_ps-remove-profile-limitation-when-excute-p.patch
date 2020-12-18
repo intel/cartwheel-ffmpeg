@@ -1,0 +1,88 @@
+From 85ebac19c8f0e3ef492060a5c11b2a03588d2b0f Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Tue, 10 Nov 2020 15:19:39 -0500
+Subject: [PATCH] lavc/hevc_ps: remove profile limitation when excute
+ pps_range_extensions
+
+See spec 7.3.2.3.1.
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavcodec/hevc_ps.c                         |  2 +-
+ tests/ref/fate/hevc-conformance-PS_A_VIDYO_3 | 50 ++++++++++----------
+ 2 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
+index 704b666756..9ee27c1c00 100644
+--- a/libavcodec/hevc_ps.c
++++ b/libavcodec/hevc_ps.c
+@@ -1810,7 +1810,7 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
+         } else
+             skip_bits(gb, 7);
+ 
+-        if (sps->ptl.general_ptl.profile_idc == FF_PROFILE_HEVC_REXT && pps->pps_range_extensions_flag) {
++        if (pps->pps_range_extensions_flag) {
+             if ((ret = pps_range_extensions(gb, avctx, pps, sps)) < 0)
+                 goto err;
+         }
+diff --git a/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3 b/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3
+index 59b82b72bb..d1d86b2dc9 100644
+--- a/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3
++++ b/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3
+@@ -3,28 +3,28 @@
+ #codec_id 0: rawvideo
+ #dimensions 0: 416x240
+ #sar 0: 0/1
+-0,          0,          0,        1,   149760, 0x88619f80
+-0,          1,          1,        1,   149760, 0x550bdaf0
+-0,          2,          2,        1,   149760, 0x4121f7a2
+-0,          3,          3,        1,   149760, 0x210b1d07
+-0,          4,          4,        1,   149760, 0x731b7758
+-0,          5,          5,        1,   149760, 0x17adb789
+-0,          6,          6,        1,   149760, 0x98b2f080
+-0,          7,          7,        1,   149760, 0xc0be1f2a
+-0,          8,          8,        1,   149760, 0xc01e387a
+-0,          9,          9,        1,   149760, 0xd932822b
+-0,         10,         10,        1,   149760, 0x16c0a1df
+-0,         11,         11,        1,   149760, 0x5aa6c005
+-0,         12,         12,        1,   149760, 0xd3aab602
+-0,         13,         13,        1,   149760, 0x4e6ecab1
+-0,         14,         14,        1,   149760, 0x8a86f1f2
+-0,         15,         15,        1,   149760, 0x2ed21e1b
+-0,         16,         16,        1,   149760, 0x80892f24
+-0,         17,         17,        1,   149760, 0xb8a952ef
+-0,         18,         18,        1,   149760, 0x557e57fb
+-0,         19,         19,        1,   149760, 0x2b825b2c
+-0,         20,         20,        1,   149760, 0x30b69b5e
+-0,         21,         21,        1,   149760, 0x802ebf08
+-0,         22,         22,        1,   149760, 0x95aadc8e
+-0,         23,         23,        1,   149760, 0x4d4c02b7
+-0,         24,         24,        1,   149760, 0x3fdd1762
++0,          0,          0,        1,   149760, 0x5c4f70f4
++0,          1,          1,        1,   149760, 0xf4628e59
++0,          2,          2,        1,   149760, 0xa28e5bdc
++0,          3,          3,        1,   149760, 0xda0e53d7
++0,          4,          4,        1,   149760, 0x42dd334a
++0,          5,          5,        1,   149760, 0x25ba9dfe
++0,          6,          6,        1,   149760, 0x8854d8ca
++0,          7,          7,        1,   149760, 0xc04505d4
++0,          8,          8,        1,   149760, 0xd3fce146
++0,          9,          9,        1,   149760, 0x8bfd88bd
++0,         10,         10,        1,   149760, 0x33d965b2
++0,         11,         11,        1,   149760, 0x12746b7a
++0,         12,         12,        1,   149760, 0xb7642694
++0,         13,         13,        1,   149760, 0x32b5035f
++0,         14,         14,        1,   149760, 0x7bea0af1
++0,         15,         15,        1,   149760, 0x577d4fc8
++0,         16,         16,        1,   149760, 0x023a9c66
++0,         17,         17,        1,   149760, 0x9abe76c4
++0,         18,         18,        1,   149760, 0x2b14dba5
++0,         19,         19,        1,   149760, 0x7b8affcf
++0,         20,         20,        1,   149760, 0x21e4c323
++0,         21,         21,        1,   149760, 0xf0b7d9cd
++0,         22,         22,        1,   149760, 0x4db0c5bc
++0,         23,         23,        1,   149760, 0xf455f752
++0,         24,         24,        1,   149760, 0x569fec99
+-- 
+2.17.1
+

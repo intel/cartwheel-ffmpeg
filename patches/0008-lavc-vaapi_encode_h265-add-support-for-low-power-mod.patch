@@ -1,0 +1,102 @@
+From aaf2a3c7147ae85f0c887e0a1ba4a66d3586de87 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Tue, 3 Dec 2019 16:07:48 +0800
+Subject: [PATCH] lavc/vaapi_encode_h265: add support for low power mode for
+ HEVC encode
+
+Enable hevc_vaapi vdenc:
+    - media-driver require CTU size must be set as 64x64 at low power mode
+    - cu_qp_delta_enabled_flag should be enabled for low power mode
+    - diff_cu_qp_delta_depth == log2_diff_max_min_luma_coding_block_size
+    - low delay B to replace P frame
+    - same ref_pic_list0/ref_pic_list1
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavcodec/vaapi_encode_h265.c | 34 ++++++++++++++++++++++++++++------
+ 1 file changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index 316030914c..a9b5a8c8d5 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -436,9 +436,12 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+     // These have to come from the capabilities of the encoder.  We have no
+     // way to query them, so just hardcode parameters which work on the Intel
+     // driver.
+-    // CTB size from 8x8 to 32x32.
++    // CTB size from 8x8 to 32x32. (64x64 when using low power mode for hw limitation)
+     sps->log2_min_luma_coding_block_size_minus3   = 0;
+-    sps->log2_diff_max_min_luma_coding_block_size = 2;
++    if (ctx->low_power)
++        sps->log2_diff_max_min_luma_coding_block_size = 3;
++    else
++        sps->log2_diff_max_min_luma_coding_block_size = 2;
+     // Transform size from 4x4 to 32x32.
+     sps->log2_min_luma_transform_block_size_minus2   = 0;
+     sps->log2_diff_max_min_luma_transform_block_size = 3;
+@@ -552,8 +555,10 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+ 
+     pps->init_qp_minus26 = priv->fixed_qp_idr - 26;
+ 
+-    pps->cu_qp_delta_enabled_flag = (ctx->va_rc_mode != VA_RC_CQP);
+-    pps->diff_cu_qp_delta_depth   = 0;
++    // driver requires enablement of cu_qp_delta_enabled_flag for low power mode encoding
++    pps->cu_qp_delta_enabled_flag = (ctx->va_rc_mode != VA_RC_CQP | ctx->low_power);
++    pps->diff_cu_qp_delta_depth   = pps->cu_qp_delta_enabled_flag && ctx->low_power ?
++                                        sps->log2_diff_max_min_luma_coding_block_size : 0;
+ 
+     if (ctx->tile_rows && ctx->tile_cols) {
+         int uniform_spacing;
+@@ -912,6 +917,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+                                                VAAPIEncodeSlice *slice)
+ {
+     VAAPIEncodeH265Context           *priv = avctx->priv_data;
++    VAAPIEncodeContext                *ctx = avctx->priv_data;
+     VAAPIEncodeH265Picture           *hpic = pic->priv_data;
+     const H265RawSPS                  *sps = &priv->raw_sps;
+     const H265RawPPS                  *pps = &priv->raw_pps;
+@@ -932,6 +938,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+     sh->slice_segment_address           = slice->block_start;
+ 
+     sh->slice_type = hpic->slice_type;
++    // driver requires low delay B frame in low power mode
++    if (sh->slice_type == HEVC_SLICE_P && ctx->low_power)
++        sh->slice_type = HEVC_SLICE_B;
+ 
+     sh->slice_pic_order_cnt_lsb = hpic->pic_order_cnt &
+         (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
+@@ -1098,6 +1107,16 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+         vslice->ref_pic_list1[0] = vpic->reference_frames[1];
+     }
+ 
++    // Driver requires low delay B frame and matched ref_pic_list0/1[]
++    // for low power mode
++    if (pic->type == PICTURE_TYPE_P && ctx->low_power) {
++        vslice->slice_type = HEVC_SLICE_B;
++        for (i = 0; i < FF_ARRAY_ELEMS(vslice->ref_pic_list0); i++) {
++            vslice->ref_pic_list1[i].picture_id = vslice->ref_pic_list0[i].picture_id;
++            vslice->ref_pic_list1[i].flags      = vslice->ref_pic_list0[i].flags;
++        }
++    }
++
+     return 0;
+ }
+ 
+@@ -1218,8 +1237,11 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
+     ctx->surface_width  = FFALIGN(avctx->width,  16);
+     ctx->surface_height = FFALIGN(avctx->height, 16);
+ 
+-    // CTU size is currently hard-coded to 32.
+-    ctx->slice_block_width = ctx->slice_block_height = 32;
++    // CTU size is currently hard-coded to 32. (64 x 64 when using low power mode)
++    if (ctx->low_power)
++        ctx->slice_block_width = ctx->slice_block_height = 64;
++    else
++        ctx->slice_block_width = ctx->slice_block_height = 32;
+ 
+     if (priv->qp > 0)
+         ctx->explicit_qp = priv->qp;
+-- 
+2.17.1
+

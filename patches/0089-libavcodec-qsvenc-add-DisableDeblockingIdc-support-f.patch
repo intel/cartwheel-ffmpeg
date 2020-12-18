@@ -1,0 +1,59 @@
+From 38c99892316ebfb3bed4a534e35aa31ffee4abb5 Mon Sep 17 00:00:00 2001
+From: Wenbinc-Bin <wenbin.chen@intel.com>
+Date: Fri, 4 Dec 2020 13:26:31 +0800
+Subject: [PATCH] libavcodec/qsvenc: add DisableDeblockingIdc support for qsv
+
+MediaSDK already has a flag to control deblocking (DisableDeblockingIdc). Add dblk_idc parameter in ffmpeg to expose this flag to user.
+
+Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavcodec/qsvenc.c | 4 ++++
+ libavcodec/qsvenc.h | 3 +++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index aba98dd689..0d20d1968f 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -710,6 +710,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
+             if (q->max_slice_size >= 0)
+                 q->extco2.MaxSliceSize = q->max_slice_size;
+ #endif
++#if QSV_HAVE_DISABLEDEBLOCKIDC
++            if(q->dblk_idc >= 0)
++                q->extco2.DisableDeblockingIdc = q->dblk_idc;
++#endif
+ 
+ #if QSV_HAVE_TRELLIS
+             if (avctx->trellis >= 0)
+diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
+index 6d305f87dd..3720320789 100644
+--- a/libavcodec/qsvenc.h
++++ b/libavcodec/qsvenc.h
+@@ -44,6 +44,7 @@
+ 
+ #define QSV_HAVE_TRELLIS QSV_VERSION_ATLEAST(1, 8)
+ #define QSV_HAVE_MAX_SLICE_SIZE QSV_VERSION_ATLEAST(1, 9)
++#define QSV_HAVE_DISABLEDEBLOCKIDC QSV_VERSION_ATLEAST(1, 9)
+ #define QSV_HAVE_BREF_TYPE      QSV_VERSION_ATLEAST(1, 8)
+ 
+ #define QSV_HAVE_LA     QSV_VERSION_ATLEAST(1, 7)
+@@ -97,6 +98,7 @@
+ { "b_strategy",     "Strategy to choose between I/P/B-frames", OFFSET(qsv.b_strategy),    AV_OPT_TYPE_INT, { .i64 = -1 }, -1,          1, VE },                         \
+ { "forced_idr",     "Forcing I frames as IDR frames",         OFFSET(qsv.forced_idr),     AV_OPT_TYPE_BOOL,{ .i64 = 0  },  0,          1, VE },                         \
+ { "low_power", "enable low power mode(experimental: many limitations by mfx version, BRC modes, etc.)", OFFSET(qsv.low_power), AV_OPT_TYPE_BOOL, { .i64 = 0}, 0, 1, VE},\
++{ "dblk_idc", "value of DisableDeblockingIdc (default is 0), in range [0,2]",   OFFSET(qsv.dblk_idc),   AV_OPT_TYPE_INT,    { .i64 = 0 },   0,  2,  VE},    \
+ 
+ extern const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[];
+ 
+@@ -167,6 +169,7 @@ typedef struct QSVEncContext {
+     int rdo;
+     int max_frame_size;
+     int max_slice_size;
++    int dblk_idc;
+ 
+     int tile_cols;
+     int tile_rows;
+-- 
+2.25.1
+

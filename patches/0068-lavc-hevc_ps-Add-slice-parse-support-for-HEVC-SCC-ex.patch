@@ -1,0 +1,47 @@
+From e4fc1d573d3408912402beb139f6cd4e07ccea50 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 10 Sep 2020 14:42:42 +0800
+Subject: [PATCH 04/15] lavc/hevc_ps: Add slice parse support for HEVC SCC
+ extension
+
+Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
+---
+ libavcodec/hevcdec.c | 6 ++++++
+ libavcodec/hevcdec.h | 4 ++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index d6b137c22a..32b428091c 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -832,6 +832,12 @@ static int hls_slice_header(HEVCContext *s)
+             sh->slice_cr_qp_offset = 0;
+         }
+ 
++        if (s->ps.pps->pps_slice_act_qp_offsets_present_flag) {
++            sh->slice_act_y_qp_offset  = get_se_golomb(gb);
++            sh->slice_act_cb_qp_offset = get_se_golomb(gb);
++            sh->slice_act_cr_qp_offset = get_se_golomb(gb);
++        }
++
+         if (s->ps.pps->chroma_qp_offset_list_enabled_flag)
+             sh->cu_chroma_qp_offset_enabled_flag = get_bits1(gb);
+         else
+diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
+index 9e309060b7..c4618f9848 100644
+--- a/libavcodec/hevcdec.h
++++ b/libavcodec/hevcdec.h
+@@ -292,6 +292,10 @@ typedef struct SliceHeader {
+     int slice_cb_qp_offset;
+     int slice_cr_qp_offset;
+ 
++    int slice_act_y_qp_offset;
++    int slice_act_cb_qp_offset;
++    int slice_act_cr_qp_offset;
++
+     uint8_t cu_chroma_qp_offset_enabled_flag;
+ 
+     int beta_offset;    ///< beta_offset_div2 * 2
+-- 
+2.17.1
+

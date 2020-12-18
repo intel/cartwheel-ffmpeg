@@ -1,0 +1,38 @@
+From 4ba54b81b814c5197c5fc1ac0a0ad9f417340f3e Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Tue, 18 Aug 2020 15:30:32 +0800
+Subject: [PATCH 3/6] qsv: libmfx no longer supports audio since version 2.0
+ (oneVPL)
+
+---
+ libavcodec/qsv.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index b5c11af910..fa7c166016 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -149,8 +149,10 @@ static const struct {
+     { MFX_ERR_INVALID_VIDEO_PARAM,      AVERROR(EINVAL), "invalid video parameters"             },
+     { MFX_ERR_UNDEFINED_BEHAVIOR,       AVERROR_BUG,     "undefined behavior"                   },
+     { MFX_ERR_DEVICE_FAILED,            AVERROR(EIO),    "device failed"                        },
++#if !QSV_VERSION_ATLEAST(2, 0)
+     { MFX_ERR_INCOMPATIBLE_AUDIO_PARAM, AVERROR(EINVAL), "incompatible audio parameters"        },
+     { MFX_ERR_INVALID_AUDIO_PARAM,      AVERROR(EINVAL), "invalid audio parameters"             },
++#endif
+ 
+     { MFX_WRN_IN_EXECUTION,             0,               "operation in execution"               },
+     { MFX_WRN_DEVICE_BUSY,              0,               "device busy"                          },
+@@ -160,7 +162,9 @@ static const struct {
+     { MFX_WRN_VALUE_NOT_CHANGED,        0,               "value is saturated"                   },
+     { MFX_WRN_OUT_OF_RANGE,             0,               "value out of range"                   },
+     { MFX_WRN_FILTER_SKIPPED,           0,               "filter skipped"                       },
++#if !QSV_VERSION_ATLEAST(2, 0)
+     { MFX_WRN_INCOMPATIBLE_AUDIO_PARAM, 0,               "incompatible audio parameters"        },
++#endif
+ };
+ 
+ int ff_qsv_map_error(mfxStatus mfx_err, const char **desc)
+-- 
+2.25.1
+

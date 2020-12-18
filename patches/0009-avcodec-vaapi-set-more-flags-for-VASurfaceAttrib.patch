@@ -1,0 +1,29 @@
+From 4bbff576002f38c4846ffddb1fa85847c6c07f95 Mon Sep 17 00:00:00 2001
+From: Wangfei <fei.w.wang@intel.com>
+Date: Tue, 19 Nov 2019 16:23:19 +0800
+Subject: [PATCH 09/28] avcodec/vaapi: set more flags for VASurfaceAttrib
+
+flags and value.type is needed when pass VASurfaceAttrib to driver.
+Otherwise the attribute will be considered invalid in driver.
+
+Signed-off-by: Wangfei <fei.w.wang@intel.com>
+---
+ libavcodec/vaapi_decode.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index fbe4860..7ee7d5a 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -355,6 +355,8 @@ static int vaapi_decode_find_best_format(AVCodecContext *avctx,
+ 
+         ctx->pixel_format_attribute = (VASurfaceAttrib) {
+             .type          = VASurfaceAttribPixelFormat,
++            .flags         = VA_SURFACE_ATTRIB_SETTABLE,
++            .value.type    = VAGenericValueTypeInteger,
+             .value.value.i = best_fourcc,
+         };
+ 
+-- 
+2.7.4
+

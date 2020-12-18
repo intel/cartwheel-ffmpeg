@@ -1,0 +1,35 @@
+From d725bc1a99ab6550b5c6087f7fcf806072e7de6b Mon Sep 17 00:00:00 2001
+From: Xu Guangxin <guangxin.xu@intel.com>
+Date: Tue, 17 Mar 2020 06:03:15 -0400
+Subject: [PATCH 36/37] lavc: hevc, respect no_output_of_prior_pics_flag even
+ we have reslution change
+
+if we have resolution change, we still need follow no_output_of_prior_pics_flag
+in next IDR.
+---
+ libavcodec/hevcdec.c | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index 60d44b5b8f..bb78462324 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -542,15 +542,8 @@ static int hls_slice_header(HEVCContext *s)
+ 
+     if (s->ps.sps != (HEVCSPS*)s->ps.sps_list[s->ps.pps->sps_id]->data) {
+         const HEVCSPS *sps = (HEVCSPS*)s->ps.sps_list[s->ps.pps->sps_id]->data;
+-        const HEVCSPS *last_sps = s->ps.sps;
+         enum AVPixelFormat pix_fmt;
+ 
+-        if (last_sps && IS_IRAP(s) && s->nal_unit_type != HEVC_NAL_CRA_NUT) {
+-            if (sps->width != last_sps->width || sps->height != last_sps->height ||
+-                sps->temporal_layer[sps->max_sub_layers - 1].max_dec_pic_buffering !=
+-                last_sps->temporal_layer[last_sps->max_sub_layers - 1].max_dec_pic_buffering)
+-                sh->no_output_of_prior_pics_flag = 0;
+-        }
+         ff_hevc_clear_refs(s);
+ 
+         ret = set_sps(s, sps, sps->pix_fmt);
+-- 
+2.20.1
+

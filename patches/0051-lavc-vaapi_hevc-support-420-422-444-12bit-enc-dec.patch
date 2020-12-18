@@ -1,0 +1,433 @@
+From 6c847c5b2e1311810ceaf500092d6454fcbd7a0f Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Tue, 14 Jul 2020 10:21:55 +0800
+Subject: [PATCH] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
+
+---
+ libavcodec/hevcdec.c             |  5 +++
+ libavcodec/vaapi_decode.c        | 17 ++++++++
+ libavcodec/vaapi_encode.c        |  5 +++
+ libavcodec/vaapi_encode_h265.c   |  4 ++
+ libavcodec/vaapi_hevc.c          |  9 ++++
+ libavutil/hwcontext_vaapi.c      |  9 ++++
+ libavutil/pixdesc.c              | 73 ++++++++++++++++++++++++++++++++
+ libavutil/pixfmt.h               | 11 +++++
+ tests/ref/fate/imgutils          |  6 +++
+ tests/ref/fate/sws-pixdesc-query | 27 ++++++++++++
+ 10 files changed, 166 insertions(+)
+
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index 71ef8c9c7a..892022910e 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -446,6 +446,11 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+     case AV_PIX_FMT_YUV422P10LE:
+ #if CONFIG_HEVC_VAAPI_HWACCEL
+         *fmt++ = AV_PIX_FMT_VAAPI;
++#endif
++        break;
++    case AV_PIX_FMT_YUV422P12LE:
++#if CONFIG_HEVC_VAAPI_HWACCEL
++        *fmt++ = AV_PIX_FMT_VAAPI;
+ #endif
+         break;
+     case AV_PIX_FMT_YUV420P12:
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index f3147242ef..65269821c2 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -274,6 +274,15 @@ static const struct {
+ #ifdef VA_FOURCC_P010
+     MAP(P010, P010),
+ #endif
++#ifdef VA_FOURCC_P012
++    MAP(P012, P012),
++#endif
++#ifdef VA_FOURCC_Y212
++    MAP(Y212, Y212),
++#endif
++#ifdef VA_FOURCC_Y412
++    MAP(Y412, Y412),
++#endif
+ #ifdef VA_FOURCC_I010
+     MAP(I010, YUV420P10),
+ #endif
+@@ -289,6 +298,7 @@ static int vaapi_decode_find_best_format(AVCodecContext *avctx,
+     VAStatus vas;
+     VASurfaceAttrib *attr;
+     enum AVPixelFormat source_format, best_format, format;
++    const AVPixFmtDescriptor *desc, *desc_s;
+     uint32_t best_fourcc, fourcc;
+     int i, j, nb_attr;
+ 
+@@ -336,6 +346,13 @@ static int vaapi_decode_find_best_format(AVCodecContext *avctx,
+         av_log(avctx, AV_LOG_DEBUG, "Considering format %#x -> %s.\n",
+                fourcc, av_get_pix_fmt_name(format));
+ 
++        if (best_format != AV_PIX_FMT_NONE) {
++            desc = av_pix_fmt_desc_get(format);
++            desc_s = av_pix_fmt_desc_get(source_format);
++            if (desc->comp[0].depth != desc_s->comp[0].depth)
++                continue;
++        }
++
+         best_format = av_find_best_pix_fmt_of_2(format, best_format,
+                                                 source_format, 0, NULL);
+         if (format == best_format)
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index e5fbbc85ed..4d2d7d37a6 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -1261,6 +1261,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
+ #if VA_CHECK_VERSION(0, 38, 1)
+     { "YUV420_10", VA_RT_FORMAT_YUV420_10BPP, 10, 3, 1, 1 },
+ #endif
++#if VA_CHECK_VERSION(1, 2, 0)
++    { "YUV420_12", VA_RT_FORMAT_YUV420_12, 12, 3, 1, 1 },
++    { "YUV422_12", VA_RT_FORMAT_YUV422_12, 12, 3, 1, 0 },
++    { "YUV444_12", VA_RT_FORMAT_YUV444_12, 12, 3, 0, 0 },
++#endif
+ };
+ 
+ static const VAEntrypoint vaapi_encode_entrypoints_normal[] = {
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index c82d091c6d..4e5a7e65e6 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -1180,7 +1180,11 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+ #if VA_CHECK_VERSION(1, 2, 0)
+     { FF_PROFILE_HEVC_REXT,     8, 3, 1, 0, VAProfileHEVCMain422_10 },
+     { FF_PROFILE_HEVC_REXT,    10, 3, 1, 0, VAProfileHEVCMain422_10 },
++    { FF_PROFILE_HEVC_REXT,    12, 3, 1, 1, VAProfileHEVCMain12     },
++    { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
++    { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
+ #endif
++
+     { FF_PROFILE_UNKNOWN }
+ };
+ 
+diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
+index 027612dc99..7d68861c1e 100644
+--- a/libavcodec/vaapi_hevc.c
++++ b/libavcodec/vaapi_hevc.c
+@@ -569,6 +569,15 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
+     else if (!strcmp(profile->name, "Main 4:4:4 10") ||
+              !strcmp(profile->name, "Main 4:4:4 10 Intra"))
+         return VAProfileHEVCMain444_10;
++    else if (!strcmp(profile->name, "Main 12") ||
++             !strcmp(profile->name, "Main 12 Intra"))
++        return VAProfileHEVCMain12;
++    else if (!strcmp(profile->name, "Main 4:2:2 12") ||
++             !strcmp(profile->name, "Main 4:2:2 12 Intra"))
++        return VAProfileHEVCMain422_12;
++    else if (!strcmp(profile->name, "Main 4:4:4 12") ||
++             !strcmp(profile->name, "Main 4:4:4 12 Intra"))
++        return VAProfileHEVCMain444_12;
+ #else
+     av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
+            "not supported with this VA version.\n", profile->name);
+diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
+index 0d2c34e452..02eb56be89 100644
+--- a/libavutil/hwcontext_vaapi.c
++++ b/libavutil/hwcontext_vaapi.c
+@@ -129,6 +129,15 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
+     MAP(Y800, YUV400,  GRAY8,   0),
+ #ifdef VA_FOURCC_P010
+     MAP(P010, YUV420_10BPP, P010, 0),
++#endif
++#ifdef VA_FOURCC_P016
++    MAP(P016, YUV420_12, P012LE, 0),
++#endif
++#ifdef VA_FOURCC_Y216
++    MAP(Y216, YUV422_12, Y212LE, 0),
++#endif
++#ifdef VA_FOURCC_Y416
++    MAP(Y416, YUV444_12, Y412LE, 0),
+ #endif
+     MAP(BGRA, RGB32,   BGRA, 0),
+     MAP(BGRX, RGB32,   BGR0, 0),
+diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
+index 584bf42273..82df9f0f9a 100644
+--- a/libavutil/pixdesc.c
++++ b/libavutil/pixdesc.c
+@@ -228,6 +228,29 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+         },
+         .flags = AV_PIX_FMT_FLAG_BE,
+     },
++    [AV_PIX_FMT_Y212LE] = {
++        .name = "y212le",
++        .nb_components = 3,
++        .log2_chroma_w = 1,
++        .log2_chroma_h = 0,
++        .comp = {
++            { 0, 4, 0, 4, 12, 3, 11, 1 },		/* Y */
++            { 0, 8, 2, 4, 12, 7, 11, 3 },		/* U */
++            { 0, 8, 6, 4, 12, 7, 11, 7 },		/* V */
++        },
++    },
++    [AV_PIX_FMT_Y212BE] = {
++        .name = "y212be",
++        .nb_components = 3,
++        .log2_chroma_w = 1,
++        .log2_chroma_h = 0,
++        .comp = {
++            { 0, 4, 0, 4, 12, 3, 11, 1 },		/* Y */
++            { 0, 8, 2, 4, 12, 7, 11, 3 },		/* U */
++            { 0, 8, 6, 4, 12, 7, 11, 7 },		/* V */
++        },
++        .flags = AV_PIX_FMT_FLAG_BE,
++    },
+     [AV_PIX_FMT_0YUV] = {
+         .name = "0yuv",
+         .nb_components = 3,
+@@ -265,6 +288,32 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+         },
+         .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BITSTREAM | AV_PIX_FMT_FLAG_BE,
+     },
++    [AV_PIX_FMT_Y412LE] = {
++        .name = "y412le",
++        .nb_components = 4,
++        .log2_chroma_w = 0,
++        .log2_chroma_h = 0,
++        .comp = {
++            { 0, 8, 4, 4, 12, 7, 11, 5 },		/* Y */
++            { 0, 8, 6, 4, 12, 7, 11, 7 },		/* U */
++            { 0, 8, 2, 4, 12, 7, 11, 3 },		/* V */
++            { 0, 8, 0, 4, 12, 7, 11, 1 },		/* A */
++        },
++        .flags = AV_PIX_FMT_FLAG_ALPHA,
++    },
++    [AV_PIX_FMT_Y412BE] = {
++        .name = "y412be",
++        .nb_components = 4,
++        .log2_chroma_w = 0,
++        .log2_chroma_h = 0,
++        .comp = {
++            { 0, 8, 4, 4, 12, 7, 11, 5 },		/* Y */
++            { 0, 8, 6, 4, 12, 7, 11, 7 },		/* U */
++            { 0, 8, 2, 4, 12, 7, 11, 3 },		/* V */
++            { 0, 8, 0, 4, 12, 7, 11, 1 },		/* A */
++        },
++        .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BE,
++    },
+     [AV_PIX_FMT_RGB24] = {
+         .name = "rgb24",
+         .nb_components = 3,
+@@ -2184,6 +2233,30 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+         },
+         .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_BE,
+     },
++    [AV_PIX_FMT_P012LE] = {
++        .name = "p012le",
++        .nb_components = 3,
++        .log2_chroma_w = 1,
++        .log2_chroma_h = 1,
++        .comp = {
++            { 0, 2, 0, 4, 12, 1, 11, 1 },        /* Y */
++            { 1, 4, 0, 4, 12, 3, 11, 1 },        /* U */
++            { 1, 4, 2, 4, 12, 3, 11, 3 },        /* V */
++        },
++        .flags = AV_PIX_FMT_FLAG_PLANAR,
++    },
++    [AV_PIX_FMT_P012BE] = {
++        .name = "p012be",
++        .nb_components = 3,
++        .log2_chroma_w = 1,
++        .log2_chroma_h = 1,
++        .comp = {
++            { 0, 2, 0, 4, 12, 1, 11, 1 },        /* Y */
++            { 1, 4, 0, 4, 12, 3, 11, 1 },        /* U */
++            { 1, 4, 2, 4, 12, 3, 11, 3 },        /* V */
++        },
++        .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_BE,
++    },
+     [AV_PIX_FMT_P016LE] = {
+         .name = "p016le",
+         .nb_components = 3,
+diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
+index fe9d83ea93..22554350be 100644
+--- a/libavutil/pixfmt.h
++++ b/libavutil/pixfmt.h
+@@ -297,6 +297,8 @@ enum AVPixelFormat {
+     AV_PIX_FMT_GRAY10BE,   ///<        Y        , 10bpp, big-endian
+     AV_PIX_FMT_GRAY10LE,   ///<        Y        , 10bpp, little-endian
+ 
++    AV_PIX_FMT_P012LE, ///< like NV12, with 12bpp per component, little-endian
++    AV_PIX_FMT_P012BE, ///< like NV12, with 12bpp per component, big-endian
+     AV_PIX_FMT_P016LE, ///< like NV12, with 16bpp per component, little-endian
+     AV_PIX_FMT_P016BE, ///< like NV12, with 16bpp per component, big-endian
+ 
+@@ -358,10 +360,16 @@ enum AVPixelFormat {
+     AV_PIX_FMT_Y210BE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, big-endian
+     AV_PIX_FMT_Y210LE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, little-endian
+ 
++    AV_PIX_FMT_Y212BE,    ///< packed YUV 4:2:2 like YUYV422, 24bpp, data in the high bits, big-endian
++    AV_PIX_FMT_Y212LE,    ///< packed YUV 4:2:2 like YUYV422, 24bpp, data in the high bits, little-endian
++
+     AV_PIX_FMT_0YUV,      ///< packed YUV 4:4:4, 32bpp,  X  Y Cb Cr, X=unused/undefined
+     AV_PIX_FMT_Y410LE,    ///< packed YUV 4:4:4, 32bpp, Cr  Y Cb  A, little-endian
+     AV_PIX_FMT_Y410BE,    ///< packed YUV 4:4:4, 32bpp, Cr  Y Cb  A, big-endian
+ 
++    AV_PIX_FMT_Y412LE,    ///< packed YUV 4:4:4, 36bpp, Cr  Y Cb  A, little-endian
++    AV_PIX_FMT_Y412BE,    ///< packed YUV 4:4:4, 36bpp, Cr  Y Cb  A, big-endian
++
+     AV_PIX_FMT_X2RGB10LE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), little-endian, X=unused/undefined
+     AV_PIX_FMT_X2RGB10BE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), big-endian, X=unused/undefined
+     AV_PIX_FMT_NB         ///< number of pixel formats, DO NOT USE THIS if you want to link with shared libav* because the number of formats might differ between versions
+@@ -450,10 +458,13 @@ enum AVPixelFormat {
+ #define AV_PIX_FMT_NV20       AV_PIX_FMT_NE(NV20BE,  NV20LE)
+ #define AV_PIX_FMT_AYUV64     AV_PIX_FMT_NE(AYUV64BE, AYUV64LE)
+ #define AV_PIX_FMT_P010       AV_PIX_FMT_NE(P010BE,  P010LE)
++#define AV_PIX_FMT_P012       AV_PIX_FMT_NE(P012BE,  P012LE)
+ #define AV_PIX_FMT_P016       AV_PIX_FMT_NE(P016BE,  P016LE)
+ 
+ #define AV_PIX_FMT_Y210       AV_PIX_FMT_NE(Y210BE,  Y210LE)
+ #define AV_PIX_FMT_Y410       AV_PIX_FMT_NE(Y410BE,  Y410LE)
++#define AV_PIX_FMT_Y212       AV_PIX_FMT_NE(Y212BE,  Y212LE)
++#define AV_PIX_FMT_Y412       AV_PIX_FMT_NE(Y412BE,  Y412LE)
+ #define AV_PIX_FMT_X2RGB10    AV_PIX_FMT_NE(X2RGB10BE, X2RGB10LE)
+ 
+ /**
+diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
+index ddf6ff3345..26e35ff91e 100644
+--- a/tests/ref/fate/imgutils
++++ b/tests/ref/fate/imgutils
+@@ -214,6 +214,8 @@ gray12be        planes: 1, linesizes: 128   0   0   0, plane_sizes:  6144     0
+ gray12le        planes: 1, linesizes: 128   0   0   0, plane_sizes:  6144     0     0     0, plane_offsets:     0     0     0, total_size: 6144
+ gray10be        planes: 1, linesizes: 128   0   0   0, plane_sizes:  6144     0     0     0, plane_offsets:     0     0     0, total_size: 6144
+ gray10le        planes: 1, linesizes: 128   0   0   0, plane_sizes:  6144     0     0     0, plane_offsets:     0     0     0, total_size: 6144
++p012le          planes: 2, linesizes: 128 128   0   0, plane_sizes:  6144  3072     0     0, plane_offsets:  6144     0     0, total_size: 9216
++p012be          planes: 2, linesizes: 128 128   0   0, plane_sizes:  6144  3072     0     0, plane_offsets:  6144     0     0, total_size: 9216
+ p016le          planes: 2, linesizes: 128 128   0   0, plane_sizes:  6144  3072     0     0, plane_offsets:  6144     0     0, total_size: 9216
+ p016be          planes: 2, linesizes: 128 128   0   0, plane_sizes:  6144  3072     0     0, plane_offsets:  6144     0     0, total_size: 9216
+ gray9be         planes: 1, linesizes: 128   0   0   0, plane_sizes:  6144     0     0     0, plane_offsets:     0     0     0, total_size: 6144
+@@ -234,8 +236,12 @@ nv24            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144
+ nv42            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144     0     0, plane_offsets:  3072     0     0, total_size: 9216
+ y210be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ y210le          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
++y212be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
++y212le          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ 0yuv            planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ y410le          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ y410be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
++y412le          planes: 1, linesizes: 512   0   0   0, plane_sizes: 24576     0     0     0, plane_offsets:     0     0     0, total_size: 24576
++y412be          planes: 1, linesizes: 512   0   0   0, plane_sizes: 24576     0     0     0, plane_offsets:     0     0     0, total_size: 24576
+ x2rgb10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
+index f023430356..50d134ef32 100644
+--- a/tests/ref/fate/sws-pixdesc-query
++++ b/tests/ref/fate/sws-pixdesc-query
+@@ -57,14 +57,20 @@ isNBPS:
+   nv20le
+   p010be
+   p010le
++  p012be
++  p012le
+   x2rgb10be
+   x2rgb10le
+   xyz12be
+   xyz12le
+   y210be
+   y210le
++  y212be
++  y212le
+   y410be
+   y410le
++  y412be
++  y412le
+   yuv420p10be
+   yuv420p10le
+   yuv420p12be
+@@ -139,6 +145,7 @@ isBE:
+   grayf32be
+   nv20be
+   p010be
++  p012be
+   p016be
+   rgb444be
+   rgb48be
+@@ -148,7 +155,9 @@ isBE:
+   x2rgb10be
+   xyz12be
+   y210be
++  y212be
+   y410be
++  y412be
+   ya16be
+   yuv420p10be
+   yuv420p12be
+@@ -192,6 +201,8 @@ isYUV:
+   nv42
+   p010be
+   p010le
++  p012be
++  p012le
+   p016be
+   p016le
+   uyvy422
+@@ -200,8 +211,12 @@ isYUV:
+   xyz12le
+   y210be
+   y210le
++  y212be
++  y212le
+   y410be
+   y410le
++  y412be
++  y412le
+   ya16be
+   ya16le
+   ya8
+@@ -288,6 +303,8 @@ isPlanarYUV:
+   nv42
+   p010be
+   p010le
++  p012be
++  p012le
+   p016be
+   p016le
+   yuv410p
+@@ -371,6 +388,8 @@ isSemiPlanarYUV:
+   nv42
+   p010be
+   p010le
++  p012be
++  p012le
+   p016be
+   p016le
+ 
+@@ -619,6 +638,8 @@ ALPHA:
+   rgba64le
+   y410be
+   y410le
++  y412be
++  y412le
+   ya16be
+   ya16le
+   ya8
+@@ -711,8 +732,12 @@ Packed:
+   xyz12le
+   y210be
+   y210le
++  y212be
++  y212le
+   y410be
+   y410le
++  y412be
++  y412le
+   ya16be
+   ya16le
+   ya8
+@@ -751,6 +776,8 @@ Planar:
+   nv42
+   p010be
+   p010le
++  p012be
++  p012le
+   p016be
+   p016le
+   yuv410p
+-- 
+2.17.1
+
