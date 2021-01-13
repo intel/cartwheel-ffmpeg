@@ -1,12 +1,11 @@
 From 185062f64334ee548b14cefca9043fee643291f9 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 30 Nov 2020 13:30:49 +0800
-Subject: [PATCH]     libavcodec/qsvenc.c: add max_frame_size support for
- hevc_qsv
+Subject: [PATCH]     libavcodec/qsvenc.c: add max_frame_size support for hevc_qsv
 
-    The max_frame_size parameter is set only when codec is h264. Now I add hevc in that conditional statement.
+The max_frame_size parameter is set only when codec is h264. Now I add hevc in that conditional statement.
 
-    Signed-off-by: Wenbin CHEN <wenbin.chen@intel.com>
+Signed-off-by: Wenbin CHEN <wenbin.chen@intel.com>
 ---
  libavcodec/qsvenc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,30 @@
-From 38c99892316ebfb3bed4a534e35aa31ffee4abb5 Mon Sep 17 00:00:00 2001
+From 5f23034c62913553f6aa5fd2cef8df44a2a8aec1 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
-Date: Fri, 4 Dec 2020 13:26:31 +0800
+Date: Mon, 4 Jan 2021 09:49:22 +0800
 Subject: [PATCH] libavcodec/qsvenc: add DisableDeblockingIdc support for qsv
 
 MediaSDK already has a flag to control deblocking (DisableDeblockingIdc). Add dblk_idc parameter in ffmpeg to expose this flag to user.
 
 Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavcodec/qsvenc.c | 4 ++++
+ libavcodec/qsvenc.c | 6 ++++++
  libavcodec/qsvenc.h | 3 +++
- 2 files changed, 7 insertions(+)
+ 2 files changed, 9 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index aba98dd689..0d20d1968f 100644
+index aba98dd689..9b8964e5a7 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -710,6 +710,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -295,6 +295,8 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+     av_log(avctx, AV_LOG_VERBOSE, "FrameRateExtD: %"PRIu32"; FrameRateExtN: %"PRIu32" \n",
+            info->FrameInfo.FrameRateExtD, info->FrameInfo.FrameRateExtN);
+ 
++    av_log(avctx, AV_LOG_VERBOSE, "DisableDeblockingIdc: %"PRIu32" \n", co2->DisableDeblockingIdc);
++
+ }
+ 
+ static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
+@@ -710,6 +712,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
              if (q->max_slice_size >= 0)
                  q->extco2.MaxSliceSize = q->max_slice_size;
  #endif
