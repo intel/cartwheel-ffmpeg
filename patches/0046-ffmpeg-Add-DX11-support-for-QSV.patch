@@ -1,25 +1,25 @@
-From 51ef04334727c291dd567557603beb76ff719c6f Mon Sep 17 00:00:00 2001
+From 7d58c6ccf304cd3c1b672338706fa0d479ef7fae Mon Sep 17 00:00:00 2001
 From: "Galin, Artem" <artem.galin@intel.com>
 Date: Tue, 26 May 2020 14:28:46 +0800
 Subject: [PATCH] ffmpeg: Add DX11 support for QSV
 
 ---
  fftools/ffmpeg_opt.c             |   6 +-
- libavcodec/qsv.c                 |  53 ++++--
+ libavcodec/qsv.c                 |  53 ++--
  libavcodec/qsv_internal.h        |   2 +-
- libavfilter/qsvvpp.c             |  33 ++--
- libavfilter/vf_deinterlace_qsv.c |  44 +++--
- libavfilter/vf_scale_qsv.c       |  45 +++--
- libavutil/hwcontext_d3d11va.c    |  65 ++++++-
+ libavfilter/qsvvpp.c             |  34 +--
+ libavfilter/vf_deinterlace_qsv.c |  51 ++--
+ libavfilter/vf_scale_qsv.c       |  52 ++--
+ libavutil/hwcontext_d3d11va.c    |  65 ++++-
  libavutil/hwcontext_d3d11va.h    |   7 +
- libavutil/hwcontext_qsv.c        | 400 +++++++++++++++++++++++++++++++--------
- 9 files changed, 500 insertions(+), 155 deletions(-)
+ libavutil/hwcontext_qsv.c        | 400 +++++++++++++++++++++++++------
+ 9 files changed, 509 insertions(+), 161 deletions(-)
 
 diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
-index c7f3b13..0117d39 100644
+index bf2eb26246..60111bee55 100644
 --- a/fftools/ffmpeg_opt.c
 +++ b/fftools/ffmpeg_opt.c
-@@ -559,7 +559,11 @@ static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
+@@ -579,7 +579,11 @@ static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
          printf("\n");
          exit_program(0);
      } else {
@@ -33,7 +33,7 @@ index c7f3b13..0117d39 100644
  }
  
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 731fd35..8709c87 100644
+index f2d3b74a96..dadfb83889 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -36,6 +36,8 @@
@@ -45,7 +45,7 @@ index 731fd35..8709c87 100644
  #if QSV_VERSION_ATLEAST(1, 12)
  #include "mfx/mfxvp8.h"
  #endif
-@@ -253,7 +255,9 @@ int ff_qsv_find_surface_idx(QSVFramesContext *ctx, QSVFrame *frame)
+@@ -257,7 +259,9 @@ int ff_qsv_find_surface_idx(QSVFramesContext *ctx, QSVFrame *frame)
      int i;
      for (i = 0; i < ctx->nb_mids; i++) {
          QSVMid *mid = &ctx->mids[i];
@@ -56,7 +56,7 @@ index 731fd35..8709c87 100644
              return i;
      }
      return AVERROR_BUG;
-@@ -394,7 +398,11 @@ static int ff_qsv_set_display_handle(AVCodecContext *avctx, QSVSession *qs)
+@@ -397,7 +401,11 @@ static int ff_qsv_set_display_handle(AVCodecContext *avctx, QSVSession *qs)
  int ff_qsv_init_internal_session(AVCodecContext *avctx, QSVSession *qs,
                                   const char *load_plugins, int gpu_copy)
  {
@@ -68,7 +68,7 @@ index 731fd35..8709c87 100644
      mfxVersion        ver = { { QSV_VERSION_MINOR, QSV_VERSION_MAJOR } };
      mfxInitParam init_par = { MFX_IMPL_AUTO_ANY };
  
-@@ -483,7 +491,7 @@ static AVBufferRef *qsv_create_mids(AVBufferRef *hw_frames_ref)
+@@ -486,7 +494,7 @@ static AVBufferRef *qsv_create_mids(AVBufferRef *hw_frames_ref)
  
      for (i = 0; i < nb_surfaces; i++) {
          QSVMid *mid = &mids[i];
@@ -77,7 +77,7 @@ index 731fd35..8709c87 100644
          mid->hw_frames_ref = hw_frames_ref1;
      }
  
-@@ -660,7 +668,7 @@ static mfxStatus qsv_frame_lock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+@@ -663,7 +671,7 @@ static mfxStatus qsv_frame_lock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
          goto fail;
  
      qsv_mid->surf.Info = hw_frames_hwctx->surfaces[0].Info;
@@ -86,7 +86,7 @@ index 731fd35..8709c87 100644
  
      /* map the data to the system memory */
      ret = av_hwframe_map(qsv_mid->locked_frame, qsv_mid->hw_frame,
-@@ -693,7 +701,13 @@ static mfxStatus qsv_frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+@@ -696,7 +704,13 @@ static mfxStatus qsv_frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
  static mfxStatus qsv_frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
  {
      QSVMid *qsv_mid = (QSVMid*)mid;
@@ -101,7 +101,7 @@ index 731fd35..8709c87 100644
      return MFX_ERR_NONE;
  }
  
-@@ -701,24 +715,19 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
+@@ -704,24 +718,19 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
                                 AVBufferRef *device_ref, const char *load_plugins,
                                 int gpu_copy)
  {
@@ -128,7 +128,7 @@ index 731fd35..8709c87 100644
  
      err = MFXQueryIMPL(parent_session, &impl);
      if (err == MFX_ERR_NONE)
-@@ -727,13 +736,23 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
+@@ -730,13 +739,23 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
          return ff_qsv_print_error(avctx, err,
                                    "Error querying the session attributes");
  
@@ -159,10 +159,10 @@ index 731fd35..8709c87 100644
      if (!handle) {
          av_log(avctx, AV_LOG_VERBOSE, "No supported hw handle could be retrieved "
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 6489836..370ab46 100644
+index 6b2fbbe252..5d276b091c 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
-@@ -60,7 +60,7 @@
+@@ -62,7 +62,7 @@
  
  typedef struct QSVMid {
      AVBufferRef *hw_frames_ref;
@@ -172,7 +172,7 @@ index 6489836..370ab46 100644
      AVFrame *locked_frame;
      AVFrame *hw_frame;
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 8d5ff2e..c89d418 100644
+index f216b3f248..ce1261eda4 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -36,6 +36,7 @@
@@ -195,8 +195,8 @@ index 8d5ff2e..c89d418 100644
 -
  static const AVRational default_tb = { 1, 90000 };
  
- /* functions for frameAlloc */
-@@ -129,7 +124,13 @@ static mfxStatus frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+ static const struct {
+@@ -233,7 +228,13 @@ static mfxStatus frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
  
  static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
  {
@@ -211,7 +211,7 @@ index 8d5ff2e..c89d418 100644
      return MFX_ERR_NONE;
  }
  
-@@ -451,7 +452,7 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -555,7 +556,7 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
  
          s->out_mem_mode = IS_OPAQUE_MEMORY(s->in_mem_mode) ?
                            MFX_MEMTYPE_OPAQUE_FRAME :
@@ -220,7 +220,7 @@ index 8d5ff2e..c89d418 100644
  
          out_frames_ctx   = (AVHWFramesContext *)out_frames_ref->data;
          out_frames_hwctx = out_frames_ctx->hwctx;
-@@ -497,14 +498,18 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -601,14 +602,19 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
          return AVERROR_UNKNOWN;
      }
  
@@ -242,11 +242,12 @@ index 8d5ff2e..c89d418 100644
      }
  
 +    ret = MFXVideoCORE_GetHandle(device_hwctx->session, handle_type, &handle);
-     if (ret != MFX_ERR_NONE) {
-         av_log(avctx, AV_LOG_ERROR, "Error getting the session handle\n");
-         return AVERROR_UNKNOWN;
++
+     if (ret < 0)
+         return ff_qsvvpp_print_error(avctx, ret, "Error getting the session handle");
+     else if (ret > 0) {
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index 80217c8..f7f9d91 100644
+index 89a282f99e..c27a5b037d 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -42,6 +42,8 @@
@@ -282,7 +283,7 @@ index 80217c8..f7f9d91 100644
  static int init_out_session(AVFilterContext *ctx)
  {
  
-@@ -183,26 +185,30 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -183,29 +185,34 @@ static int init_out_session(AVFilterContext *ctx)
      mfxIMPL impl;
      mfxVideoParam par;
      mfxStatus err;
@@ -319,14 +320,21 @@ index 80217c8..f7f9d91 100644
 +        return AVERROR_UNKNOWN;
      }
  
--    if (err != MFX_ERR_NONE) {
+-    if (err < 0)
+-        return ff_qsvvpp_print_error(ctx, err, "Error getting the session handle");
+-    else if (err > 0) {
+-        ff_qsvvpp_print_warning(ctx, err, "Warning in getting the session handle");
 +    ret = MFXVideoCORE_GetHandle(device_hwctx->session, handle_type, &handle);
-+    if (ret != MFX_ERR_NONE) {
-         av_log(ctx, AV_LOG_ERROR, "Error getting the session handle\n");
++
++    if (ret < 0)
++        return ff_qsvvpp_print_error(ctx, ret, "Error getting the session handle");
++    else if (ret > 0) {
++        ff_qsvvpp_print_warning(ctx, ret, "Warning in getting the session handle");
          return AVERROR_UNKNOWN;
      }
+ 
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
-index 5064dcb..9eb5932 100644
+index 2ac2373955..3e9b116f33 100644
 --- a/libavfilter/vf_scale_qsv.c
 +++ b/libavfilter/vf_scale_qsv.c
 @@ -70,6 +70,7 @@ enum var_name {
@@ -370,7 +378,7 @@ index 5064dcb..9eb5932 100644
  static int init_out_session(AVFilterContext *ctx)
  {
  
-@@ -292,28 +293,32 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -292,31 +293,36 @@ static int init_out_session(AVFilterContext *ctx)
      mfxIMPL impl;
      mfxVideoParam par;
      mfxStatus err;
@@ -409,14 +417,21 @@ index 5064dcb..9eb5932 100644
 +        return AVERROR_UNKNOWN;
      }
  
--    if (err != MFX_ERR_NONE) {
+-    if (err < 0)
+-        return ff_qsvvpp_print_error(ctx, err, "Error getting the session handle");
+-    else if (err > 0) {
+-        ff_qsvvpp_print_warning(ctx, err, "Warning in getting the session handle");
 +    ret = MFXVideoCORE_GetHandle(device_hwctx->session, handle_type, &handle);
-+    if (ret != MFX_ERR_NONE) {
-         av_log(ctx, AV_LOG_ERROR, "Error getting the session handle\n");
++
++    if (ret < 0)
++        return ff_qsvvpp_print_error(ctx, ret, "Error getting the session handle");
++    else if (ret > 0) {
++        ff_qsvvpp_print_warning(ctx, ret, "Warning in getting the session handle");
          return AVERROR_UNKNOWN;
      }
+ 
 diff --git a/libavutil/hwcontext_d3d11va.c b/libavutil/hwcontext_d3d11va.c
-index c8ae58f..2d84064 100644
+index c8ae58f908..2d8406427a 100644
 --- a/libavutil/hwcontext_d3d11va.c
 +++ b/libavutil/hwcontext_d3d11va.c
 @@ -72,8 +72,8 @@ static av_cold void load_functions(void)
@@ -564,7 +579,7 @@ index c8ae58f..2d84064 100644
          }
      }
 diff --git a/libavutil/hwcontext_d3d11va.h b/libavutil/hwcontext_d3d11va.h
-index 9f91e9b..dd782bc 100644
+index 9f91e9b1b6..dd782bcc12 100644
 --- a/libavutil/hwcontext_d3d11va.h
 +++ b/libavutil/hwcontext_d3d11va.h
 @@ -164,6 +164,13 @@ typedef struct AVD3D11VAFramesContext {
@@ -582,7 +597,7 @@ index 9f91e9b..dd782bc 100644
  
  #endif /* AVUTIL_HWCONTEXT_D3D11VA_H */
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 68681cc..8285ce0 100644
+index 68681cc88e..8285ce03b5 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -27,9 +27,13 @@
@@ -616,10 +631,11 @@ index 68681cc..8285ce0 100644
      int             nb_surfaces_used;
  
      // used in the frame allocator for non-opaque surfaces
-@@ -86,20 +93,6 @@ typedef struct QSVFramesContext {
+@@ -85,20 +92,6 @@ typedef struct QSVFramesContext {
+     mfxExtBuffer *ext_buffers[1];
  } QSVFramesContext;
  
- static const struct {
+-static const struct {
 -    mfxHandleType handle_type;
 -    enum AVHWDeviceType device_type;
 -    enum AVPixelFormat  pix_fmt;
@@ -633,10 +649,9 @@ index 68681cc..8285ce0 100644
 -    { 0 },
 -};
 -
--static const struct {
+ static const struct {
      enum AVPixelFormat pix_fmt;
      uint32_t           fourcc;
- } supported_pixel_formats[] = {
 @@ -133,28 +126,32 @@ static uint32_t qsv_fourcc_from_pix_fmt(enum AVPixelFormat pix_fmt)
      return 0;
  }
@@ -1238,5 +1253,5 @@ index 68681cc..8285ce0 100644
      return qsv_device_derive_from_child(ctx, impl, child_device, 0);
  }
 -- 
-2.7.4
+2.17.1
 
