@@ -1,0 +1,112 @@
+From 3b0f847c6d74ed379282e377f57a8515123ec37c Mon Sep 17 00:00:00 2001
+From: Wenbinc-Bin <wenbin.chen@intel.com>
+Date: Thu, 21 Jan 2021 15:46:19 +0800
+Subject: [PATCH 07/10] libavocdec/qsvenc_hevc: encode RGB format rawvideo
+
+Add support for hevc_qsv to input RGB format frame. It will
+transform frame to yuv inside MediaSDK instead of using auto
+scale. Hevc_qsv supports directly encoding BGRA and X2RGB10Le format.
+X2RGB10Le is only supported in VDENC (-low_power 1).
+The X2RGB10Le correspond to the A2RGB20 format in MediaSDK, and for
+A2RGB10 the two MSBs is A channels while this two bits in X2RGB10Le is
+undefined. MediaSDK team is discussing about this, so I leave an interface
+here.
+
+Sigend-of-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavcodec/qsv.c         | 16 ++++++++++++++++
+ libavcodec/qsvenc.c      | 19 +++++++++++++++++--
+ libavcodec/qsvenc_hevc.c |  6 ++++++
+ 3 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index 6e3154e1a3..7ade53e278 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -196,6 +196,12 @@ int ff_qsv_print_warning(void *log_ctx, mfxStatus err,
+ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+ {
+     switch (fourcc) {
++#if QSV_VERSION_ATLEAST(1, 9)
++    case MFX_FOURCC_A2RGB10: return AV_PIX_FMT_X2RGB10LE;
++#endif
++#if QSV_VERSION_ATLEAST(1, 17)
++    case MFX_FOURCC_RGB4: return AV_PIX_FMT_BGRA;
++#endif
+     case MFX_FOURCC_NV12: return AV_PIX_FMT_NV12;
+     case MFX_FOURCC_P010: return AV_PIX_FMT_P010;
+     case MFX_FOURCC_P8:   return AV_PIX_FMT_PAL8;
+@@ -222,6 +228,16 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+         *fourcc = MFX_FOURCC_P010;
+         return AV_PIX_FMT_P010;
+ #if CONFIG_VAAPI
++#if QSV_VERSION_ATLEAST(1, 9)
++    case AV_PIX_FMT_BGRA:
++        *fourcc = MFX_FOURCC_RGB4;
++        return AV_PIX_FMT_BGRA;
++#endif
++#if QSV_VERSION_ATLEAST(1, 17)
++    case AV_PIX_FMT_X2RGB10LE:
++        *fourcc = MFX_FOURCC_A2RGB10;
++        return AV_PIX_FMT_X2RGB10LE;
++#endif
+     case AV_PIX_FMT_YUV422P:
+     case AV_PIX_FMT_YUYV422:
+         *fourcc = MFX_FOURCC_YUY2;
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index addc61bf89..4b345aca0a 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -613,6 +613,13 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+     brc_param_multiplier       = (FFMAX(FFMAX3(target_bitrate_kbps, max_bitrate_kbps, buffer_size_in_kilobytes),
+                                   initial_delay_in_kilobytes) + 0x10000) / 0x10000;
+ 
++#if QSV_VERSION_ATLEAST(1, 9)
++    if (sw_format == AV_PIX_FMT_X2RGB10LE && q->low_power != 1) {
++        av_log(avctx, AV_LOG_ERROR, "Only VDENC support encoding x2rgb10\n");
++        return AVERROR(EINVAL);
++    }
++#endif
++
+     switch (q->param.mfx.RateControlMethod) {
+     case MFX_RATECONTROL_CBR:
+     case MFX_RATECONTROL_VBR:
+@@ -1422,8 +1429,16 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+             qf->surface.Info.PicStruct |= MFX_PICSTRUCT_FRAME_TRIPLING;
+ 
+         qf->surface.Data.PitchLow  = qf->frame->linesize[0];
+-        qf->surface.Data.Y         = qf->frame->data[0];
+-        qf->surface.Data.UV        = qf->frame->data[1];
++        if (frame->format == AV_PIX_FMT_X2RGB10LE ||
++            frame->format == AV_PIX_FMT_BGRA) {
++            qf->surface.Data.B         = qf->frame->data[0];
++            qf->surface.Data.G         = qf->frame->data[0] + 1;
++            qf->surface.Data.R         = qf->frame->data[0] + 2;
++            qf->surface.Data.A         = qf->frame->data[0] + 3;
++        } else {
++            qf->surface.Data.Y         = qf->frame->data[0];
++            qf->surface.Data.UV        = qf->frame->data[1];
++        }
+     }
+ 
+     qf->surface.Data.TimeStamp = av_rescale_q(frame->pts, q->avctx->time_base, (AVRational){1, 90000});
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index 07a7e3b2be..18e110d140 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -289,6 +289,12 @@ AVCodec ff_hevc_qsv_encoder = {
+     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
+                                                     AV_PIX_FMT_P010,
+                                                     AV_PIX_FMT_QSV,
++#if QSV_VERSION_ATLEAST(1, 17)
++                                                    AV_PIX_FMT_BGRA,
++#endif
++#if QSV_VERSION_ATLEAST(1, 9)
++                                                    AV_PIX_FMT_X2RGB10LE,
++#endif
+                                                     AV_PIX_FMT_NONE },
+     .priv_class     = &class,
+     .defaults       = qsv_enc_defaults,
+-- 
+2.25.1
+
