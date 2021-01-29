@@ -1,0 +1,161 @@
+From 5ad158b18d65e9a3b1712a4eb6e0c159428d50d9 Mon Sep 17 00:00:00 2001
+From: Wenbinc-Bin <wenbin.chen@intel.com>
+Date: Thu, 14 Jan 2021 15:55:47 +0800
+Subject: [PATCH 06/10] libavcodec/qsvenc.c: add ROI support to qsv encoder
+
+Use the mfxEncoderCtrl parameter to enable ROI. Get side data "AVRegionOfInterest"
+from filter "addroi" and use it to configure "mfxExtEncoderROI" which is
+the MediaSDK's ROI configuration.
+It is the first time to use encoderCtrl feature in ffmpeg-qsv,
+so add allocate and free process as well.
+
+Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavcodec/qsv_internal.h |  3 ++
+ libavcodec/qsvenc.c       | 74 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+)
+
+diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
+index aa3da97c99..d846a2741a 100644
+--- a/libavcodec/qsv_internal.h
++++ b/libavcodec/qsv_internal.h
+@@ -51,6 +51,9 @@
+ #define ASYNC_DEPTH_DEFAULT 4       // internal parallelism
+ 
+ #define QSV_MAX_ENC_PAYLOAD 2       // # of mfxEncodeCtrl payloads supported
++#define QSV_MAX_ENC_EXTPARAM 2
++
++#define QSV_MAX_ROI_NUM 256
+ 
+ #define QSV_PAYLOAD_SIZE 1024
+ 
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index f2fcd09ae0..addc61bf89 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -1291,6 +1291,13 @@ static void clear_unused_frames(QSVEncContext *q)
+     QSVFrame *cur = q->work_frames;
+     while (cur) {
+         if (cur->used && !cur->surface.Data.Locked) {
++
++            for (int i = 0; i < cur->enc_ctrl.NumExtParam; i++) {
++                if (cur->enc_ctrl.ExtParam[i])
++                    av_freep(&(cur->enc_ctrl.ExtParam[i]));
++            }
++            cur->enc_ctrl.NumExtParam = 0;
++
+             free_encoder_ctrl_payloads(&cur->enc_ctrl);
+             if (cur->frame->format == AV_PIX_FMT_QSV) {
+                 av_frame_unref(cur->frame);
+@@ -1333,6 +1340,12 @@ static int get_free_frame(QSVEncContext *q, QSVFrame **f)
+         av_freep(&frame);
+         return AVERROR(ENOMEM);
+     }
++    frame->enc_ctrl.ExtParam = av_mallocz(sizeof(mfxExtBuffer*) * QSV_MAX_ENC_EXTPARAM);
++    if (!frame->enc_ctrl.ExtParam) {
++        av_free(frame->enc_ctrl.Payload);
++        av_freep(&frame);
++        return AVERROR(ENOMEM);
++    }
+     *last = frame;
+ 
+     *f = frame;
+@@ -1436,6 +1449,7 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+                         const AVFrame *frame)
+ {
+     AVPacket new_pkt = { 0 };
++    AVFrameSideData *sd;
+     mfxBitstream *bs;
+ #if QSV_VERSION_ATLEAST(1, 26)
+     mfxExtAVCEncodedFrameInfo *enc_info;
+@@ -1446,6 +1460,7 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+     mfxSyncPoint *sync     = NULL;
+     QSVFrame *qsv_frame = NULL;
+     mfxEncodeCtrl* enc_ctrl = NULL;
++    mfxExtEncoderROI *enc_roi = NULL;
+     int ret;
+ 
+     if (frame) {
+@@ -1480,6 +1495,8 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+     bs->Data      = new_pkt.data;
+     bs->MaxLength = new_pkt.size;
+ 
++    enc_info = NULL;
++    enc_buf = NULL;
+ #if QSV_VERSION_ATLEAST(1, 26)
+     if (avctx->codec_id == AV_CODEC_ID_H264) {
+         enc_info = av_mallocz(sizeof(*enc_info));
+@@ -1502,6 +1519,62 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+         q->set_encode_ctrl_cb(avctx, frame, &qsv_frame->enc_ctrl);
+     }
+ 
++#if QSV_VERSION_ATLEAST(1, 22)
++    sd = NULL;
++    if (frame) {
++        sd = av_frame_get_side_data(frame,
++                                    AV_FRAME_DATA_REGIONS_OF_INTEREST);
++    }
++    if (sd) {
++        AVRegionOfInterest *roi;
++        uint32_t roi_size;
++        int nb_roi, i;
++
++        enc_roi = (mfxExtEncoderROI *)av_mallocz(sizeof(*enc_roi));
++        if (!enc_roi) {
++            av_packet_unref(&new_pkt);
++            if (bs)
++                av_freep(bs);
++            if (enc_info)
++                av_freep(&enc_info);
++            if (enc_buf)
++                av_freep(&enc_buf);
++            return AVERROR(ENOMEM);
++        }
++        roi = (AVRegionOfInterest *)sd->data;
++        roi_size = roi->self_size;
++        av_assert0(roi_size && sd->size % roi_size == 0);
++        nb_roi = sd->size / roi_size;
++        if (nb_roi > QSV_MAX_ROI_NUM) {
++            av_log(avctx, AV_LOG_WARNING, "More ROIs set than "
++                    "supported by driver (%d > %d).\n",
++                    nb_roi, QSV_MAX_ROI_NUM);
++            nb_roi = QSV_MAX_ROI_NUM;
++        }
++        enc_roi->Header.BufferId = MFX_EXTBUFF_ENCODER_ROI;
++        enc_roi->Header.BufferSz = sizeof(*enc_roi);
++        enc_roi->NumROI  = nb_roi;
++        enc_roi->ROIMode = MFX_ROI_MODE_QP_DELTA;
++        // For overlapping regions, the first in the array takes priority.
++        for (i = 0; i < nb_roi; i++) {
++            roi = (AVRegionOfInterest*)(sd->data + roi_size * i);
++            av_assert0(roi->qoffset.den != 0);
++
++            enc_roi->ROI[i].Top = roi->top & 0xfffffff0;
++            enc_roi->ROI[i].Bottom = roi->bottom & 0xfffffff0;
++            enc_roi->ROI[i].Left = (roi->left & 0xfffffff0) + 0x10;
++            enc_roi->ROI[i].Right = (roi->right & 0xfffffff0) + 0x10;
++            enc_roi->ROI[i].DeltaQP =
++                        roi->qoffset.num * 51 / roi->qoffset.den;
++            av_log(avctx, AV_LOG_DEBUG, "ROI: (%d,%d)-(%d,%d) -> %+d.\n",
++                   roi->top, roi->left, roi->bottom, roi->right,
++                   enc_roi->ROI[i].DeltaQP);
++        }
++        enc_ctrl->ExtParam[enc_ctrl->NumExtParam] = (mfxExtBuffer *)enc_roi;
++        enc_ctrl->NumExtParam += 1;
++    }
++#endif
++
+     sync = av_mallocz(sizeof(*sync));
+     if (!sync) {
+         av_freep(&bs);
+@@ -1670,6 +1743,7 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+         q->work_frames = cur->next;
+         av_frame_free(&cur->frame);
+         av_free(cur->enc_ctrl.Payload);
++        av_free(cur->enc_ctrl.ExtParam);
+         av_freep(&cur);
+         cur = q->work_frames;
+     }
+-- 
+2.25.1
+
