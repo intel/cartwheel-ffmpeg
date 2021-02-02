@@ -1,0 +1,67 @@
+From 01be208122d9050e939ee5735377d51d6d5860d6 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 2 Jan 2020 11:06:45 +0800
+Subject: [PATCH 14/69] lavc/decode: Add get_hw_config function
+
+Wrap the procedure of getting the hardware config from a pixel format
+into a function.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavcodec/decode.c | 33 +++++++++++++++++++++------------
+ 1 file changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/libavcodec/decode.c b/libavcodec/decode.c
+index 8086362eb2..534502e50d 100644
+--- a/libavcodec/decode.c
++++ b/libavcodec/decode.c
+@@ -1301,6 +1301,26 @@ static void hwaccel_uninit(AVCodecContext *avctx)
+     av_buffer_unref(&avctx->hw_frames_ctx);
+ }
+ 
++static const AVCodecHWConfigInternal *get_hw_config(AVCodecContext *avctx, enum AVPixelFormat fmt)
++{
++    const AVCodecHWConfigInternal *hw_config;
++    int i;
++
++    if (avctx->codec->hw_configs) {
++        for (i = 0;; i++) {
++            hw_config = avctx->codec->hw_configs[i];
++            if (!hw_config)
++                break;
++            if (hw_config->public.pix_fmt == fmt)
++                break;
++        }
++    } else {
++        hw_config = NULL;
++    }
++
++    return hw_config;
++}
++
+ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
+ {
+     const AVPixFmtDescriptor *desc;
+@@ -1360,18 +1380,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
+             break;
+         }
+ 
+-        if (avctx->codec->hw_configs) {
+-            for (i = 0;; i++) {
+-                hw_config = avctx->codec->hw_configs[i];
+-                if (!hw_config)
+-                    break;
+-                if (hw_config->public.pix_fmt == user_choice)
+-                    break;
+-            }
+-        } else {
+-            hw_config = NULL;
+-        }
+-
++        hw_config = get_hw_config(avctx, user_choice);
+         if (!hw_config) {
+             // No config available, so no extra setup required.
+             ret = user_choice;
+-- 
+2.17.1
+

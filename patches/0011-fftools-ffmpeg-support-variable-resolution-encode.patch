@@ -1,0 +1,61 @@
+From f8ca2e237a62a2c1cf943ffa49ae3dc7a0951ae6 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Mon, 2 Nov 2020 10:45:29 +0800
+Subject: [PATCH 11/69] fftools/ffmpeg: support variable resolution encode
+
+Flush encoders when resolution change happens.
+
+Use AV_CODEC_CAP_PARAM_CHANGE flag for encoder to indicate whether
+it supports variable/dynamic resolution encoding.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ fftools/ffmpeg.c    | 14 ++++++++++++++
+ libavcodec/rawenc.c |  1 +
+ 2 files changed, 15 insertions(+)
+
+diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
+index d7c833be63..586b68ba92 100644
+--- a/fftools/ffmpeg.c
++++ b/fftools/ffmpeg.c
+@@ -130,6 +130,7 @@ static void do_video_stats(OutputStream *ost, int frame_size);
+ static BenchmarkTimeStamps get_benchmark_time_stamps(void);
+ static int64_t getmaxrss(void);
+ static int ifilter_has_all_input_formats(FilterGraph *fg);
++static void flush_encoders(void);
+ 
+ static int run_as_daemon  = 0;
+ static int nb_frames_dup = 0;
+@@ -1159,6 +1160,19 @@ static void do_video_out(OutputFile *of,
+     init_output_stream_wrapper(ost, next_picture, 1);
+     sync_ipts = adjust_frame_pts_to_encoder_tb(of, ost, next_picture);
+ 
++    /* flush encoders in dynamic resolution encode */
++    if (next_picture && (enc->width != next_picture->width ||
++                         enc->height != next_picture->height)) {
++        flush_encoders();
++        avcodec_flush_buffers(enc);
++
++        if (!(enc->codec->capabilities & AV_CODEC_CAP_PARAM_CHANGE)) {
++            av_log(NULL, AV_LOG_ERROR, "Dynamic resolution encode "
++                            "is not supported by %s.\n", enc->codec->name);
++            goto error;
++        }
++    }
++
+     if (ost->source_index >= 0)
+         ist = input_streams[ost->source_index];
+ 
+diff --git a/libavcodec/rawenc.c b/libavcodec/rawenc.c
+index d181b74570..0cccd21420 100644
+--- a/libavcodec/rawenc.c
++++ b/libavcodec/rawenc.c
+@@ -92,4 +92,5 @@ AVCodec ff_rawvideo_encoder = {
+     .id             = AV_CODEC_ID_RAWVIDEO,
+     .init           = raw_encode_init,
+     .encode2        = raw_encode,
++    .capabilities   = AV_CODEC_CAP_PARAM_CHANGE | AV_CODEC_CAP_ENCODER_FLUSH,
+ };
+-- 
+2.17.1
+

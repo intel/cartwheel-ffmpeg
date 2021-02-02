@@ -1,7 +1,7 @@
-From da9530462ec00b1c19ddca9de53d5290df63d279 Mon Sep 17 00:00:00 2001
+From f1725ae784c410d7b262a67d1ef5733923a4c44d Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:32:40 +0800
-Subject: [PATCH 1/2] qsv: get FrameInfo.Shift by desc->comp[0].shift
+Subject: [PATCH 04/69] qsv: get FrameInfo.Shift by desc->comp[0].shift
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
@@ -10,10 +10,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index edf3770..0a35bae 100644
+index 566a5c8552..1c8c5333a8 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -447,7 +447,7 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+@@ -448,7 +448,7 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
      q->param.mfx.FrameInfo.ChromaFormat   = MFX_CHROMAFORMAT_YUV420;
      q->param.mfx.FrameInfo.BitDepthLuma   = desc->comp[0].depth;
      q->param.mfx.FrameInfo.BitDepthChroma = desc->comp[0].depth;
@@ -22,7 +22,7 @@ index edf3770..0a35bae 100644
  
      q->param.mfx.FrameInfo.Width  = FFALIGN(avctx->width, 16);
      q->param.mfx.FrameInfo.Height = FFALIGN(avctx->height, 16);
-@@ -549,7 +549,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -550,7 +550,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
                                              !desc->log2_chroma_w + !desc->log2_chroma_h;
      q->param.mfx.FrameInfo.BitDepthLuma   = desc->comp[0].depth;
      q->param.mfx.FrameInfo.BitDepthChroma = desc->comp[0].depth;
@@ -32,7 +32,7 @@ index edf3770..0a35bae 100644
      // If the minor version is greater than or equal to 19,
      // then can use the same alignment settings as H.264 for HEVC
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 4306c6e3..5a06e15 100644
+index 35a944f8f8..90dfbb7989 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -327,7 +327,7 @@ static int qsv_init_surface(AVHWFramesContext *ctx, mfxFrameSurface1 *surf)
@@ -45,5 +45,5 @@ index 4306c6e3..5a06e15 100644
      if (desc->log2_chroma_w && desc->log2_chroma_h)
          surf->Info.ChromaFormat   = MFX_CHROMAFORMAT_YUV420;
 -- 
-2.7.4
+2.17.1
 

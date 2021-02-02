@@ -1,7 +1,7 @@
-From 599db06f0729ba76fdcf054f181c650aa44ad22b Mon Sep 17 00:00:00 2001
+From 874e70a755dad218dc176aff462c731d97add86b Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 15:38:48 +0800
-Subject: [PATCH 2/2] swscale: Add swscale and fate support for 0YUV
+Subject: [PATCH 02/69] swscale: Add swscale and fate support for 0YUV
 
 Add input and output support in swscale for 0YUV.
 
@@ -12,9 +12,9 @@ Add fate test for 0YUV.
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
- libswscale/input.c                       | 25 ++++++++++++++++
- libswscale/output.c                      | 50 ++++++++++++++++++++++++++++++++
- libswscale/swscale_unscaled.c            | 40 +++++++++++++++++++++++++
+ libswscale/input.c                       | 25 ++++++++++++
+ libswscale/output.c                      | 50 ++++++++++++++++++++++++
+ libswscale/swscale_unscaled.c            | 40 +++++++++++++++++++
  libswscale/utils.c                       |  1 +
  tests/ref/fate/filter-pixdesc-0yuv       |  1 +
  tests/ref/fate/filter-pixfmts-copy       |  1 +
@@ -32,10 +32,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  create mode 100644 tests/ref/fate/filter-pixdesc-0yuv
 
 diff --git a/libswscale/input.c b/libswscale/input.c
-index 0bd1aa7..0b6ce6c 100644
+index 6850801a44..a23993b24c 100644
 --- a/libswscale/input.c
 +++ b/libswscale/input.c
-@@ -572,6 +572,25 @@ static void y210le_Y_c(uint8_t *dst, const uint8_t *src, const uint8_t *unused0,
+@@ -573,6 +573,25 @@ static void y210le_Y_c(uint8_t *dst, const uint8_t *src, const uint8_t *unused0,
          AV_WN16(dst + i * 2, AV_RL16(src + i * 4) >> 6);
  }
  
@@ -61,7 +61,7 @@ index 0bd1aa7..0b6ce6c 100644
  static void bswap16Y_c(uint8_t *_dst, const uint8_t *_src, const uint8_t *unused1, const uint8_t *unused2, int width,
                         uint32_t *unused)
  {
-@@ -1258,6 +1277,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
+@@ -1257,6 +1276,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
      case AV_PIX_FMT_Y210LE:
          c->chrToYV12 = y210le_UV_c;
          break;
@@ -71,7 +71,7 @@ index 0bd1aa7..0b6ce6c 100644
      }
      if (c->chrSrcHSubSample) {
          switch (srcFormat) {
-@@ -1709,6 +1731,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
+@@ -1708,6 +1730,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
      case AV_PIX_FMT_Y210LE:
          c->lumToYV12 = y210le_Y_c;
          break;
@@ -82,13 +82,14 @@ index 0bd1aa7..0b6ce6c 100644
          c->lumToYV12 =rgb30leToY_c;
          break;
 diff --git a/libswscale/output.c b/libswscale/output.c
-index 4ef436e..8e988f9 100644
+index e855ad606a..22c29e05c7 100644
 --- a/libswscale/output.c
 +++ b/libswscale/output.c
 @@ -2491,6 +2491,53 @@ yuv2ya8_X_c(SwsContext *c, const int16_t *lumFilter,
+     }
  }
  
- static void
++static void
 +yuv2Xyuv_X_c(SwsContext *c, const int16_t *lumFilter,
 +                 const int16_t **lumSrc, int lumFilterSize,
 +                 const int16_t *chrFilter, const int16_t **chrUSrc,
@@ -135,11 +136,10 @@ index 4ef436e..8e988f9 100644
 +    }
 +}
 +
-+static void
+ static void
  yuv2ayuv64le_X_c(SwsContext *c, const int16_t *lumFilter,
                   const int16_t **_lumSrc, int lumFilterSize,
-                  const int16_t *chrFilter, const int16_t **_chrUSrc,
-@@ -3032,6 +3079,9 @@ av_cold void ff_sws_init_output_funcs(SwsContext *c,
+@@ -3033,6 +3080,9 @@ av_cold void ff_sws_init_output_funcs(SwsContext *c,
          *yuv2packed2 = yuv2ya16be_2_c;
          *yuv2packedX = yuv2ya16be_X_c;
          break;
@@ -150,10 +150,10 @@ index 4ef436e..8e988f9 100644
          *yuv2packedX = yuv2ayuv64le_X_c;
          break;
 diff --git a/libswscale/swscale_unscaled.c b/libswscale/swscale_unscaled.c
-index 5fb572b..198d08c 100644
+index c4dd8a4d83..2b0855e75a 100644
 --- a/libswscale/swscale_unscaled.c
 +++ b/libswscale/swscale_unscaled.c
-@@ -371,6 +371,41 @@ static int yuv422pToUyvyWrapper(SwsContext *c, const uint8_t *src[],
+@@ -372,6 +372,41 @@ static int yuv422pToUyvyWrapper(SwsContext *c, const uint8_t *src[],
      return srcSliceH;
  }
  
@@ -195,7 +195,7 @@ index 5fb572b..198d08c 100644
  static int yuyvToYuv420Wrapper(SwsContext *c, const uint8_t *src[],
                                 int srcStride[], int srcSliceY, int srcSliceH,
                                 uint8_t *dstParam[], int dstStride[])
-@@ -2120,6 +2155,11 @@ void ff_get_unscaled_swscale(SwsContext *c)
+@@ -2170,6 +2205,11 @@ void ff_get_unscaled_swscale(SwsContext *c)
              c->swscale = yuv422pToUyvyWrapper;
      }
  
@@ -208,7 +208,7 @@ index 5fb572b..198d08c 100644
      if (srcFormat == AV_PIX_FMT_GRAY8 && dstFormat == AV_PIX_FMT_GRAYF32){
          c->swscale = uint_y_to_float_y_wrapper;
 diff --git a/libswscale/utils.c b/libswscale/utils.c
-index dcd1dba..4f41384 100644
+index 352a8ed116..2d7f69c496 100644
 --- a/libswscale/utils.c
 +++ b/libswscale/utils.c
 @@ -271,6 +271,7 @@ static const FormatEntry format_entries[] = {
@@ -221,13 +221,13 @@ index dcd1dba..4f41384 100644
  
 diff --git a/tests/ref/fate/filter-pixdesc-0yuv b/tests/ref/fate/filter-pixdesc-0yuv
 new file mode 100644
-index 0000000..fb71b0b
+index 0000000000..fb71b0b737
 --- /dev/null
 +++ b/tests/ref/fate/filter-pixdesc-0yuv
 @@ -0,0 +1 @@
 +pixdesc-0yuv        25e04681539b84434e6687583d196771
 diff --git a/tests/ref/fate/filter-pixfmts-copy b/tests/ref/fate/filter-pixfmts-copy
-index 1d7657c..e99fa80 100644
+index 1d7657c2af..e99fa8068a 100644
 --- a/tests/ref/fate/filter-pixfmts-copy
 +++ b/tests/ref/fate/filter-pixfmts-copy
 @@ -1,5 +1,6 @@
@@ -238,7 +238,7 @@ index 1d7657c..e99fa80 100644
  argb                f003b555ef429222005d33844cca9325
  ayuv64le            07b9c969dfbe4add4c0626773b151d4f
 diff --git a/tests/ref/fate/filter-pixfmts-crop b/tests/ref/fate/filter-pixfmts-crop
-index 8fc7614..b059fca 100644
+index 8fc7614192..b059fca864 100644
 --- a/tests/ref/fate/filter-pixfmts-crop
 +++ b/tests/ref/fate/filter-pixfmts-crop
 @@ -1,5 +1,6 @@
@@ -249,7 +249,7 @@ index 8fc7614..b059fca 100644
  argb                8b822972049a1e207000763f2564d6e0
  ayuv64le            ab2f7bc8f150af47c42c778e3ea28bce
 diff --git a/tests/ref/fate/filter-pixfmts-field b/tests/ref/fate/filter-pixfmts-field
-index ce8e535..a404396 100644
+index ce8e53571f..a40439601a 100644
 --- a/tests/ref/fate/filter-pixfmts-field
 +++ b/tests/ref/fate/filter-pixfmts-field
 @@ -1,5 +1,6 @@
@@ -260,7 +260,7 @@ index ce8e535..a404396 100644
  argb                6dca4f2987b49b7d63f702d17bace630
  ayuv64le            d9836decca6323ba88b3b3d02257c0b6
 diff --git a/tests/ref/fate/filter-pixfmts-fieldorder b/tests/ref/fate/filter-pixfmts-fieldorder
-index 90d36ad..bd1eb0b 100644
+index 90d36add83..bd1eb0baee 100644
 --- a/tests/ref/fate/filter-pixfmts-fieldorder
 +++ b/tests/ref/fate/filter-pixfmts-fieldorder
 @@ -1,5 +1,6 @@
@@ -271,7 +271,7 @@ index 90d36ad..bd1eb0b 100644
  argb                80d08e68cb91bc8f2f817516e65f0bd0
  ayuv64le            84ef6260fe02427da946d4a2207fb54c
 diff --git a/tests/ref/fate/filter-pixfmts-hflip b/tests/ref/fate/filter-pixfmts-hflip
-index 0d40b93..12a1722 100644
+index 0d40b93e97..12a17228c4 100644
 --- a/tests/ref/fate/filter-pixfmts-hflip
 +++ b/tests/ref/fate/filter-pixfmts-hflip
 @@ -1,5 +1,6 @@
@@ -282,7 +282,7 @@ index 0d40b93..12a1722 100644
  argb                36cf791c52c5463bfc52a070de54337e
  ayuv64le            4cedbc38b3d4dcb26cdab170ce6d667b
 diff --git a/tests/ref/fate/filter-pixfmts-il b/tests/ref/fate/filter-pixfmts-il
-index d1bc866..29144ce 100644
+index d1bc866957..29144cecef 100644
 --- a/tests/ref/fate/filter-pixfmts-il
 +++ b/tests/ref/fate/filter-pixfmts-il
 @@ -1,5 +1,6 @@
@@ -293,7 +293,7 @@ index d1bc866..29144ce 100644
  argb                9e50e6ef02c83f28e97865a1f46ddfcd
  ayuv64le            6f45f683e99ddf4180c7c7f47719efcc
 diff --git a/tests/ref/fate/filter-pixfmts-null b/tests/ref/fate/filter-pixfmts-null
-index 1d7657c..e99fa80 100644
+index 1d7657c2af..e99fa8068a 100644
 --- a/tests/ref/fate/filter-pixfmts-null
 +++ b/tests/ref/fate/filter-pixfmts-null
 @@ -1,5 +1,6 @@
@@ -304,7 +304,7 @@ index 1d7657c..e99fa80 100644
  argb                f003b555ef429222005d33844cca9325
  ayuv64le            07b9c969dfbe4add4c0626773b151d4f
 diff --git a/tests/ref/fate/filter-pixfmts-pad b/tests/ref/fate/filter-pixfmts-pad
-index 9a5db82..af8f91f 100644
+index 9a5db82543..af8f91f21b 100644
 --- a/tests/ref/fate/filter-pixfmts-pad
 +++ b/tests/ref/fate/filter-pixfmts-pad
 @@ -1,5 +1,6 @@
@@ -315,7 +315,7 @@ index 9a5db82..af8f91f 100644
  argb                2a10108ac524b422b8a2393c064b3eab
  bgr0                32207a2de1b2ac7937e940a8459b97c0
 diff --git a/tests/ref/fate/filter-pixfmts-scale b/tests/ref/fate/filter-pixfmts-scale
-index d7020ad..c9904f5 100644
+index f47c9b887f..c760ac2968 100644
 --- a/tests/ref/fate/filter-pixfmts-scale
 +++ b/tests/ref/fate/filter-pixfmts-scale
 @@ -1,5 +1,6 @@
@@ -326,7 +326,7 @@ index d7020ad..c9904f5 100644
  argb                f0e17c71a40643c33a5bcfb481f6d8f8
  ayuv64le            59fb016f9874062d0be77cb3920ffed2
 diff --git a/tests/ref/fate/filter-pixfmts-transpose b/tests/ref/fate/filter-pixfmts-transpose
-index 0a8542b..93cabd7 100644
+index 0a8542b2a9..93cabd77a0 100644
 --- a/tests/ref/fate/filter-pixfmts-transpose
 +++ b/tests/ref/fate/filter-pixfmts-transpose
 @@ -1,5 +1,6 @@
@@ -337,7 +337,7 @@ index 0a8542b..93cabd7 100644
  argb                87bbd23debb94d486ac3a6b6c0b005f9
  ayuv64le            e4c07e0d5b333b3bc9eb4f3ce6af3a2c
 diff --git a/tests/ref/fate/filter-pixfmts-vflip b/tests/ref/fate/filter-pixfmts-vflip
-index 732db8d..3110952 100644
+index 732db8d331..311095257d 100644
 --- a/tests/ref/fate/filter-pixfmts-vflip
 +++ b/tests/ref/fate/filter-pixfmts-vflip
 @@ -1,5 +1,6 @@
@@ -348,5 +348,5 @@ index 732db8d..3110952 100644
  argb                3fd6af7ef2364d8aa845d45db289a04a
  ayuv64le            558671dd31d0754cfa6344eaf441df78
 -- 
-2.7.4
+2.17.1
 
