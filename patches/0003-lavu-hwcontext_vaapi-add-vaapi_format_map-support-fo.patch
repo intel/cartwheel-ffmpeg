@@ -1,7 +1,7 @@
-From 410fc9255c794500193efca186761bac5160922e Mon Sep 17 00:00:00 2001
+From d5c1b3cb34311a0588fb80c5966b3b0b22001363 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 10 Sep 2019 16:47:27 +0800
-Subject: [PATCH 03/28] lavu/hwcontext_vaapi: add vaapi_format_map support for
+Subject: [PATCH 03/69] lavu/hwcontext_vaapi: add vaapi_format_map support for
  0YUV/Y410
 
 VA_RT_FORMAT describes the desired sampling format for surface.
@@ -19,20 +19,20 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 4 insertions(+)
 
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index b306965..96be79e 100644
+index 2227d6ed69..0d2c34e452 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
-@@ -119,6 +119,10 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
+@@ -118,6 +118,10 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
+     MAP(YUY2, YUV422,  YUYV422, 0),
  #ifdef VA_FOURCC_Y210
      MAP(Y210, YUV422_10,  Y210, 0),
- #endif
++#endif
 +    MAP(AYUV, YUV444,     0YUV, 0),
 +#ifdef VA_FOURCC_Y410
 +    MAP(Y410, YUV444_10,  Y410, 0),
-+#endif
+ #endif
      MAP(411P, YUV411,  YUV411P, 0),
      MAP(422V, YUV422,  YUV440P, 0),
-     MAP(444P, YUV444,  YUV444P, 0),
 -- 
-2.7.4
+2.17.1
 

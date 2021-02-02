@@ -1,7 +1,7 @@
-From b08b45078d2667b3e3bc8f763f9eb8691547895d Mon Sep 17 00:00:00 2001
+From 319dbcdb5489d4ca8ed5c07475d8626a249a025d Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 10:58:19 +0800
-Subject: [PATCH] lavu/pixfmt: add new pixel format 0yuv/y410
+Subject: [PATCH 01/69] lavu/pixfmt: add new pixel format 0yuv/y410
 
 Previously, media driver provided planar format(like 420 8 bit),
 but for HEVC Range Extension (444 8/10 bit), the decoded image
@@ -73,7 +73,7 @@ index 8274713226..584bf42273 100644
          .name = "rgb24",
          .nb_components = 3,
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index a46acf3c5e..fe9d83ea93 100644
+index 46ef211add..045df7f321 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
 @@ -358,6 +358,10 @@ enum AVPixelFormat {

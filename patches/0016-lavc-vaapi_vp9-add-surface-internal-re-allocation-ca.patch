@@ -1,0 +1,25 @@
+From 0e98bfbbb6c5c3f54b003e414f2193cace659791 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 2 Jan 2020 11:16:31 +0800
+Subject: [PATCH 16/69] lavc/vaapi_vp9: add surface internal re-allocation
+ capability
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavcodec/vaapi_vp9.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/vaapi_vp9.c b/libavcodec/vaapi_vp9.c
+index 776382f683..fc6ff0a0f2 100644
+--- a/libavcodec/vaapi_vp9.c
++++ b/libavcodec/vaapi_vp9.c
+@@ -181,5 +181,5 @@ const AVHWAccel ff_vp9_vaapi_hwaccel = {
+     .uninit               = ff_vaapi_decode_uninit,
+     .frame_params         = ff_vaapi_common_frame_params,
+     .priv_data_size       = sizeof(VAAPIDecodeContext),
+-    .caps_internal        = HWACCEL_CAP_ASYNC_SAFE,
++    .caps_internal        = HWACCEL_CAP_ASYNC_SAFE | HWACCEL_CAP_INTERNAL_ALLOC,
+ };
+-- 
+2.17.1
+
