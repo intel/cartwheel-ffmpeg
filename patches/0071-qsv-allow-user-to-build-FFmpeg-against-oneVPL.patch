@@ -1,0 +1,28 @@
+From 98e59d482f3423fe18025082e78a002d80279089 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Wed, 3 Feb 2021 14:49:46 +0800
+Subject: [PATCH 71/71] qsv: allow user to build FFmpeg against oneVPL
+
+---
+ configure | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/configure b/configure
+index 46a790707e..8b1289ace3 100755
+--- a/configure
++++ b/configure
+@@ -6376,7 +6376,10 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
+ # Media SDK or Intel Media Server Studio, these don't come with
+ # pkg-config support.  Instead, users should make sure that the build
+ # can find the libraries and headers through other means.
+-enabled libmfx            && { { { check_pkg_config libmfx "libmfx < 2.0" "mfxvideo.h" MFXInit ||
++enabled libmfx            && { { check_pkg_config libmfx "libmfx >= 2021.1.7" "mfxvideo.h" MFXInit &&
++                                 warn "Build FFmpeg against oneVPL, OPAQUE memory, multi-frame encode\n"\
++                                      " and LA_EXT rate control mode in FFmpeg QSV won't be supported."; } ||
++                                { { check_pkg_config libmfx "libmfx < 2.0" "mfxvideo.h" MFXInit ||
+ # Some old versions of libmfx have the following settings in libmfx.pc:
+ #   includedir=/usr/include
+ #   Cflags: -I${includedir}
+-- 
+2.17.1
+

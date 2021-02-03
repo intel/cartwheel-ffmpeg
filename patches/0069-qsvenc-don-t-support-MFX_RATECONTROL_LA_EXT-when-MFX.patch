@@ -1,9 +1,14 @@
-From 2dee8e3fb1bd5714e620f19ae607d282491dcdcf Mon Sep 17 00:00:00 2001
+From 6028fe5bfd9ce7d7c746e1e08cf6d1f5f143ee21 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 12:49:14 +0800
-Subject: [PATCH 68/69] qsvenc: libmfx no longer supports
- MFX_RATECONTROL_LA_EXT since version 2.0 (oneVPL)
+Subject: [PATCH 69/71] qsvenc: don't support MFX_RATECONTROL_LA_EXT when
+ MFX_VERSION >= 2.0
 
+MFX_RATECONTROL_LA_EXT isn't supported for MFX_VERSION >= 2.0[1][2],
+this is in preparation for oneVPL support
+
+[1]: https://spec.oneapi.com/versions/latest/elements/oneVPL/source/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
+[2]: https://github.com/oneapi-src/oneVPL
 ---
  libavcodec/qsvenc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
