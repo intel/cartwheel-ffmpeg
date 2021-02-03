@@ -1,11 +1,11 @@
-From 81217e2d5fd49eb7dbe9b748a149360444eb6d60 Mon Sep 17 00:00:00 2001
+From 40ee811089a698870990faa6723412b74db813fa Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 8 Sep 2020 11:17:27 +0800
-Subject: [PATCH 64/69] qsv: add ${includedir}/mfx to the search path for old
+Subject: [PATCH 65/71] qsv: add ${includedir}/mfx to the search path for old
  versions of libmfx
 
 ${includedir}/mfx has been added to Cflags in libmfx.pc for the current
-libmfx. We may add ${includedir}/mfx to the search path for olda
+libmfx. We may add ${includedir}/mfx to the search path for old
 versions of libmfx so that we may include foo.h instead of mfx/foo.h
 
 After applying this change, we won't need to change #include to include
@@ -18,8 +18,10 @@ If your libmfx comes without pkg-config support, this patch requires a
 small change to your environment setting (e.g. adding
 /opt/intel/mediasdk/include/mfx instead of /opt/intel/mediasdk/include
 to CFLAGS) so that the build can find the headers
+
+This is in preparation for oneVPL support
 ---
- configure                        | 15 ++++++++++++---
+ configure                        | 16 +++++++++++-----
  fftools/ffmpeg_qsv.c             |  2 +-
  libavcodec/qsv.c                 |  8 ++++----
  libavcodec/qsv.h                 |  2 +-
@@ -39,35 +41,29 @@ to CFLAGS) so that the build can find the headers
  libavutil/hwcontext_opencl.c     |  2 +-
  libavutil/hwcontext_qsv.c        |  2 +-
  libavutil/hwcontext_qsv.h        |  2 +-
- 20 files changed, 34 insertions(+), 25 deletions(-)
+ 20 files changed, 33 insertions(+), 27 deletions(-)
 
 diff --git a/configure b/configure
-index 9a42e8e1a2..fce28e24b4 100755
+index 45427fc462..46a790707e 100755
 --- a/configure
 +++ b/configure
-@@ -1458,6 +1458,14 @@ check_pkg_config(){
-         eval add_cflags \$${name}_cflags
- }
- 
-+append_subdir_to_pkg_includedir(){
-+    log append_subdir_to_pkg_includedir "$@"
-+    name="$1"
-+    subdir="$2"
-+    incdir=$($pkg_config --variable=includedir $name)
-+    add_cflags -I$incdir/$subdir
-+}
-+
- test_exec(){
-     test_ld "cc" "$@" && { enabled cross_compile || $TMPE >> $logfile 2>&1; }
- }
-@@ -6376,10 +6384,11 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
+@@ -6376,12 +6376,18 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
  # Media SDK or Intel Media Server Studio, these don't come with
  # pkg-config support.  Instead, users should make sure that the build
  # can find the libraries and headers through other means.
--enabled libmfx            && { check_pkg_config libmfx libmfx "mfx/mfxvideo.h" MFXInit ||
+-enabled libmfx            && { { check_pkg_config libmfx "libmfx < 2.0" "mfx/mfxvideo.h" MFXInit &&
+-                                 warn "Build FFmpeg against libmfx 1.x, obsolete features of libmfx such as\n"\
+-                                      "OPAQUE memory, multi-frame encode and LA_EXT rate control mode are enabled"; } ||
 -                               { require libmfx "mfx/mfxvideo.h" MFXInit "-llibmfx $advapi32_extralibs" && warn "using libmfx without pkg-config"; } }
-+enabled libmfx            && { check_pkg_config libmfx libmfx "mfxvideo.h" MFXInit ||
-+                               { check_pkg_config libmfx libmfx "mfx/mfxvideo.h" MFXInit && append_subdir_to_pkg_includedir libmfx mfx; } ||
++enabled libmfx            && { { { check_pkg_config libmfx "libmfx < 2.0" "mfxvideo.h" MFXInit ||
++# Some old versions of libmfx have the following settings in libmfx.pc:
++#   includedir=/usr/include
++#   Cflags: -I${includedir}
++# So add -I${includedir}/mfx to the include path
++                               { check_pkg_config libmfx "libmfx < 2.0" "mfx/mfxvideo.h" MFXInit &&
++                                 add_cflags -I$($pkg_config --variable=includedir libmfx)/mfx; } } &&
++                               warn "Build FFmpeg against libmfx 1.x, obsolete features of libmfx such as\n"\
++                                    "OPAQUE memory, multi-frame encode and LA_EXT rate control mode are enabled"; } ||
 +                               { require libmfx "mfxvideo.h" MFXInit "-llibmfx $advapi32_extralibs" && warn "using libmfx without pkg-config"; } }
  if enabled libmfx; then
 -   check_cc MFX_CODEC_VP9 "mfx/mfxvp9.h mfx/mfxstructures.h" "MFX_CODEC_VP9"

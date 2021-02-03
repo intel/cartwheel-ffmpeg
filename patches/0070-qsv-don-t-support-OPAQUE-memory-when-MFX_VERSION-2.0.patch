@@ -1,9 +1,14 @@
-From a4f9dcbedb797e5004a3f8322245a1c88d7007a2 Mon Sep 17 00:00:00 2001
+From bfbfe1b057b77c5dcf401279a422004218774118 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 09:43:12 +0800
-Subject: [PATCH 69/69] qsv: libmfx no longer supports OPAQUE memory since
- version 2.0 (oneVPL)
+Subject: [PATCH 70/71] qsv: don't support OPAQUE memory when MFX_VERSION >=
+ 2.0
 
+OPAQUE memory isn't supported for MFX_VERSION >= 2.0[1][2], this is in
+preparation for oneVPL support
+
+[1]: https://spec.oneapi.com/versions/latest/elements/oneVPL/source/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
+[2]: https://github.com/oneapi-src/oneVPL
 ---
  libavcodec/qsv.c                 |  4 ++
  libavcodec/qsv.h                 |  2 +
@@ -19,10 +24,10 @@ Subject: [PATCH 69/69] qsv: libmfx no longer supports OPAQUE memory since
  11 files changed, 182 insertions(+), 74 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index d3b31e7341..394e380c22 100644
+index 3fcb215404..a53b06b5c4 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -100,10 +100,14 @@ static const struct {
+@@ -102,10 +102,14 @@ static const struct {
  } qsv_iopatterns[] = {
      {MFX_IOPATTERN_IN_VIDEO_MEMORY,     "input is video memory surface"         },
      {MFX_IOPATTERN_IN_SYSTEM_MEMORY,    "input is system memory surface"        },
@@ -38,7 +43,7 @@ index d3b31e7341..394e380c22 100644
  
  int ff_qsv_print_iopattern(void *log_ctx, int mfx_iopattern,
 diff --git a/libavcodec/qsv.h b/libavcodec/qsv.h
-index 04ae0d6f34..be7b95c724 100644
+index 04ae0d6f34..c156b08d07 100644
 --- a/libavcodec/qsv.h
 +++ b/libavcodec/qsv.h
 @@ -61,6 +61,8 @@ typedef struct AVQSVContext {
@@ -46,7 +51,7 @@ index 04ae0d6f34..be7b95c724 100644
       * The array of the opaque surfaces will be exported to the caller through
       * the opaque_surfaces field.
 +     *
-+     * The caller must set this field to zero for oneVPL (libmfx 2.0+)
++     * The caller must set this field to zero for oneVPL (MFX_VERSION >= 2.0)
       */
      int opaque_alloc;
  
@@ -190,7 +195,7 @@ index c18c043ab8..3c98bd27ee 100644
      mfxExtBuffer  *extparam_internal[2 + QSV_HAVE_CO2 + QSV_HAVE_CO3 + (QSV_HAVE_MF * 2)];
      int         nb_extparam_internal;
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 3a880b6927..8b3a1bcc15 100644
+index 7e9f6e6eb3..729fefa912 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -34,7 +34,9 @@
@@ -202,8 +207,8 @@ index 3a880b6927..8b3a1bcc15 100644
 +#endif
  #define IS_SYSTEM_MEMORY(mode) (mode & MFX_MEMTYPE_SYSTEM_MEMORY)
  #define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
- 
-@@ -63,10 +65,12 @@ struct QSVVPPContext {
+ #define QSV_HAVE_AUDIO          !QSV_VERSION_ATLEAST(2, 0)
+@@ -64,10 +66,12 @@ struct QSVVPPContext {
      mfxFrameSurface1  **surface_ptrs_in;
      mfxFrameSurface1  **surface_ptrs_out;
  
@@ -216,7 +221,7 @@ index 3a880b6927..8b3a1bcc15 100644
  };
  
  static const AVRational default_tb = { 1, 90000 };
-@@ -77,10 +81,14 @@ static const struct {
+@@ -78,10 +82,14 @@ static const struct {
  } qsv_iopatterns[] = {
      {MFX_IOPATTERN_IN_VIDEO_MEMORY,     "input is video memory surface"         },
      {MFX_IOPATTERN_IN_SYSTEM_MEMORY,    "input is system memory surface"        },
@@ -231,7 +236,7 @@ index 3a880b6927..8b3a1bcc15 100644
  };
  
  int ff_qsvvpp_print_iopattern(void *log_ctx, int mfx_iopattern,
-@@ -558,9 +566,13 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -559,9 +567,13 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
          if (!out_frames_ref)
              return AVERROR(ENOMEM);
  
@@ -245,7 +250,7 @@ index 3a880b6927..8b3a1bcc15 100644
  
          out_frames_ctx   = (AVHWFramesContext *)out_frames_ref->data;
          out_frames_hwctx = out_frames_ctx->hwctx;
-@@ -647,6 +659,7 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -648,6 +660,7 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
              return AVERROR_UNKNOWN;
      }
  
@@ -253,7 +258,7 @@ index 3a880b6927..8b3a1bcc15 100644
      if (IS_OPAQUE_MEMORY(s->in_mem_mode) || IS_OPAQUE_MEMORY(s->out_mem_mode)) {
          s->opaque_alloc.In.Surfaces   = s->surface_ptrs_in;
          s->opaque_alloc.In.NumSurface = s->nb_surface_ptrs_in;
-@@ -658,7 +671,9 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -659,7 +672,9 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
  
          s->opaque_alloc.Header.BufferId = MFX_EXTBUFF_OPAQUE_SURFACE_ALLOCATION;
          s->opaque_alloc.Header.BufferSz = sizeof(s->opaque_alloc);
@@ -264,7 +269,7 @@ index 3a880b6927..8b3a1bcc15 100644
          mfxFrameAllocator frame_allocator = {
              .pthis  = s,
              .Alloc  = frame_alloc,
-@@ -730,6 +745,7 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
+@@ -731,6 +746,7 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
          goto failed;
      }
  
@@ -272,7 +277,7 @@ index 3a880b6927..8b3a1bcc15 100644
      if (IS_OPAQUE_MEMORY(s->in_mem_mode) || IS_OPAQUE_MEMORY(s->out_mem_mode)) {
          s->nb_ext_buffers = param->num_ext_buf + 1;
          s->ext_buffers = av_mallocz_array(s->nb_ext_buffers, sizeof(*s->ext_buffers));
-@@ -747,6 +763,10 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
+@@ -748,6 +764,10 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
          s->vpp_param.NumExtParam = param->num_ext_buf;
          s->vpp_param.ExtParam    = param->ext_buf;
      }
@@ -283,7 +288,7 @@ index 3a880b6927..8b3a1bcc15 100644
  
      s->vpp_param.AsyncDepth = 1;
  
-@@ -754,15 +774,19 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
+@@ -755,15 +775,19 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
          s->vpp_param.IOPattern |= MFX_IOPATTERN_IN_SYSTEM_MEMORY;
      else if (IS_VIDEO_MEMORY(s->in_mem_mode))
          s->vpp_param.IOPattern |= MFX_IOPATTERN_IN_VIDEO_MEMORY;
@@ -303,7 +308,7 @@ index 3a880b6927..8b3a1bcc15 100644
  
      /* Print input memory mode */
      ff_qsvvpp_print_iopattern(avctx, s->vpp_param.IOPattern & 0x0F, "VPP");
-@@ -801,7 +825,9 @@ int ff_qsvvpp_free(QSVVPPContext **vpp)
+@@ -802,7 +826,9 @@ int ff_qsvvpp_free(QSVVPPContext **vpp)
      clear_frame_list(&s->out_frame_list);
      av_freep(&s->surface_ptrs_in);
      av_freep(&s->surface_ptrs_out);
