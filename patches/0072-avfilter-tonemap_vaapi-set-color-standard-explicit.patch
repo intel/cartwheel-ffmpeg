@@ -1,0 +1,27 @@
+From 1cdab0bfa499f9cbc7867b56d6f4e6888f25412e Mon Sep 17 00:00:00 2001
+From: "U. Artie Eoff" <ullysses.a.eoff@intel.com>
+Date: Mon, 8 Feb 2021 18:57:53 -0800
+Subject: [PATCH 72/72] avfilter/tonemap_vaapi: set color standard explicit
+
+Signed-off-by: U. Artie Eoff <ullysses.a.eoff@intel.com>
+---
+ libavfilter/vf_tonemap_vaapi.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/libavfilter/vf_tonemap_vaapi.c b/libavfilter/vf_tonemap_vaapi.c
+index d16312d9b682..78ab8316c1b8 100644
+--- a/libavfilter/vf_tonemap_vaapi.c
++++ b/libavfilter/vf_tonemap_vaapi.c
+@@ -429,6 +429,9 @@ static int tonemap_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame
+     params.filters     = &vpp_ctx->filter_buffers[0];
+     params.num_filters = vpp_ctx->nb_filter_buffers;
+ 
++    params.surface_color_standard = VAProcColorStandardExplicit;
++    params.input_color_properties.transfer_characteristics = 16;
++
+     err = ff_vaapi_vpp_render_picture(avctx, &params, output_frame);
+     if (err < 0)
+         goto fail;
+-- 
+2.25.4
+
