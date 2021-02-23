@@ -1,0 +1,37 @@
+From e76fce285c164b740308c9e5d5392982fd54f026 Mon Sep 17 00:00:00 2001
+From: Xu Guangxin <guangxin.xu@intel.com>
+Date: Tue, 23 Feb 2021 15:22:34 +0800
+Subject: [PATCH] avutils/hwcontext_qsv: set the source device in
+ qsv_device_create
+
+opencl_device_derive only handles AV_HWDEVICE_TYPE_VAAPI.
+We need a source device for qsv.
+
+this will fix following pipeline:
+ffmpeg -init_hw_device vaapi=intel:/dev/dri/renderD128 -init_hw_device opencl=ocl@intel -hwaccel qsv -c:v h264_qsv -hwaccel_output_format qsv -i $input -filter_hw_device ocl -vf 'hwmap=derive_device=opencl,format=opencl,unsharp_opencl,hwmap=derive_device=qsv:reverse=1:extra_hw_frames=32'  -c:v hevc_qsv  -y test.h265
+---
+ libavutil/hwcontext_qsv.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index 42363b85be..c1ce794428 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -1576,7 +1576,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+ 
+     impl = choose_implementation(device, child_device_type);
+ 
+-    return qsv_device_derive_from_child(ctx, impl, child_device, 0);
++    ret = qsv_device_derive_from_child(ctx, impl, child_device, 0);
++    if (ret == 0) {
++        ctx->internal->source_device = av_buffer_ref(priv->child_device_ctx);
++        if (!ctx->internal->source_device)
++            ret = AVERROR(ENOMEM);
++    }
++    return ret;
+ }
+ 
+ const HWContextType ff_hwcontext_type_qsv = {
+-- 
+2.25.1
+
