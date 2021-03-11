@@ -1,4 +1,4 @@
-From 5d69359eb95a32c5272f7053fea392b042e2a5dd Mon Sep 17 00:00:00 2001
+From 7c25119ae98c35df55048a287b88101bef46f709 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
 Subject: [PATCH 57/72] libavcodec/qsvdec.c: extract frame packing arrangement
@@ -11,8 +11,8 @@ side data for decoded frame.
 Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
  libavcodec/qsv_internal.h |   2 +
- libavcodec/qsvdec.c       | 157 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 159 insertions(+)
+ libavcodec/qsvdec.c       | 155 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 157 insertions(+)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
 index 5d276b091c..e674464c6c 100644
@@ -28,7 +28,7 @@ index 5d276b091c..e674464c6c 100644
      (MFX_VERSION_MAJOR > (MAJOR) ||         \
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 5f2e641373..30a4fbd84d 100644
+index 5f2e641373..e689766062 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -38,12 +38,15 @@
@@ -220,14 +220,12 @@ index 5f2e641373..30a4fbd84d 100644
  #if FF_API_PKT_PTS
  FF_DISABLE_DEPRECATION_WARNINGS
          frame->pkt_pts = outsurf->Data.TimeStamp;
-@@ -606,6 +759,10 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
+@@ -606,6 +759,8 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
      av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
      av_buffer_unref(&q->frames_ctx.mids_buf);
      av_buffer_pool_uninit(&q->pool);
 +
 +    av_freep(&q->payload.Data);
-+
-+    return 0;
  }
  
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
