@@ -1,7 +1,7 @@
-From 40ee811089a698870990faa6723412b74db813fa Mon Sep 17 00:00:00 2001
+From aebdc9683a171b86873581d66e3d3e19be8cd047 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 8 Sep 2020 11:17:27 +0800
-Subject: [PATCH 65/71] qsv: add ${includedir}/mfx to the search path for old
+Subject: [PATCH 65/72] qsv: add ${includedir}/mfx to the search path for old
  versions of libmfx
 
 ${includedir}/mfx has been added to Cflags in libmfx.pc for the current
@@ -27,7 +27,6 @@ This is in preparation for oneVPL support
  libavcodec/qsv.h                 |  2 +-
  libavcodec/qsv_internal.h        |  2 +-
  libavcodec/qsvdec.c              |  2 +-
- libavcodec/qsvdec.h              |  2 +-
  libavcodec/qsvenc.c              |  2 +-
  libavcodec/qsvenc.h              |  2 +-
  libavcodec/qsvenc_h264.c         |  2 +-
@@ -41,10 +40,10 @@ This is in preparation for oneVPL support
  libavutil/hwcontext_opencl.c     |  2 +-
  libavutil/hwcontext_qsv.c        |  2 +-
  libavutil/hwcontext_qsv.h        |  2 +-
- 20 files changed, 33 insertions(+), 27 deletions(-)
+ 19 files changed, 32 insertions(+), 26 deletions(-)
 
 diff --git a/configure b/configure
-index 45427fc462..46a790707e 100755
+index 3b74421dbe..1beaa0bf46 100755
 --- a/configure
 +++ b/configure
 @@ -6376,12 +6376,18 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
@@ -137,10 +136,10 @@ index 707e5d6be0..dbef6f8bcd 100644
  #include "libavutil/frame.h"
  
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 23494c217d..3477f74b0c 100644
+index d574ab4a7c..ae46e8e1d0 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -24,7 +24,7 @@
+@@ -25,7 +25,7 @@
  #include <string.h>
  #include <sys/types.h>
  
@@ -148,20 +147,7 @@ index 23494c217d..3477f74b0c 100644
 +#include <mfxvideo.h>
  
  #include "libavutil/common.h"
- #include "libavutil/hwcontext.h"
-diff --git a/libavcodec/qsvdec.h b/libavcodec/qsvdec.h
-index 282943b00c..081213df7e 100644
---- a/libavcodec/qsvdec.h
-+++ b/libavcodec/qsvdec.h
-@@ -26,7 +26,7 @@
- #include <stdint.h>
- #include <sys/types.h>
- 
--#include <mfx/mfxvideo.h>
-+#include <mfxvideo.h>
- 
  #include "libavutil/fifo.h"
- #include "libavutil/frame.h"
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
 index 3b63d194e8..138f2cab6e 100644
 --- a/libavcodec/qsvenc.c
@@ -293,7 +279,7 @@ index 3e9b116f33..aef35877ec 100644
  #include <stdio.h>
  #include <string.h>
 diff --git a/libavutil/hwcontext_opencl.c b/libavutil/hwcontext_opencl.c
-index cd8638abbb..029be4034a 100644
+index ee814602b2..17e5ec9f7d 100644
 --- a/libavutil/hwcontext_opencl.c
 +++ b/libavutil/hwcontext_opencl.c
 @@ -47,7 +47,7 @@
@@ -306,7 +292,7 @@ index cd8638abbb..029be4034a 100644
  #include <va/va.h>
  #include <CL/cl_va_api_media_sharing_intel.h>
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 34ff5e5572..011a76dfa9 100644
+index a4b9e0569b..9e1555a43e 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -19,7 +19,7 @@
