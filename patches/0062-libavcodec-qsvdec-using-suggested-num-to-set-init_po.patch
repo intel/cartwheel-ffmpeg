@@ -1,7 +1,7 @@
-From 712fd1352d4fa3845ae31c30e0294757c2c8e5e4 Mon Sep 17 00:00:00 2001
+From b32cc7002b0458e99198c7043d226f8c012130b7 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Tue, 26 Jan 2021 09:55:59 +0800
-Subject: [PATCH 62/69] libavcodec/qsvdec: using suggested num to set
+Subject: [PATCH 62/72] libavcodec/qsvdec: using suggested num to set
  init_pool_size
 
 The init_pool_size is set to be 64 and it is too many.
@@ -52,18 +52,18 @@ index 960c88b69d..3862dc1e7d 100644
  
      ret = av_hwframe_ctx_init(ist->hw_frames_ctx);
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 5cb49cfb4a..fba7d9cee6 100644
+index 30a4fbd84d..1de97217cf 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -720,6 +720,7 @@ int ff_qsv_process_data(AVCodecContext *avctx, QSVContext *q,
-                         AVFrame *frame, int *got_frame, AVPacket *pkt)
+@@ -769,6 +769,7 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+                             AVFrame *frame, int *got_frame, const AVPacket *pkt)
  {
      int ret;
 +    int first_init;
      mfxVideoParam param = { 0 };
      enum AVPixelFormat pix_fmt = AV_PIX_FMT_NV12;
  
-@@ -738,12 +739,20 @@ int ff_qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -787,12 +788,20 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
      if (!avctx->coded_height)
          avctx->coded_height = 720;
  
@@ -85,7 +85,7 @@ index 5cb49cfb4a..fba7d9cee6 100644
  
          if (q->buffered_count) {
              q->reinit_flag = 1;
-@@ -758,6 +767,23 @@ int ff_qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -807,6 +816,23 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
          avctx->coded_width  = param.mfx.FrameInfo.Width;
          avctx->coded_height = param.mfx.FrameInfo.Height;
  

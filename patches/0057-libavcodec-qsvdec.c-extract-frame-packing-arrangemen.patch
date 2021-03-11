@@ -1,7 +1,7 @@
-From 23fb52b6164d2b399f7b5c1f13dda21d5bc7e980 Mon Sep 17 00:00:00 2001
+From 5d69359eb95a32c5272f7053fea392b042e2a5dd Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
-Subject: [PATCH 57/69] libavcodec/qsvdec.c: extract frame packing arrangement
+Subject: [PATCH 57/72] libavcodec/qsvdec.c: extract frame packing arrangement
  data
 
 Use h264_sei to parse SEI data got from MediaSDK. Extract frame
@@ -11,9 +11,8 @@ side data for decoded frame.
 Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
  libavcodec/qsv_internal.h |   2 +
- libavcodec/qsvdec.c       | 149 ++++++++++++++++++++++++++++++++++++++
- libavcodec/qsvdec.h       |   6 ++
- 3 files changed, 157 insertions(+)
+ libavcodec/qsvdec.c       | 157 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 159 insertions(+)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
 index 5d276b091c..e674464c6c 100644
@@ -29,10 +28,10 @@ index 5d276b091c..e674464c6c 100644
      (MFX_VERSION_MAJOR > (MAJOR) ||         \
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index d10f90a0db..5cb49cfb4a 100644
+index 5f2e641373..30a4fbd84d 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -36,10 +36,12 @@
+@@ -38,12 +38,15 @@
  #include "libavutil/pixfmt.h"
  #include "libavutil/time.h"
  #include "libavutil/imgutils.h"
@@ -41,11 +40,28 @@ index d10f90a0db..5cb49cfb4a 100644
  #include "avcodec.h"
  #include "internal.h"
  #include "decode.h"
+ #include "hwconfig.h"
 +#include "get_bits.h"
  #include "qsv.h"
++#include "h264_sei.h"
  #include "qsv_internal.h"
- #include "qsvdec.h"
-@@ -398,6 +400,147 @@ static QSVFrame *find_frame(QSVContext *q, mfxFrameSurface1 *surf)
+ 
+ typedef struct QSVContext {
+@@ -80,8 +83,13 @@ typedef struct QSVContext {
+ 
+     char *load_plugins;
+ 
++    mfxPayload payload;
++
+     mfxExtBuffer **ext_buffers;
+     int         nb_ext_buffers;
++
++    H264SEIContext sei;
++    H264ParamSets ps;
+ } QSVContext;
+ 
+ static const AVCodecHWConfigInternal *const qsv_hw_configs[] = {
+@@ -441,6 +449,147 @@ static QSVFrame *find_frame(QSVContext *q, mfxFrameSurface1 *surf)
      return NULL;
  }
  
@@ -192,8 +208,8 @@ index d10f90a0db..5cb49cfb4a 100644
 +
  static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
                        AVFrame *frame, int *got_frame,
-                       AVPacket *avpkt)
-@@ -501,6 +644,10 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
+                       const AVPacket *avpkt)
+@@ -544,6 +693,10 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
  
          outsurf = &out_frame->surface;
  
@@ -204,41 +220,17 @@ index d10f90a0db..5cb49cfb4a 100644
  #if FF_API_PKT_PTS
  FF_DISABLE_DEPRECATION_WARNINGS
          frame->pkt_pts = outsurf->Data.TimeStamp;
-@@ -564,6 +711,8 @@ int ff_qsv_decode_close(QSVContext *q)
+@@ -606,6 +759,10 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
+     av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
      av_buffer_unref(&q->frames_ctx.mids_buf);
      av_buffer_pool_uninit(&q->pool);
- 
++
 +    av_freep(&q->payload.Data);
 +
-     return 0;
++    return 0;
  }
  
-diff --git a/libavcodec/qsvdec.h b/libavcodec/qsvdec.h
-index f3b7344cba..282943b00c 100644
---- a/libavcodec/qsvdec.h
-+++ b/libavcodec/qsvdec.h
-@@ -34,6 +34,7 @@
- 
- #include "avcodec.h"
- #include "hwconfig.h"
-+#include "h264_sei.h"
- #include "qsv_internal.h"
- 
- typedef struct QSVContext {
-@@ -70,8 +71,13 @@ typedef struct QSVContext {
- 
-     char *load_plugins;
- 
-+    mfxPayload payload;
-+
-     mfxExtBuffer **ext_buffers;
-     int         nb_ext_buffers;
-+
-+    H264SEIContext sei;
-+    H264ParamSets ps;
- } QSVContext;
- 
- extern const AVCodecHWConfigInternal *const ff_qsv_hw_configs[];
+ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
 -- 
 2.17.1
 

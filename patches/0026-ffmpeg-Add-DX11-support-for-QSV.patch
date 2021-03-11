@@ -1,7 +1,7 @@
-From 86df666007fe6f0d1f91ca6feddaaae485064f05 Mon Sep 17 00:00:00 2001
+From 797bb409bfc360f8683e1dfba1a6046c0f7a3837 Mon Sep 17 00:00:00 2001
 From: "Galin, Artem" <artem.galin@intel.com>
 Date: Tue, 26 May 2020 14:28:46 +0800
-Subject: [PATCH 26/69] ffmpeg: Add DX11 support for QSV
+Subject: [PATCH 26/72] ffmpeg: Add DX11 support for QSV
 
 ---
  fftools/ffmpeg_opt.c             |   6 +-
@@ -16,10 +16,10 @@ Subject: [PATCH 26/69] ffmpeg: Add DX11 support for QSV
  9 files changed, 509 insertions(+), 161 deletions(-)
 
 diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
-index bf2eb26246..60111bee55 100644
+index 85feeb89f2..de72824259 100644
 --- a/fftools/ffmpeg_opt.c
 +++ b/fftools/ffmpeg_opt.c
-@@ -579,7 +579,11 @@ static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
+@@ -580,7 +580,11 @@ static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
          printf("\n");
          exit_program(0);
      } else {
@@ -431,7 +431,7 @@ index 2ac2373955..3e9b116f33 100644
      }
  
 diff --git a/libavutil/hwcontext_d3d11va.c b/libavutil/hwcontext_d3d11va.c
-index c8ae58f908..2d8406427a 100644
+index 2a3549ebd8..1e6a063b6e 100644
 --- a/libavutil/hwcontext_d3d11va.c
 +++ b/libavutil/hwcontext_d3d11va.c
 @@ -72,8 +72,8 @@ static av_cold void load_functions(void)
@@ -485,8 +485,8 @@ index c8ae58f908..2d8406427a 100644
 +    return wrap_texture_buf(ctx, tex, 0);
  }
  
- static AVBufferRef *d3d11va_pool_alloc(void *opaque, int size)
-@@ -220,7 +228,7 @@ static AVBufferRef *d3d11va_pool_alloc(void *opaque, int size)
+ static AVBufferRef *d3d11va_pool_alloc(void *opaque, buffer_size_t size)
+@@ -220,7 +228,7 @@ static AVBufferRef *d3d11va_pool_alloc(void *opaque, buffer_size_t size)
      }
  
      ID3D11Texture2D_AddRef(hwctx->texture);
@@ -597,7 +597,7 @@ index 9f91e9b1b6..dd782bcc12 100644
  
  #endif /* AVUTIL_HWCONTEXT_D3D11VA_H */
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 68681cc88e..8285ce03b5 100644
+index 3a642ec554..c810abe5ed 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -27,9 +27,13 @@
@@ -752,7 +752,7 @@ index 68681cc88e..8285ce03b5 100644
      av_buffer_unref(&s->child_frames_ref);
  }
  
-@@ -208,6 +241,8 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, int size)
+@@ -208,6 +241,8 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, buffer_size_t size)
  
      if (s->nb_surfaces_used < hwctx->nb_surfaces) {
          s->nb_surfaces_used++;
