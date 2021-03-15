@@ -1,7 +1,7 @@
-From 797bb409bfc360f8683e1dfba1a6046c0f7a3837 Mon Sep 17 00:00:00 2001
+From 6f8682a99f7a3bceccb34a989fcef23723f57d3d Mon Sep 17 00:00:00 2001
 From: "Galin, Artem" <artem.galin@intel.com>
 Date: Tue, 26 May 2020 14:28:46 +0800
-Subject: [PATCH 26/72] ffmpeg: Add DX11 support for QSV
+Subject: [PATCH] ffmpeg: Add DX11 support for QSV
 
 ---
  fftools/ffmpeg_opt.c             |   6 +-
@@ -12,8 +12,9 @@ Subject: [PATCH 26/72] ffmpeg: Add DX11 support for QSV
  libavfilter/vf_scale_qsv.c       |  52 ++--
  libavutil/hwcontext_d3d11va.c    |  65 ++++-
  libavutil/hwcontext_d3d11va.h    |   7 +
+ libavutil/hwcontext_opencl.c     |   3 +-
  libavutil/hwcontext_qsv.c        | 400 +++++++++++++++++++++++++------
- 9 files changed, 509 insertions(+), 161 deletions(-)
+ 10 files changed, 511 insertions(+), 162 deletions(-)
 
 diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
 index 85feeb89f2..de72824259 100644
@@ -596,6 +597,20 @@ index 9f91e9b1b6..dd782bcc12 100644
  } AVD3D11VAFramesContext;
  
  #endif /* AVUTIL_HWCONTEXT_D3D11VA_H */
+diff --git a/libavutil/hwcontext_opencl.c b/libavutil/hwcontext_opencl.c
+index ee814602b2..850c690977 100644
+--- a/libavutil/hwcontext_opencl.c
++++ b/libavutil/hwcontext_opencl.c
+@@ -2249,7 +2249,8 @@ static int opencl_map_from_qsv(AVHWFramesContext *dst_fc, AVFrame *dst,
+ #if CONFIG_LIBMFX
+     if (src->format == AV_PIX_FMT_QSV) {
+         mfxFrameSurface1 *mfx_surface = (mfxFrameSurface1*)src->data[3];
+-        va_surface = *(VASurfaceID*)mfx_surface->Data.MemId;
++        mfxHDLPair *pPair = (mfxHDLPair *)mfx_surface->Data.MemId;
++        va_surface = *(VASurfaceID*)pPair->first;
+     } else
+ #endif
+         if (src->format == AV_PIX_FMT_VAAPI) {
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
 index 3a642ec554..c810abe5ed 100644
 --- a/libavutil/hwcontext_qsv.c
@@ -1253,5 +1268,5 @@ index 3a642ec554..c810abe5ed 100644
      return qsv_device_derive_from_child(ctx, impl, child_device, 0);
  }
 -- 
-2.17.1
+2.25.1
 
