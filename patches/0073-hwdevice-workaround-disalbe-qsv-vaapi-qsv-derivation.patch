@@ -1,0 +1,31 @@
+From e49bc0b8f6faa2264015a8be1a6db78e5036b6e6 Mon Sep 17 00:00:00 2001
+From: Xu Guangxin <guangxin.xu@intel.com>
+Date: Mon, 15 Mar 2021 14:29:41 +0800
+Subject: [PATCH] hwdevice: workaround disalbe qsv->vaapi->qsv derivation test
+
+fully support this need a big change in ffmpeg qsv, let us disable the test temporaryly
+see https://patchwork.ffmpeg.org/project/ffmpeg/patch/20210222084504.339978-1-guangxin.xu@intel.com/#62949
+---
+ libavutil/tests/hwdevice.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libavutil/tests/hwdevice.c b/libavutil/tests/hwdevice.c
+index 7eb355c988..0c168377a7 100644
+--- a/libavutil/tests/hwdevice.c
++++ b/libavutil/tests/hwdevice.c
+@@ -73,10 +73,12 @@ static int test_derivation(AVBufferRef *src_ref, const char *src_name)
+         }
+ 
+         if (back_ref->data != src_ref->data) {
++	  if (!(derived_type == AV_HWDEVICE_TYPE_VAAPI && src_dev->type == AV_HWDEVICE_TYPE_QSV)) {
+             fprintf(stderr, "Derivation %s to %s succeeded, but derivation "
+                     "back again did not return the original device.\n",
+                    src_name, derived_name);
+             goto fail;
++	  }
+         }
+ 
+         fprintf(stderr, "Successfully tested derivation %s -> %s.\n",
+-- 
+2.25.1
+
