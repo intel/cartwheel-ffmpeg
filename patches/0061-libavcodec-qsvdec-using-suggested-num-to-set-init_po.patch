@@ -1,0 +1,114 @@
+From cffbb6d771e87097f8aa6688a1620cc04278644a Mon Sep 17 00:00:00 2001
+From: Wenbinc-Bin <wenbin.chen@intel.com>
+Date: Tue, 26 Jan 2021 09:55:59 +0800
+Subject: [PATCH 61/71] libavcodec/qsvdec: using suggested num to set
+ init_pool_size
+
+The init_pool_size is set to be 64 and it is too many.
+Use IOSurfQuery to get NumFrameSuggest which is the suggested
+number of frame that needed to be allocated when initial the decoder
+Considering the hevc_qsv encoder's async is 4 (default)
+and max_b_frames is 8 (default) and decoder may followed by VPP,
+use NumFrameSuggest + 16 to set init_pool_size.
+
+Sigend-off-by Wenbin Chen <wenbin.chen@intel.com>
+---
+ fftools/ffmpeg_qsv.c |  9 ++++++++-
+ libavcodec/qsvdec.c  | 28 +++++++++++++++++++++++++++-
+ 2 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/fftools/ffmpeg_qsv.c b/fftools/ffmpeg_qsv.c
+index 960c88b69d..3862dc1e7d 100644
+--- a/fftools/ffmpeg_qsv.c
++++ b/fftools/ffmpeg_qsv.c
+@@ -74,6 +74,7 @@ int qsv_init(AVCodecContext *s)
+     InputStream *ist = s->opaque;
+     AVHWFramesContext *frames_ctx;
+     AVQSVFramesContext *frames_hwctx;
++    int suggest_pool_size;
+     int ret;
+ 
+     if (!hw_device_ctx) {
+@@ -82,6 +83,12 @@ int qsv_init(AVCodecContext *s)
+             return ret;
+     }
+ 
++    suggest_pool_size = 0;
++    if (ist->hw_frames_ctx) {
++        frames_ctx = (AVHWFramesContext *)ist->hw_frames_ctx->data;
++        suggest_pool_size = frames_ctx->initial_pool_size;
++    }
++
+     av_buffer_unref(&ist->hw_frames_ctx);
+     ist->hw_frames_ctx = av_hwframe_ctx_alloc(hw_device_ctx);
+     if (!ist->hw_frames_ctx)
+@@ -94,7 +101,7 @@ int qsv_init(AVCodecContext *s)
+     frames_ctx->height            = FFALIGN(s->coded_height, 32);
+     frames_ctx->format            = AV_PIX_FMT_QSV;
+     frames_ctx->sw_format         = s->sw_pix_fmt;
+-    frames_ctx->initial_pool_size = 64 + s->extra_hw_frames;
++    frames_ctx->initial_pool_size = suggest_pool_size + 16 + s->extra_hw_frames;
+     frames_hwctx->frame_type      = MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET;
+ 
+     ret = av_hwframe_ctx_init(ist->hw_frames_ctx);
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index e689766062..4287d05b26 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -767,6 +767,7 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+                             AVFrame *frame, int *got_frame, const AVPacket *pkt)
+ {
+     int ret;
++    int first_init;
+     mfxVideoParam param = { 0 };
+     enum AVPixelFormat pix_fmt = AV_PIX_FMT_NV12;
+ 
+@@ -785,12 +786,20 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+     if (!avctx->coded_height)
+         avctx->coded_height = 720;
+ 
++    first_init = 0;
++    if (!q->session)
++        first_init = 1;
++
+     ret = qsv_decode_header(avctx, q, pkt, pix_fmt, &param);
+ 
+     if (ret >= 0 && (q->orig_pix_fmt != ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC) ||
+         avctx->coded_width  != param.mfx.FrameInfo.Width ||
+-        avctx->coded_height != param.mfx.FrameInfo.Height)) {
++        avctx->coded_height != param.mfx.FrameInfo.Height ||
++        first_init == 1)) {
+         AVPacket zero_pkt = {0};
++        mfxFrameAllocRequest request;
++        AVHWFramesContext *hw_frames_ctx;
++        memset(&request, 0, sizeof(request));
+ 
+         if (q->buffered_count) {
+             q->reinit_flag = 1;
+@@ -805,6 +814,23 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+         avctx->coded_width  = param.mfx.FrameInfo.Width;
+         avctx->coded_height = param.mfx.FrameInfo.Height;
+ 
++        if (first_init == 0) {
++            hw_frames_ctx = (AVHWFramesContext *)avctx->hw_frames_ctx->data;
++            hw_frames_ctx->initial_pool_size = 0;
++            ret = qsv_decode_preinit(avctx, q, pix_fmt, &param);
++            if (ret < 0)
++                goto reinit_fail;
++        }
++
++        ret = MFXVideoDECODE_QueryIOSurf(q->session, &param, &request);
++        if (ret < 0)
++            return ff_qsv_print_error(avctx, ret, "Error querying IO surface");
++
++        if (avctx->hw_frames_ctx) {
++            hw_frames_ctx = (AVHWFramesContext *)avctx->hw_frames_ctx->data;
++            hw_frames_ctx->initial_pool_size = request.NumFrameSuggested;
++        }
++
+         ret = qsv_decode_preinit(avctx, q, pix_fmt, &param);
+         if (ret < 0)
+             goto reinit_fail;
+-- 
+2.17.1
+

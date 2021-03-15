@@ -1,0 +1,25 @@
+From d50cc50bf2749a2371294e478ce72f5571963fbb Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Tue, 1 Dec 2020 10:32:58 +0800
+Subject: [PATCH 51/71] avframe: zero the frame, including padding data
+
+---
+ libavutil/frame.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavutil/frame.c b/libavutil/frame.c
+index 75e347bf2f..6a7a25a3d4 100644
+--- a/libavutil/frame.c
++++ b/libavutil/frame.c
+@@ -255,7 +255,7 @@ static int get_video_buffer(AVFrame *frame, int align)
+         total_size += sizes[i];
+     }
+ 
+-    frame->buf[0] = av_buffer_alloc(total_size);
++    frame->buf[0] = av_buffer_allocz(total_size);
+     if (!frame->buf[0]) {
+         ret = AVERROR(ENOMEM);
+         goto fail;
+-- 
+2.17.1
+

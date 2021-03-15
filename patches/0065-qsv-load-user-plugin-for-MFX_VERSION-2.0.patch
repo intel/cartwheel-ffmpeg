@@ -1,0 +1,63 @@
+From 2ef93e61b729dc2f0828d42308b33b692056f8e9 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Tue, 18 Aug 2020 15:20:38 +0800
+Subject: [PATCH 65/71] qsv: load user plugin for MFX_VERSION < 2.0
+
+User plugin isn't supported for MFX_VERSION >= 2.0[1][2], this is in
+preparation for oneVPL Support
+
+[1]: https://spec.oneapi.com/versions/latest/elements/oneVPL/source/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
+[2]: https://github.com/oneapi-src/oneVPL
+---
+ libavcodec/qsv.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index 74b8e04dee..94bdeadf81 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -19,7 +19,6 @@
+  */
+ 
+ #include <mfxvideo.h>
+-#include <mfxplugin.h>
+ #include <mfxjpeg.h>
+ 
+ #include <stdio.h>
+@@ -36,10 +35,17 @@
+ #include "avcodec.h"
+ #include "qsv_internal.h"
+ 
++#define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
++#define QSV_HAVE_USER_PLUGIN    !QSV_VERSION_ATLEAST(2, 0)
++
+ #if QSV_VERSION_ATLEAST(1, 12)
+ #include "mfxvp8.h"
+ #endif
+ 
++#if QSV_HAVE_USER_PLUGIN
++#include <mfxplugin.h>
++#endif
++
+ int ff_qsv_codec_id_to_mfx(enum AVCodecID codec_id)
+ {
+     switch (codec_id) {
+@@ -348,6 +354,7 @@ enum AVPictureType ff_qsv_map_pictype(int mfx_pic_type)
+ static int qsv_load_plugins(mfxSession session, const char *load_plugins,
+                             void *logctx)
+ {
++#if QSV_HAVE_USER_PLUGIN
+     if (!load_plugins || !*load_plugins)
+         return 0;
+ 
+@@ -391,6 +398,7 @@ load_plugin_fail:
+         if (err < 0)
+             return err;
+     }
++#endif
+ 
+     return 0;
+ 
+-- 
+2.17.1
+
