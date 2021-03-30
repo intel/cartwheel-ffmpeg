@@ -1,0 +1,46 @@
+From 0d94033609e4e3403b4a2b9dbde4513d7ac13310 Mon Sep 17 00:00:00 2001
+From: "Chen,Wenbin" <wenbin.chen@intel.com>
+Date: Tue, 23 Mar 2021 16:24:03 +0800
+Subject: [PATCH] libavfilter/qsvvpp: change the output frame's width and
+ height
+
+qsvvpp align the width and height with 16, and that right. But qsvvpp asign this value
+to frame->width and frame->height, and that may lead to error.
+For example, when we use qsvvpp to resize frame to 1080p, qsvvpp will
+align frame to 1088 and set frame->height to 1088, which is different from the height of
+encoder (1080) and this will be treated as resolution change. The aligend value can
+be kept in hw_frame_ctx as it is hardware dependent. Now I
+assign the out_link's w/h to output
+frame to overwrite the w/h got from hw_frame_ctx.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavfilter/qsvvpp.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
+index 729fefa912..681f71633e 100644
+--- a/libavfilter/qsvvpp.c
++++ b/libavfilter/qsvvpp.c
+@@ -500,9 +500,6 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
+         if (!out_frame->frame)
+             return NULL;
+ 
+-        out_frame->frame->width  = outlink->w;
+-        out_frame->frame->height = outlink->h;
+-
+         ret = map_frame_to_surface(out_frame->frame,
+                                   &out_frame->surface_internal);
+         if (ret < 0)
+@@ -511,6 +508,8 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
+         out_frame->surface = &out_frame->surface_internal;
+     }
+ 
++    out_frame->frame->width  = outlink->w;
++    out_frame->frame->height = outlink->h;
+     out_frame->surface->Info = s->vpp_param.vpp.Out;
+ 
+     return out_frame;
+-- 
+2.25.1
+
