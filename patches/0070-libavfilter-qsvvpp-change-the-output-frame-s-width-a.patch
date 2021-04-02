@@ -1,7 +1,7 @@
-From 0d94033609e4e3403b4a2b9dbde4513d7ac13310 Mon Sep 17 00:00:00 2001
+From b13286486b9ebe31eb1415b7f78645ff7ce282cb Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:24:03 +0800
-Subject: [PATCH] libavfilter/qsvvpp: change the output frame's width and
+Subject: [PATCH 70/81] libavfilter/qsvvpp: change the output frame's width and
  height
 
 qsvvpp align the width and height with 16, and that right. But qsvvpp asign this value
@@ -19,10 +19,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 729fefa912..681f71633e 100644
+index ce1261eda4..5ed82a7548 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
-@@ -500,9 +500,6 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
+@@ -487,9 +487,6 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
          if (!out_frame->frame)
              return NULL;
  
@@ -32,7 +32,7 @@ index 729fefa912..681f71633e 100644
          ret = map_frame_to_surface(out_frame->frame,
                                    &out_frame->surface_internal);
          if (ret < 0)
-@@ -511,6 +508,8 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
+@@ -498,6 +495,8 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
          out_frame->surface = &out_frame->surface_internal;
      }
  

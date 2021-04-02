@@ -1,25 +1,26 @@
-From 4b048d3591d00461c0601af237bfa5826e394db3 Mon Sep 17 00:00:00 2001
+From 82b9ee461bfe268a14714cf3e63094cceffc918c Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 09:08:27 +0800
-Subject: [PATCH 64/71] qsv: make sure the right libmfx version is used
+Subject: [PATCH 71/81] configure: ensure the right libmfx version is used when
+ running pkg-config
 
 Intel's oneVPL is a successor to MediaSDK, but removed some obsolete
 features of MediaSDK[1], including OPAQUE memory, multi-frame encode and
 LA_EXT rate control mode etc, however these features are used in FFmpeg.
 In order to make sure user build FFmpeg against the right libmfx, this
-patch adds check for libmfx version and warning message for obsolete
+patch added a version check for libmfx and warning message for obsolete
 features
 
-[1]: https://spec.oneapi.com/versions/latest/elements/oneVPL/source/appendix/VPL_intel_media_sdk.html
+[1] https://spec.oneapi.com/versions/latest/elements/oneVPL/source/appendix/VPL_intel_media_sdk.html
 ---
  configure | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index 9a42e8e1a2..45427fc462 100755
+index 7f04d3c29d..348c61fd15 100755
 --- a/configure
 +++ b/configure
-@@ -6376,7 +6376,9 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
+@@ -6384,7 +6384,9 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
  # Media SDK or Intel Media Server Studio, these don't come with
  # pkg-config support.  Instead, users should make sure that the build
  # can find the libraries and headers through other means.
@@ -31,5 +32,5 @@ index 9a42e8e1a2..45427fc462 100755
  if enabled libmfx; then
     check_cc MFX_CODEC_VP9 "mfx/mfxvp9.h mfx/mfxstructures.h" "MFX_CODEC_VP9"
 -- 
-2.17.1
+2.25.1
 

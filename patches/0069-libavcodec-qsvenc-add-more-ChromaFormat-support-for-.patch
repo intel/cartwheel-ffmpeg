@@ -1,7 +1,7 @@
-From 45f14c2d78604856e78a2f63d38479d3d89b8d4e Mon Sep 17 00:00:00 2001
+From 19d8b79a9a827f292f783d7673282ff627c9c7dd Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Wed, 17 Mar 2021 13:44:01 +0800
-Subject: [PATCH] libavcodec/qsvenc: add more ChromaFormat support for
+Subject: [PATCH 69/81] libavcodec/qsvenc: add more ChromaFormat support for
  mjpeg-qsv
 
 ChromaForamt for mjpeg-qsv is always set to yuv420, and this will be
@@ -14,7 +14,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index a8049c53f2..5cce3755a0 100644
+index 3b63d194e8..b25ff339ef 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -464,7 +464,8 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
