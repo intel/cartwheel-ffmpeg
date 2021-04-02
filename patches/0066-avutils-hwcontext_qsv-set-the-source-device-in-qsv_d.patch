@@ -1,7 +1,7 @@
-From e76fce285c164b740308c9e5d5392982fd54f026 Mon Sep 17 00:00:00 2001
+From 076f54967edc9f6ec76b35b9d3b9a869727702d8 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Tue, 23 Feb 2021 15:22:34 +0800
-Subject: [PATCH] avutils/hwcontext_qsv: set the source device in
+Subject: [PATCH 66/81] avutils/hwcontext_qsv: set the source device in
  qsv_device_create
 
 opencl_device_derive only handles AV_HWDEVICE_TYPE_VAAPI.
@@ -14,10 +14,10 @@ ffmpeg -init_hw_device vaapi=intel:/dev/dri/renderD128 -init_hw_device opencl=oc
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 42363b85be..c1ce794428 100644
+index a4b9e0569b..1fa26a22ee 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -1576,7 +1576,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1550,7 +1550,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
  
      impl = choose_implementation(device, child_device_type);
  
