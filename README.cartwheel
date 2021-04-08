@@ -4,6 +4,23 @@ Intel developer staging area for upstream patch contributions to [FFmpeg](https:
 
 The upstream project is tracked as a submodule in this repo.
 
+## upstream process
+To improve upstream patch quality and reduce patchset rebase efforts, we use the following process
+1. Send PR1 to https://github.com/intel-media-ci/ffmpeg, add module maintainers to Reviewers
+1. Got approval from one maintainer
+1. Wait for 1 more workday to see any objections. If it's an urgent issue, please ask another reviewer + 1 for you.
+1. Close PR1, and send it to the community, ping the community with some frequency if it's no response.
+1. If the community has no response in 4 weeks or it’s an urgent issue, send PR2 to https://github.com/intel-media-ci/cartwheel-ffmpeg
+1. Provide upstream patch link, ping maintainers for merging
+1. Ping community until the patch merged in upstream
+
+
+## maintainers
+* @xhaihao @feiwan1 @xuguangxin for Linux and OneVPL
+* @galinart for Windows
+* @guoyejun @Semmer2 for DNN
+* @uartie @FocusLuo @Bin-CI for CI system
+
 ## clone
 ```shell
 $ git clone https://github.com/intel-media-ci/cartwheel-ffmpeg --recursive
