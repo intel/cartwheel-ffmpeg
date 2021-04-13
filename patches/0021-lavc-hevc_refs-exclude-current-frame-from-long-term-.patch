@@ -1,7 +1,7 @@
-From f7544aabc9400109c9da429be1998a1582dfbe79 Mon Sep 17 00:00:00 2001
+From ca963e40a1fc24aab03e06d268e3a3894dbea332 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Tue, 9 Jun 2020 11:09:32 +0800
-Subject: [PATCH 21/69] lavc/hevc_refs: exclude current frame from long term
+Subject: [PATCH 21/81] lavc/hevc_refs: exclude current frame from long term
  refs
 
 suppose
@@ -29,5 +29,5 @@ index 63e34f3fb7..f78a690b25 100644
          }
      }
 -- 
-2.17.1
+2.25.1
 

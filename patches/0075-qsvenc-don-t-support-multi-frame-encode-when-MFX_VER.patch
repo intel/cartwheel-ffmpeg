@@ -1,4 +1,4 @@
-From a8d658e4018a2ea0378874b25fcd8c67a5497189 Mon Sep 17 00:00:00 2001
+From 466421ed225c22e17bef3c86964021c209f4e778 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 12:41:16 +0800
 Subject: [PATCH 75/81] qsvenc: don't support multi-frame encode when

@@ -1,4 +1,4 @@
-From e4d6bde74b484f5c563ec87bed60f7b27d032e23 Mon Sep 17 00:00:00 2001
+From 22e6c8c4778d54162ca380ed40e722c48dfc3e39 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Fri, 19 Feb 2021 08:51:35 +0800
 Subject: [PATCH 78/81] configure: check mfxdefs.h instead of mfxvp9.h for

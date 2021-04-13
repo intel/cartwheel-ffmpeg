@@ -1,7 +1,7 @@
-From e1f66916eafecde9022bec15f45d8501be7bd0c2 Mon Sep 17 00:00:00 2001
+From 857a6a29c856b3020cc75795d8fab597e1b0e35a Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 4 Jan 2021 09:52:34 +0800
-Subject: [PATCH 55/69] libavcodec/qsvenc: add low latency P-pyramid support
+Subject: [PATCH 55/81] libavcodec/qsvenc: add low latency P-pyramid support
  for qsv
 
 Add low latency P-pyramid support for qsv, and it relates to a new
@@ -85,5 +85,5 @@ index 3720320789..7da6e0a50f 100644
  
      int int_ref_type;
 -- 
-2.17.1
+2.25.1
 

@@ -1,4 +1,4 @@
-From 82b9ee461bfe268a14714cf3e63094cceffc918c Mon Sep 17 00:00:00 2001
+From e067bda9f17957ef26bef51583726dd849e14bdd Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 09:08:27 +0800
 Subject: [PATCH 71/81] configure: ensure the right libmfx version is used when

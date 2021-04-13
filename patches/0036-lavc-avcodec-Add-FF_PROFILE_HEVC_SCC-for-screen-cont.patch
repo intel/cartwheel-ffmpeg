@@ -1,7 +1,7 @@
-From c381964e9157257fe9a5f6e514bad2a721a35336 Mon Sep 17 00:00:00 2001
+From 1c057495097219de14a45dc3df90b0fde8bdf6bd Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:39 +0800
-Subject: [PATCH 36/69] lavc/avcodec: Add FF_PROFILE_HEVC_SCC for screen
+Subject: [PATCH 36/81] lavc/avcodec: Add FF_PROFILE_HEVC_SCC for screen
  content coding
 
 Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
@@ -36,5 +36,5 @@ index 7af7fbeb13..2230fc5415 100644
  };
  
 -- 
-2.17.1
+2.25.1
 

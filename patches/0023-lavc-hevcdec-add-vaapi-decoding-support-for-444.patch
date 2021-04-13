@@ -1,7 +1,7 @@
-From 9dcd69790c5aee286e70fc1fa23c68a9436a6f19 Mon Sep 17 00:00:00 2001
+From 11ece349006177b6cc58f66c148feb9451f010cb Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 10:12:26 +0800
-Subject: [PATCH 23/69] lavc/hevcdec: add vaapi decoding support for 444
+Subject: [PATCH 23/81] lavc/hevcdec: add vaapi decoding support for 444
 
 Also include 420P12, 444P12.
 
@@ -12,7 +12,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index de2952e8a9..773e860688 100644
+index 69e4b7ffab..108b547330 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -442,6 +442,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -59,5 +59,5 @@ index f803bd560b..bea1f37669 100644
  #ifdef VA_FOURCC_P010
      MAP(P010, P010),
 -- 
-2.17.1
+2.25.1
 

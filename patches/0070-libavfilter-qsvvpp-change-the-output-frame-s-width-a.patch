@@ -1,4 +1,4 @@
-From b13286486b9ebe31eb1415b7f78645ff7ce282cb Mon Sep 17 00:00:00 2001
+From fb42844edce1c42ed267ef4609f68a3bf6748057 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:24:03 +0800
 Subject: [PATCH 70/81] libavfilter/qsvvpp: change the output frame's width and
@@ -19,10 +19,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index ce1261eda4..5ed82a7548 100644
+index 7a297505a7..deef9c29b5 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
-@@ -487,9 +487,6 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
+@@ -460,15 +460,14 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
          if (!out_frame->frame)
              return NULL;
  
@@ -30,15 +30,14 @@ index ce1261eda4..5ed82a7548 100644
 -        out_frame->frame->height = outlink->h;
 -
          ret = map_frame_to_surface(out_frame->frame,
-                                   &out_frame->surface_internal);
+                                    &out_frame->surface);
          if (ret < 0)
-@@ -498,6 +495,8 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
-         out_frame->surface = &out_frame->surface_internal;
+             return NULL;
      }
  
 +    out_frame->frame->width  = outlink->w;
 +    out_frame->frame->height = outlink->h;
-     out_frame->surface->Info = s->vpp_param.vpp.Out;
+     out_frame->surface.Info = s->vpp_param.vpp.Out;
  
      return out_frame;
 -- 

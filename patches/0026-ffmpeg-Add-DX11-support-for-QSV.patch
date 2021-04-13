@@ -1,7 +1,7 @@
-From 6f8682a99f7a3bceccb34a989fcef23723f57d3d Mon Sep 17 00:00:00 2001
+From ba4346937810c0a4c9d5ead9bf9b3c9c387b2749 Mon Sep 17 00:00:00 2001
 From: "Galin, Artem" <artem.galin@intel.com>
 Date: Tue, 26 May 2020 14:28:46 +0800
-Subject: [PATCH] ffmpeg: Add DX11 support for QSV
+Subject: [PATCH 26/81] ffmpeg: Add DX11 support for QSV
 
 ---
  fftools/ffmpeg_opt.c             |   6 +-
@@ -17,7 +17,7 @@ Subject: [PATCH] ffmpeg: Add DX11 support for QSV
  10 files changed, 511 insertions(+), 162 deletions(-)
 
 diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
-index 85feeb89f2..de72824259 100644
+index 807e783422..5fc17ed473 100644
 --- a/fftools/ffmpeg_opt.c
 +++ b/fftools/ffmpeg_opt.c
 @@ -580,7 +580,11 @@ static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
@@ -173,31 +173,24 @@ index 6b2fbbe252..5d276b091c 100644
      AVFrame *locked_frame;
      AVFrame *hw_frame;
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index f216b3f248..ce1261eda4 100644
+index 4768f6208b..7a297505a7 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
-@@ -36,6 +36,7 @@
+@@ -36,12 +36,7 @@
                                          MFX_MEMTYPE_VIDEO_MEMORY_PROCESSOR_TARGET))
  #define IS_OPAQUE_MEMORY(mode) (mode & MFX_MEMTYPE_OPAQUE_FRAME)
  #define IS_SYSTEM_MEMORY(mode) (mode & MFX_MEMTYPE_SYSTEM_MEMORY)
-+#define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
- 
- typedef struct QSVFrame {
-     AVFrame          *frame;
-@@ -68,12 +69,6 @@ struct QSVVPPContext {
-     int                 nb_ext_buffers;
- };
- 
+-
 -static const mfxHandleType handle_types[] = {
 -    MFX_HANDLE_VA_DISPLAY,
 -    MFX_HANDLE_D3D9_DEVICE_MANAGER,
 -    MFX_HANDLE_D3D11_DEVICE,
 -};
--
++#define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
+ 
  static const AVRational default_tb = { 1, 90000 };
  
- static const struct {
-@@ -233,7 +228,13 @@ static mfxStatus frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+@@ -202,7 +197,13 @@ static mfxStatus frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
  
  static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
  {
@@ -212,7 +205,7 @@ index f216b3f248..ce1261eda4 100644
      return MFX_ERR_NONE;
  }
  
-@@ -555,7 +556,7 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -526,7 +527,7 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
  
          s->out_mem_mode = IS_OPAQUE_MEMORY(s->in_mem_mode) ?
                            MFX_MEMTYPE_OPAQUE_FRAME :
@@ -221,7 +214,7 @@ index f216b3f248..ce1261eda4 100644
  
          out_frames_ctx   = (AVHWFramesContext *)out_frames_ref->data;
          out_frames_hwctx = out_frames_ctx->hwctx;
-@@ -601,14 +602,19 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -572,14 +573,19 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
          return AVERROR_UNKNOWN;
      }
  
@@ -248,7 +241,7 @@ index f216b3f248..ce1261eda4 100644
          return ff_qsvvpp_print_error(avctx, ret, "Error getting the session handle");
      else if (ret > 0) {
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index 89a282f99e..c27a5b037d 100644
+index 34feb616ab..d5106bcf59 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -42,6 +42,8 @@
@@ -260,7 +253,7 @@ index 89a282f99e..c27a5b037d 100644
  enum {
      QSVDEINT_MORE_OUTPUT = 1,
      QSVDEINT_MORE_INPUT,
-@@ -157,16 +159,16 @@ static mfxStatus frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+@@ -149,16 +151,16 @@ static mfxStatus frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
  
  static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
  {
@@ -284,7 +277,7 @@ index 89a282f99e..c27a5b037d 100644
  static int init_out_session(AVFilterContext *ctx)
  {
  
-@@ -183,29 +185,34 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -175,29 +177,34 @@ static int init_out_session(AVFilterContext *ctx)
      mfxIMPL impl;
      mfxVideoParam par;
      mfxStatus err;

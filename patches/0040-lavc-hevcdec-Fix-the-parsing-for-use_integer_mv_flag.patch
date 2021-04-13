@@ -1,7 +1,7 @@
-From 5eee40a7a1903130d38f559e40dc50441b80578c Mon Sep 17 00:00:00 2001
+From b8fa9ceed59bfa88ac5be05229f06495a699be4c Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:43 +0800
-Subject: [PATCH 40/69] lavc/hevcdec: Fix the parsing for use_integer_mv_flag
+Subject: [PATCH 40/81] lavc/hevcdec: Fix the parsing for use_integer_mv_flag
 
 According to 7.3.6.1, use_integer_mv_flag should be parsed if
 motion_vector_resolution_control_idc equals to 2.
@@ -16,10 +16,10 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 9 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 44dcdc5c71..f76637d62a 100644
+index 52df8cee18..42ac1f0ee9 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -815,6 +815,14 @@ static int hls_slice_header(HEVCContext *s)
+@@ -822,6 +822,14 @@ static int hls_slice_header(HEVCContext *s)
                         sh->max_num_merge_cand);
                  return AVERROR_INVALIDDATA;
              }
@@ -47,5 +47,5 @@ index f3e311bd40..3dbf54adfa 100644
      unsigned *entry_point_offset;
      int * offset;
 -- 
-2.17.1
+2.25.1
 

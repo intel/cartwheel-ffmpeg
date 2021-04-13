@@ -1,8 +1,8 @@
-From bba67694eeaa325ff7441f502fd551c0791939a5 Mon Sep 17 00:00:00 2001
+From 6f108cfa67eb19b0533cc4d274ad4770ed012618 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Wed, 31 Jul 2019 12:18:21 +0800
-Subject: [PATCH] lavc/libvpxenc: add dynamic resolution encode support for
- libvpx
+Subject: [PATCH 12/81] lavc/libvpxenc: add dynamic resolution encode support
+ for libvpx
 
 According to spec, libvpx should support dynamic resolution changes.
 
@@ -21,7 +21,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 32 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/libvpxenc.c b/libavcodec/libvpxenc.c
-index 3f36943c12ca..a1a40de23380 100644
+index 3f36943c12..a1a40de233 100644
 --- a/libavcodec/libvpxenc.c
 +++ b/libavcodec/libvpxenc.c
 @@ -1580,6 +1580,34 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
@@ -87,5 +87,5 @@ index 3f36943c12ca..a1a40de23380 100644
      .profiles       = NULL_IF_CONFIG_SMALL(ff_vp9_profiles),
      .priv_class     = &class_vp9,
 -- 
-2.25.4
+2.25.1
 

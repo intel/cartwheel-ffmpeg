@@ -1,7 +1,7 @@
-From 874e70a755dad218dc176aff462c731d97add86b Mon Sep 17 00:00:00 2001
+From 0c598f2537a3e3ca3c19c3e2e110984c6c2a1d9a Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 15:38:48 +0800
-Subject: [PATCH 02/69] swscale: Add swscale and fate support for 0YUV
+Subject: [PATCH 02/81] swscale: Add swscale and fate support for 0YUV
 
 Add input and output support in swscale for 0YUV.
 
@@ -348,5 +348,5 @@ index 732db8d331..311095257d 100644
  argb                3fd6af7ef2364d8aa845d45db289a04a
  ayuv64le            558671dd31d0754cfa6344eaf441df78
 -- 
-2.17.1
+2.25.1
 

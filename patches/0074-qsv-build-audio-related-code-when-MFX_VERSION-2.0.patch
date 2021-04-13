@@ -1,4 +1,4 @@
-From 578150f1557ede0cd126e7b9e9a6da677be2d720 Mon Sep 17 00:00:00 2001
+From b7923c23afc11990830596223abbe845a99662e6 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 18 Aug 2020 15:30:32 +0800
 Subject: [PATCH 74/81] qsv: build audio related code when MFX_VERSION < 2.0
@@ -47,7 +47,7 @@ index acf152e7d9..3fcb215404 100644
  
  int ff_qsv_map_error(mfxStatus mfx_err, const char **desc)
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 5ed82a7548..440871740e 100644
+index deef9c29b5..3241eaf0d9 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -37,6 +37,7 @@
@@ -56,9 +56,9 @@ index 5ed82a7548..440871740e 100644
  #define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
 +#define QSV_HAVE_AUDIO          !QSV_VERSION_ATLEAST(2, 0)
  
- typedef struct QSVFrame {
-     AVFrame          *frame;
-@@ -126,8 +127,10 @@ static const struct {
+ static const AVRational default_tb = { 1, 90000 };
+ 
+@@ -95,8 +96,10 @@ static const struct {
      { MFX_ERR_INVALID_VIDEO_PARAM,      AVERROR(EINVAL), "invalid video parameters"             },
      { MFX_ERR_UNDEFINED_BEHAVIOR,       AVERROR_BUG,     "undefined behavior"                   },
      { MFX_ERR_DEVICE_FAILED,            AVERROR(EIO),    "device failed"                        },
@@ -69,7 +69,7 @@ index 5ed82a7548..440871740e 100644
  
      { MFX_WRN_IN_EXECUTION,             0,               "operation in execution"               },
      { MFX_WRN_DEVICE_BUSY,              0,               "device busy"                          },
-@@ -137,7 +140,9 @@ static const struct {
+@@ -106,7 +109,9 @@ static const struct {
      { MFX_WRN_VALUE_NOT_CHANGED,        0,               "value is saturated"                   },
      { MFX_WRN_OUT_OF_RANGE,             0,               "value out of range"                   },
      { MFX_WRN_FILTER_SKIPPED,           0,               "filter skipped"                       },

@@ -1,7 +1,7 @@
-From a03568a23273bd8f3ebf80c53c704a3ab9c491e5 Mon Sep 17 00:00:00 2001
+From 25a70a5eed4afd64068497319aeb0d240b4acab4 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 11 May 2020 14:26:18 +0800
-Subject: [PATCH 28/69] lavc/vaapi_vp9: support 420/444 12bit dec
+Subject: [PATCH 28/81] lavc/vaapi_vp9: support 420/444 12bit dec
 
 420 12bit dec:
 ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -v debug -i colorbar_420_12_vp9.ivf -vsync passthrough -y ffmpeg.vaapi.yuv
@@ -31,5 +31,5 @@ index 8e81367f8f..df57bf855f 100644
  
          *fmtp++ = s->pix_fmt;
 -- 
-2.17.1
+2.25.1
 

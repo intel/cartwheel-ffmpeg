@@ -1,7 +1,7 @@
-From f1725ae784c410d7b262a67d1ef5733923a4c44d Mon Sep 17 00:00:00 2001
+From 4534768e4882478de6aab6035b45b90a35402f3f Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:32:40 +0800
-Subject: [PATCH 04/69] qsv: get FrameInfo.Shift by desc->comp[0].shift
+Subject: [PATCH 04/81] qsv: get FrameInfo.Shift by desc->comp[0].shift
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
@@ -32,7 +32,7 @@ index 566a5c8552..1c8c5333a8 100644
      // If the minor version is greater than or equal to 19,
      // then can use the same alignment settings as H.264 for HEVC
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 35a944f8f8..90dfbb7989 100644
+index 30b0d81f84..2ff7ec2f4c 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -327,7 +327,7 @@ static int qsv_init_surface(AVHWFramesContext *ctx, mfxFrameSurface1 *surf)
@@ -45,5 +45,5 @@ index 35a944f8f8..90dfbb7989 100644
      if (desc->log2_chroma_w && desc->log2_chroma_h)
          surf->Info.ChromaFormat   = MFX_CHROMAFORMAT_YUV420;
 -- 
-2.17.1
+2.25.1
 

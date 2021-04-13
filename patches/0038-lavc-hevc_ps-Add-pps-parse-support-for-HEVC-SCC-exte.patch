@@ -1,7 +1,7 @@
-From ec88947a97d28cee0cd28f920d790d01f457eb72 Mon Sep 17 00:00:00 2001
+From 629ce360107f72dd2a879571de74678199d049cd Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:41 +0800
-Subject: [PATCH 38/69] lavc/hevc_ps: Add pps parse support for HEVC SCC
+Subject: [PATCH 38/81] lavc/hevc_ps: Add pps parse support for HEVC SCC
  extension
 
 Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
@@ -139,5 +139,5 @@ index be23758008..155b66062e 100644
      unsigned int *column_width;  ///< ColumnWidth
      unsigned int *row_height;    ///< RowHeight
 -- 
-2.17.1
+2.25.1
 

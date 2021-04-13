@@ -1,7 +1,7 @@
-From d0dbff32566d10e83f50544c9e3648708399011b Mon Sep 17 00:00:00 2001
+From a8e84f6cdc8bf34c00e48de3a8e510051c74e5d7 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Tue, 17 Mar 2020 06:03:15 -0400
-Subject: [PATCH 22/69] lavc: hevc, respect no_output_of_prior_pics_flag even
+Subject: [PATCH 22/81] lavc: hevc, respect no_output_of_prior_pics_flag even
  we have reslution change
 
 if we have resolution change, we still need follow no_output_of_prior_pics_flag
@@ -11,10 +11,10 @@ in next IDR.
  1 file changed, 7 deletions(-)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 34fa9b7425..de2952e8a9 100644
+index da9638792d..69e4b7ffab 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -568,15 +568,8 @@ static int hls_slice_header(HEVCContext *s)
+@@ -575,15 +575,8 @@ static int hls_slice_header(HEVCContext *s)
  
      if (s->ps.sps != (HEVCSPS*)s->ps.sps_list[s->ps.pps->sps_id]->data) {
          const HEVCSPS *sps = (HEVCSPS*)s->ps.sps_list[s->ps.pps->sps_id]->data;
@@ -31,5 +31,5 @@ index 34fa9b7425..de2952e8a9 100644
  
          ret = set_sps(s, sps, sps->pix_fmt);
 -- 
-2.17.1
+2.25.1
 

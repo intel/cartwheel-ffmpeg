@@ -1,7 +1,7 @@
-From 16eefa0ea715d93952a39ceb5ed28b44de27875e Mon Sep 17 00:00:00 2001
+From 01af2dc76341aaf1375ad3e01ff15b6799332de4 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 28 Sep 2020 14:14:42 +0800
-Subject: [PATCH 35/69] lavc/qsvenc: add support for Screen Content Coding
+Subject: [PATCH 35/81] lavc/qsvenc: add support for Screen Content Coding
  (SCC) extension
 
 This patch adds support for SCC encoding on ICL+ platform
@@ -44,5 +44,5 @@ index 347f30655e..663f21439f 100644
      { "gpb", "1: GPB (generalized P/B frame); 0: regular P frame", OFFSET(qsv.gpb), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, VE},
  
 -- 
-2.17.1
+2.25.1
 

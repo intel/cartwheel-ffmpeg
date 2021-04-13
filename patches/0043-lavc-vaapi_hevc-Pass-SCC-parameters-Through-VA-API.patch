@@ -1,7 +1,7 @@
-From ea50da3d6c8d8691127f194fa1b938af2726a49c Mon Sep 17 00:00:00 2001
+From 7413b6d337f83efb8e10e7e28e0433f9ae261f0d Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Fri, 5 Jun 2020 13:36:41 +0800
-Subject: [PATCH 43/69] lavc/vaapi_hevc: Pass SCC parameters Through VA-API
+Subject: [PATCH 43/81] lavc/vaapi_hevc: Pass SCC parameters Through VA-API
 
 Including sps/pps/slice parameters.
 
@@ -95,5 +95,5 @@ index 7d68861c1e..4e3ae6cf3b 100644
          for (i = 0; i < 15 && i < sh->nb_refs[L0]; i++) {
              pic->last_slice_param.rext.luma_offset_l0[i] = sh->luma_offset_l0[i];
 -- 
-2.17.1
+2.25.1
 
