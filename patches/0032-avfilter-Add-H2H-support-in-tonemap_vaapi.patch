@@ -1,7 +1,7 @@
-From c40c5d1b80649ec2eb787287d953e4b5a44e0666 Mon Sep 17 00:00:00 2001
+From be672487e83f18e4ea8c7a632fb0188f0d2f64dd Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Mon, 23 Dec 2019 15:29:32 +0800
-Subject: [PATCH 32/69] avfilter: Add H2H support in tonemap_vaapi
+Subject: [PATCH 32/81] avfilter: Add H2H support in tonemap_vaapi
 
 Signed-off-by: Xinpeng Sun <xinpeng.sun@intel.com>
 ---
@@ -257,5 +257,5 @@ index 540d656dca..d16312d9b6 100644
  
  static const AVFilterPad tonemap_vaapi_inputs[] = {
 -- 
-2.17.1
+2.25.1
 

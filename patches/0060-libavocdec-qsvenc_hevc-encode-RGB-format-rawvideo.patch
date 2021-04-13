@@ -1,7 +1,7 @@
-From 48f781fe3d466f11d92dbd9e75a1807d1caccc93 Mon Sep 17 00:00:00 2001
+From 940b88481a5bdfbd58b7c621386b1ce9d4918bab Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 15:46:19 +0800
-Subject: [PATCH 60/69] libavocdec/qsvenc_hevc: encode RGB format rawvideo
+Subject: [PATCH 60/81] libavocdec/qsvenc_hevc: encode RGB format rawvideo
 
 Add support for hevc_qsv to input RGB format frame. It will
 transform frame to yuv inside MediaSDK instead of using auto
@@ -108,5 +108,5 @@ index 7c08cbffaa..e08aa4a88c 100644
      .priv_class     = &class,
      .defaults       = qsv_enc_defaults,
 -- 
-2.17.1
+2.25.1
 

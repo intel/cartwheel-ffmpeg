@@ -1,7 +1,7 @@
-From 08f54f06272b9f23a1e02ba34dffb049b7e7d27b Mon Sep 17 00:00:00 2001
+From f51778b567fa9edd22153e98e8a0754dd893af4c Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 14 Jul 2020 10:21:55 +0800
-Subject: [PATCH 27/69] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
+Subject: [PATCH 27/81] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
 
 ---
  libavcodec/hevcdec.c             |  5 +++
@@ -17,7 +17,7 @@ Subject: [PATCH 27/69] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
  10 files changed, 166 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 773e860688..6712624ae5 100644
+index 108b547330..89d0e99d99 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -456,6 +456,11 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -75,10 +75,10 @@ index bea1f37669..692004cd98 100644
                                                  source_format, 0, NULL);
          if (format == best_format)
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 3b6e9c0a3d..019d3dedfd 100644
+index f8de3fe1be..6f4de1f7cc 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1261,6 +1261,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
+@@ -1262,6 +1262,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
  #if VA_CHECK_VERSION(0, 38, 1)
      { "YUV420_10", VA_RT_FORMAT_YUV420_10BPP, 10, 3, 1, 1 },
  #endif
@@ -91,7 +91,7 @@ index 3b6e9c0a3d..019d3dedfd 100644
  
  static const VAEntrypoint vaapi_encode_entrypoints_normal[] = {
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 12183156b0..20f1886a7e 100644
+index 87dbd7d50e..9ca48030c9 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -1155,7 +1155,11 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
@@ -127,7 +127,7 @@ index 027612dc99..7d68861c1e 100644
      av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
             "not supported with this VA version.\n", profile->name);
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 0d2c34e452..02eb56be89 100644
+index a6fa860609..d3172e0f0d 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -129,6 +129,15 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
@@ -147,7 +147,7 @@ index 0d2c34e452..02eb56be89 100644
      MAP(BGRA, RGB32,   BGRA, 0),
      MAP(BGRX, RGB32,   BGR0, 0),
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index 584bf42273..82df9f0f9a 100644
+index 5ccc23f1a8..c4d8ac5425 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
 @@ -228,6 +228,29 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
@@ -429,5 +429,5 @@ index f023430356..50d134ef32 100644
    p016le
    yuv410p
 -- 
-2.17.1
+2.25.1
 

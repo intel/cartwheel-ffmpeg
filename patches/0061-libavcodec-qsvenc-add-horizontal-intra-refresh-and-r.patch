@@ -1,7 +1,7 @@
-From 50d492bf9fa491ac869c392350934aad040b36e5 Mon Sep 17 00:00:00 2001
+From b43cddd315b086753cf253e1f0c776734d68164c Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 14:38:46 +0800
-Subject: [PATCH 61/69] libavcodec/qsvenc: add horizontal intra refresh and
+Subject: [PATCH 61/81] libavcodec/qsvenc: add horizontal intra refresh and
  refresh cycle dist
 
 Add an new intra refresh type: "horizontal", and an new param
@@ -78,5 +78,5 @@ index ddafc45ec3..47583621b4 100644
      { "unknown" , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_UNKNOWN      }, INT_MIN, INT_MAX,     VE, "profile" },
      { "baseline", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_AVC_BASELINE }, INT_MIN, INT_MAX,     VE, "profile" },
 -- 
-2.17.1
+2.25.1
 

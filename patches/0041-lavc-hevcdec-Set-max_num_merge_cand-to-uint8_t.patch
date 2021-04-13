@@ -1,7 +1,7 @@
-From 6274198f19147719a60c952c2049d70e6cccde69 Mon Sep 17 00:00:00 2001
+From 76060e54bce2c79518b6300e8dfa5faefc37f7fd Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:44 +0800
-Subject: [PATCH 41/69] lavc/hevcdec: Set max_num_merge_cand to uint8_t
+Subject: [PATCH 41/81] lavc/hevcdec: Set max_num_merge_cand to uint8_t
 
 uint8_t is big enough and keep consistent with the definition in
 cbs_h265.h.
@@ -25,5 +25,5 @@ index 3dbf54adfa..8677fcca1e 100644
  
      unsigned *entry_point_offset;
 -- 
-2.17.1
+2.25.1
 

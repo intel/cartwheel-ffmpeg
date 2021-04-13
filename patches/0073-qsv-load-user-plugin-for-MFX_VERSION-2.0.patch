@@ -1,4 +1,4 @@
-From 8b70094b5080955e38602840620a6edb08de7ae7 Mon Sep 17 00:00:00 2001
+From 55a855329d77ab3cf5944d5b664a07996eca6bd8 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 18 Aug 2020 15:20:38 +0800
 Subject: [PATCH 73/81] qsv: load user plugin for MFX_VERSION < 2.0

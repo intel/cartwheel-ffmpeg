@@ -1,7 +1,7 @@
-From fac0b6f42959c1832108be166b88f2a72488a9e7 Mon Sep 17 00:00:00 2001
+From 9468b5efb2918b41fbb1cd8c16ffb2ab05ee005c Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Fri, 13 Mar 2020 09:14:48 -0400
-Subject: [PATCH 19/69] lavc: hevc, fix dpb logical for IRAP
+Subject: [PATCH 19/81] lavc: hevc, fix dpb logical for IRAP
 
 According to C.5.2.2, item 2. When we got an IRAP, and the NoOutputOfPriorPicsFlag = 0,
 we need bump all outputable frames.
@@ -49,5 +49,5 @@ index 4f6d985ae6..9e391b0970 100644
              HEVCFrame *frame = &s->DPB[i];
              if ((frame->flags & HEVC_FRAME_FLAG_OUTPUT) &&
 -- 
-2.17.1
+2.25.1
 

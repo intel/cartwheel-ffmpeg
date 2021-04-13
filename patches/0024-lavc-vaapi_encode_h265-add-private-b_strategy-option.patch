@@ -1,7 +1,7 @@
-From 462212ea84a4fe045ca6db92738ca3e4d504cf62 Mon Sep 17 00:00:00 2001
+From 8632c9fe3cbde9ade2a0e94ede100d07133ca76d Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 7 Apr 2020 14:03:21 +0800
-Subject: [PATCH 24/69] lavc/vaapi_encode_h265: add private b_strategy option
+Subject: [PATCH 24/81] lavc/vaapi_encode_h265: add private b_strategy option
  for hevc_vaapi
 
 Allow user to choose between I/P/B frames:
@@ -36,10 +36,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  4 files changed, 61 insertions(+), 6 deletions(-)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 0b826ba1cb..2daeaab3ce 100644
+index 3f549d3203..48dc98658a 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3308,6 +3308,22 @@ Some combination of the following values:
+@@ -3359,6 +3359,22 @@ Some combination of the following values:
  Include HDR metadata if the input frames have it
  (@emph{mastering_display_colour_volume} and @emph{content_light_level}
  messages).
@@ -63,10 +63,10 @@ index 0b826ba1cb..2daeaab3ce 100644
  
  @item tiles
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index c1889be042..3b6e9c0a3d 100644
+index a4bbc1cce1..f8de3fe1be 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1910,15 +1910,26 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1911,15 +1911,26 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
                 "reference frames.\n");
          return AVERROR(EINVAL);
      } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
@@ -111,7 +111,7 @@ index 1c40a734a5..508b9909b4 100644
  
      // Whether the driver supports ROI at all.
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 37dcad9aac..7beca29986 100644
+index ca1bb0d49a..a04c1ccd02 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -62,6 +62,7 @@ typedef struct VAAPIEncodeH265Context {
@@ -179,5 +179,5 @@ index 37dcad9aac..7beca29986 100644
      { "tiles", "Tile columns x rows",
        OFFSET(common.tile_cols), AV_OPT_TYPE_IMAGE_SIZE,
 -- 
-2.17.1
+2.25.1
 

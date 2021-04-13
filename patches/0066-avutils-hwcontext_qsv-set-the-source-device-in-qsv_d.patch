@@ -1,4 +1,4 @@
-From 076f54967edc9f6ec76b35b9d3b9a869727702d8 Mon Sep 17 00:00:00 2001
+From 1395c9b982e751caa06d2f90aaf292945b499a9d Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Tue, 23 Feb 2021 15:22:34 +0800
 Subject: [PATCH 66/81] avutils/hwcontext_qsv: set the source device in

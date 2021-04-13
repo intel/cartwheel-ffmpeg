@@ -1,4 +1,4 @@
-From 94fe5f66e6c42f24180440d5b9507d41f2dbf4dc Mon Sep 17 00:00:00 2001
+From 0ec7318ed278574f444a49f3758d136b0a14ae7f Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 14:49:46 +0800
 Subject: [PATCH 79/81] configure: allow user to build FFmpeg against oneVPL

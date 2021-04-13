@@ -1,7 +1,7 @@
-From a65f244c60883c8499acce7f622521602f6fe184 Mon Sep 17 00:00:00 2001
+From 6333217ad3fff6122f940044a32b3b8837f931f4 Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Wed, 26 Feb 2020 13:53:34 +0800
-Subject: [PATCH 30/69] avfilter: add overlay vaapi filter
+Subject: [PATCH 30/81] avfilter: add overlay vaapi filter
 
 Overlay one video on the top of another.
 
@@ -27,10 +27,10 @@ Signed-off-by: Zachary Zhou <zachary.zhou@intel.com>
  create mode 100644 libavfilter/vf_overlay_vaapi.c
 
 diff --git a/configure b/configure
-index df298b4b9b..9a42e8e1a2 100755
+index d7a3f507e8..7f04d3c29d 100755
 --- a/configure
 +++ b/configure
-@@ -3590,6 +3590,7 @@ openclsrc_filter_deps="opencl"
+@@ -3597,6 +3597,7 @@ openclsrc_filter_deps="opencl"
  overlay_opencl_filter_deps="opencl"
  overlay_qsv_filter_deps="libmfx"
  overlay_qsv_filter_select="qsvvpp"
@@ -38,7 +38,7 @@ index df298b4b9b..9a42e8e1a2 100755
  overlay_vulkan_filter_deps="vulkan libglslang"
  owdenoise_filter_deps="gpl"
  pad_opencl_filter_deps="opencl"
-@@ -3650,6 +3651,7 @@ tonemap_vaapi_filter_deps="vaapi VAProcFilterParameterBufferHDRToneMapping"
+@@ -3657,6 +3658,7 @@ tonemap_vaapi_filter_deps="vaapi VAProcFilterParameterBufferHDRToneMapping"
  tonemap_opencl_filter_deps="opencl const_nan"
  transpose_opencl_filter_deps="opencl"
  transpose_vaapi_filter_deps="vaapi VAProcPipelineCaps_rotation_flags"
@@ -46,7 +46,7 @@ index df298b4b9b..9a42e8e1a2 100755
  unsharp_opencl_filter_deps="opencl"
  uspp_filter_deps="gpl avcodec"
  vaguedenoiser_filter_deps="gpl"
-@@ -6696,6 +6698,7 @@ if enabled vaapi; then
+@@ -6705,6 +6707,7 @@ if enabled vaapi; then
      check_struct "va/va.h" "VADecPictureParameterBufferAV1" bit_depth_idx
      check_type   "va/va.h va/va_vpp.h" "VAProcFilterParameterBufferHDRToneMapping"
      check_struct "va/va.h va/va_vpp.h" "VAProcPipelineCaps" rotation_flags
@@ -55,10 +55,10 @@ index df298b4b9b..9a42e8e1a2 100755
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
 diff --git a/doc/filters.texi b/doc/filters.texi
-index d2f62972dd..1078dd9d63 100644
+index 5e35fa6467..eec350889c 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -23202,6 +23202,57 @@ To enable compilation of these filters you need to configure FFmpeg with
+@@ -23550,6 +23550,57 @@ To enable compilation of these filters you need to configure FFmpeg with
  
  To use vaapi filters, you need to setup the vaapi device correctly. For more information, please read @url{https://trac.ffmpeg.org/wiki/Hardware/VAAPI}
  
@@ -117,10 +117,10 @@ index d2f62972dd..1078dd9d63 100644
  
  Perform HDR(High Dynamic Range) to SDR(Standard Dynamic Range) conversion with tone-mapping.
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index e1c364fbc6..cb9fd89de8 100644
+index b2c254ea67..45506d91df 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -344,6 +344,7 @@ OBJS-$(CONFIG_OVERLAY_CUDA_FILTER)           += vf_overlay_cuda.o framesync.o vf
+@@ -352,6 +352,7 @@ OBJS-$(CONFIG_OVERLAY_CUDA_FILTER)           += vf_overlay_cuda.o framesync.o vf
  OBJS-$(CONFIG_OVERLAY_OPENCL_FILTER)         += vf_overlay_opencl.o opencl.o \
                                                  opencl/overlay.o framesync.o
  OBJS-$(CONFIG_OVERLAY_QSV_FILTER)            += vf_overlay_qsv.o framesync.o
@@ -129,10 +129,10 @@ index e1c364fbc6..cb9fd89de8 100644
  OBJS-$(CONFIG_OWDENOISE_FILTER)              += vf_owdenoise.o
  OBJS-$(CONFIG_PAD_FILTER)                    += vf_pad.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 1c1cc5b276..218ee8539b 100644
+index 0872c6e0f2..30c693d03e 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -327,6 +327,7 @@ extern AVFilter ff_vf_oscilloscope;
+@@ -335,6 +335,7 @@ extern AVFilter ff_vf_oscilloscope;
  extern AVFilter ff_vf_overlay;
  extern AVFilter ff_vf_overlay_opencl;
  extern AVFilter ff_vf_overlay_qsv;
@@ -573,5 +573,5 @@ index 0000000000..893cdbd4c8
 +    .flags_internal  = FF_FILTER_FLAG_HWFRAME_AWARE,
 +};
 -- 
-2.17.1
+2.25.1
 

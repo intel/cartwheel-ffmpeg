@@ -1,7 +1,7 @@
-From a384016516750392616e5c7c8fa3c6c00d351708 Mon Sep 17 00:00:00 2001
+From 4662f1f7f5a1c1d397c7106fc3fe491d6c139940 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 28 May 2020 14:14:32 -0400
-Subject: [PATCH 29/69] lavc/qsv: support hevc/vp9 12bit
+Subject: [PATCH 29/81] lavc/qsv: support hevc/vp9 12bit
 
 ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v hevc_qsv -i GENERAL_12b_420_RExt_Sony_1.bit -vf hwdownload,format=p012 -vsync passthrough -frames 25 -f md5 -y qsv_out.md5
 
@@ -57,7 +57,7 @@ index dadfb83889..fb53768193 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 8285ce03b5..34ff5e5572 100644
+index c810abe5ed..a4b9e0569b 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -113,6 +113,14 @@ static const struct {
@@ -105,5 +105,5 @@ index 8285ce03b5..34ff5e5572 100644
      default:
          return MFX_ERR_UNSUPPORTED;
 -- 
-2.17.1
+2.25.1
 

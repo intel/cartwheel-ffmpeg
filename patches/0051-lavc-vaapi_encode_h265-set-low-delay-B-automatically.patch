@@ -1,7 +1,7 @@
-From e4643a389f89aed5d2c8ace92c2e219fe6ca38dd Mon Sep 17 00:00:00 2001
+From 67419e501fadfb206ed5ab426774b679137c29ff Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 25 Nov 2020 13:48:35 -0500
-Subject: [PATCH 51/69] lavc/vaapi_encode_h265: set low delay B automatically
+Subject: [PATCH 51/81] lavc/vaapi_encode_h265: set low delay B automatically
 
 When encode P frame, query driver if it support P. If not, convert
 P frame to forward prediction B.
@@ -13,10 +13,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  2 files changed, 31 insertions(+), 22 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index f561feb38d..b91556b38a 100644
+index c5fedd8373..d5a2cd589b 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1907,6 +1907,30 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1908,6 +1908,30 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
          ref_l1 = attr.value >> 16 & 0xffff;
      }
  
@@ -47,7 +47,7 @@ index f561feb38d..b91556b38a 100644
      if (ctx->codec->flags & FLAG_INTRA_ONLY ||
          avctx->gop_size <= 1) {
          av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
-@@ -1918,7 +1942,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1919,7 +1943,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
      } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
                 ref_l1 < 1 || avctx->max_b_frames < 1 ||
                 ctx->b_frame_strategy == 1) {
@@ -56,7 +56,7 @@ index f561feb38d..b91556b38a 100644
              av_log(avctx, AV_LOG_VERBOSE, "Using intra and low delay "
                     "B-frames (supported references: %d / %d).\n",
                     ref_l0, ref_l1);
-@@ -1929,7 +1953,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1930,7 +1954,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
          ctx->p_per_i  = INT_MAX;
          ctx->b_per_p  = 0;
      } else {
@@ -66,7 +66,7 @@ index f561feb38d..b91556b38a 100644
                     "B-frames (supported references: %d / %d).\n",
                     ref_l0, ref_l1);
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 04ac600807..b556848171 100644
+index 6006c4b75f..dbe18d98ed 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -936,8 +936,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
@@ -130,5 +130,5 @@ index 04ac600807..b556848171 100644
          { "low_delay_b", "Use low delay B-frames with forward-prediction only",
                            0, AV_OPT_TYPE_CONST, { .i64 = 1 }, INT_MIN, INT_MAX, FLAGS, "b_strategy" },
 -- 
-2.17.1
+2.25.1
 

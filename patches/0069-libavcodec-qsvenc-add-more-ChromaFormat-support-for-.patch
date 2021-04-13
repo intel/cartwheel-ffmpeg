@@ -1,4 +1,4 @@
-From 19d8b79a9a827f292f783d7673282ff627c9c7dd Mon Sep 17 00:00:00 2001
+From 9f97d6a593fb44eb60b00b72235f187d2b4a3557 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Wed, 17 Mar 2021 13:44:01 +0800
 Subject: [PATCH 69/81] libavcodec/qsvenc: add more ChromaFormat support for

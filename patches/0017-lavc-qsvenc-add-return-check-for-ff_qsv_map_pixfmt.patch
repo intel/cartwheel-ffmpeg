@@ -1,7 +1,7 @@
-From 6918846c6f3abc6e8150585a293fc60102fc67e3 Mon Sep 17 00:00:00 2001
+From 6c83826e48433ef679df65181a671596099676d9 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 24 Feb 2020 19:27:19 +0800
-Subject: [PATCH 17/69] lavc/qsvenc: add return check for ff_qsv_map_pixfmt
+Subject: [PATCH 17/81] lavc/qsvenc: add return check for ff_qsv_map_pixfmt
 
 Return an error directly if pixfmt is not supported for encoding, otherwise
 it may be hidden until query/check in MSDK.
@@ -38,5 +38,5 @@ index 1c8c5333a8..60392865e0 100644
      q->param.mfx.FrameInfo.CropX          = 0;
      q->param.mfx.FrameInfo.CropY          = 0;
 -- 
-2.17.1
+2.25.1
 

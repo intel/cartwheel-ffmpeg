@@ -1,7 +1,7 @@
-From 35d7b1d0d92440821573c256a1b572306919c19e Mon Sep 17 00:00:00 2001
+From 10306df1e6c35033dbee361e196768101e048afc Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 10 Nov 2020 15:19:39 -0500
-Subject: [PATCH 49/69] lavc/hevc_ps: remove profile limitation when excute
+Subject: [PATCH 49/81] lavc/hevc_ps: remove profile limitation when excute
  pps_range_extensions
 
 See spec 7.3.2.3.1.
@@ -84,5 +84,5 @@ index 59b82b72bb..d1d86b2dc9 100644
 +0,         23,         23,        1,   149760, 0xf455f752
 +0,         24,         24,        1,   149760, 0x569fec99
 -- 
-2.17.1
+2.25.1
 

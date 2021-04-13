@@ -1,7 +1,7 @@
-From 317a1d1341e4c2af7b19662cc3eca6fcfebda14a Mon Sep 17 00:00:00 2001
+From 19c5995acce2ec02511ff93cb6d6c93ba9132639 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 4 Jan 2021 09:49:22 +0800
-Subject: [PATCH 54/69] libavcodec/qsvenc: add DisableDeblockingIdc support for
+Subject: [PATCH 54/81] libavcodec/qsvenc: add DisableDeblockingIdc support for
  qsv
 
 MediaSDK already has a flag to control deblocking (DisableDeblockingIdc). Add dblk_idc parameter in ffmpeg to expose this flag to user.
@@ -65,5 +65,5 @@ index 6d305f87dd..3720320789 100644
      int tile_cols;
      int tile_rows;
 -- 
-2.17.1
+2.25.1
 

@@ -1,7 +1,7 @@
-From 7c25119ae98c35df55048a287b88101bef46f709 Mon Sep 17 00:00:00 2001
+From 442de08c401da4399008ddcb82370d7a309174e5 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
-Subject: [PATCH 57/72] libavcodec/qsvdec.c: extract frame packing arrangement
+Subject: [PATCH 57/81] libavcodec/qsvdec.c: extract frame packing arrangement
  data
 
 Use h264_sei to parse SEI data got from MediaSDK. Extract frame
@@ -230,5 +230,5 @@ index 5f2e641373..e689766062 100644
  
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
 -- 
-2.17.1
+2.25.1
 

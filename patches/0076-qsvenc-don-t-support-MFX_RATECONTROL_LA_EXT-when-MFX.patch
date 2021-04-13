@@ -1,4 +1,4 @@
-From 2033c293b09ee7b48b942a9670484bdf10cdaefd Mon Sep 17 00:00:00 2001
+From 039b9d93d02c7388393219c0f2f9fbce03e77135 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 12:49:14 +0800
 Subject: [PATCH 76/81] qsvenc: don't support MFX_RATECONTROL_LA_EXT when

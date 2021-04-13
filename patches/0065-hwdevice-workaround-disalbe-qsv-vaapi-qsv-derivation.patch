@@ -1,4 +1,4 @@
-From 6f8eed7770335f0260c9918a1f2984368f7070c4 Mon Sep 17 00:00:00 2001
+From 6b32dab6a809e7988bd6d3191dd5bb2547142f44 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Mon, 15 Mar 2021 14:29:41 +0800
 Subject: [PATCH 65/81] hwdevice: workaround disalbe qsv->vaapi->qsv derivation

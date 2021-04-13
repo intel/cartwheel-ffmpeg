@@ -1,7 +1,7 @@
-From 874fd9a30ffaab10d3e7e1159dd1d20158929a80 Mon Sep 17 00:00:00 2001
+From 84e83ced42e8e85dd1236db06f4c637f3ec100a1 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:45 +0800
-Subject: [PATCH 42/69] lavc/hevc: Update reference list for SCC
+Subject: [PATCH 42/81] lavc/hevc: Update reference list for SCC
 
 Screen Content Coding allows non-intra slice in an IDR frame, and would
 mark the current decoded picture as "used for long-term reference", no
@@ -89,10 +89,10 @@ index f78a690b25..e6054696a3 100644
      return ret;
  }
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index f76637d62a..29e8bba57b 100644
+index 42ac1f0ee9..a731aa40b1 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -644,7 +644,8 @@ static int hls_slice_header(HEVCContext *s)
+@@ -651,7 +651,8 @@ static int hls_slice_header(HEVCContext *s)
                     sh->slice_type);
              return AVERROR_INVALIDDATA;
          }
@@ -103,5 +103,5 @@ index f76637d62a..29e8bba57b 100644
              return AVERROR_INVALIDDATA;
          }
 -- 
-2.17.1
+2.25.1
 

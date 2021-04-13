@@ -1,4 +1,4 @@
-From 3d15a37a0e17a543e315caa752526e8bcf859833 Mon Sep 17 00:00:00 2001
+From 92c23a23dea87df3737fa04faab11b7678438644 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 8 Sep 2020 11:17:27 +0800
 Subject: [PATCH 72/81] qsv: add ${includedir}/mfx to the search path for old
@@ -240,7 +240,7 @@ index ce44c09397..159f5cb983 100644
  #include "libavutil/common.h"
  #include "libavutil/opt.h"
 diff --git a/libavfilter/qsvvpp.h b/libavfilter/qsvvpp.h
-index b4baeedf9e..8861713d17 100644
+index e0f4c8f5bb..8c0cf3ed95 100644
 --- a/libavfilter/qsvvpp.h
 +++ b/libavfilter/qsvvpp.h
 @@ -24,7 +24,7 @@
@@ -251,9 +251,9 @@ index b4baeedf9e..8861713d17 100644
 +#include <mfxvideo.h>
  
  #include "avfilter.h"
- 
+ #include "libavutil/fifo.h"
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index c27a5b037d..ffadc99763 100644
+index d5106bcf59..700e50bd2c 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -21,7 +21,7 @@

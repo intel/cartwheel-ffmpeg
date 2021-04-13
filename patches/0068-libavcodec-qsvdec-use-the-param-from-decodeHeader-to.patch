@@ -1,4 +1,4 @@
-From c9fef62afb95e3d6e4332546e298c1252108e34a Mon Sep 17 00:00:00 2001
+From 2256a935ae0d80e665687281eebd3ff13fdd09c5 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 12 Mar 2021 13:56:52 +0800
 Subject: [PATCH 68/81] libavcodec/qsvdec: use the param from decodeHeader to
