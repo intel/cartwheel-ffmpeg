@@ -1,7 +1,7 @@
-From f51778b567fa9edd22153e98e8a0754dd893af4c Mon Sep 17 00:00:00 2001
+From 94c2f8ddeec4833f94feb82a91052136a3ba5a3c Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 14 Jul 2020 10:21:55 +0800
-Subject: [PATCH 27/81] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
+Subject: [PATCH 27/82] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
 
 ---
  libavcodec/hevcdec.c             |  5 +++
@@ -17,7 +17,7 @@ Subject: [PATCH 27/81] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
  10 files changed, 166 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 108b547330..89d0e99d99 100644
+index 688be94e4394..f20136d15593 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -456,6 +456,11 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -33,7 +33,7 @@ index 108b547330..89d0e99d99 100644
          break;
      case AV_PIX_FMT_YUV420P12:
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index bea1f37669..692004cd98 100644
+index f722a9fd5181..c6e3886b02be 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -274,6 +274,15 @@ static const struct {
@@ -75,7 +75,7 @@ index bea1f37669..692004cd98 100644
                                                  source_format, 0, NULL);
          if (format == best_format)
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index f8de3fe1be..6f4de1f7cc 100644
+index 4c8aa11e9e11..313d4eeb65a5 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1262,6 +1262,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
@@ -91,7 +91,7 @@ index f8de3fe1be..6f4de1f7cc 100644
  
  static const VAEntrypoint vaapi_encode_entrypoints_normal[] = {
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 87dbd7d50e..9ca48030c9 100644
+index 3308be7d1ed6..5c37ed042c43 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -1155,7 +1155,11 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
@@ -107,7 +107,7 @@ index 87dbd7d50e..9ca48030c9 100644
  };
  
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 027612dc99..7d68861c1e 100644
+index 027612dc99df..7d68861c1ea9 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -569,6 +569,15 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
@@ -127,7 +127,7 @@ index 027612dc99..7d68861c1e 100644
      av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
             "not supported with this VA version.\n", profile->name);
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index a6fa860609..d3172e0f0d 100644
+index 5aa410c6cd13..8423edb68f57 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -129,6 +129,15 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
@@ -147,10 +147,10 @@ index a6fa860609..d3172e0f0d 100644
      MAP(BGRA, RGB32,   BGRA, 0),
      MAP(BGRX, RGB32,   BGR0, 0),
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index 5ccc23f1a8..c4d8ac5425 100644
+index b7b480c97af2..5315e4845ab5 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
-@@ -228,6 +228,29 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+@@ -225,6 +225,29 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
          },
          .flags = AV_PIX_FMT_FLAG_BE,
      },
@@ -180,7 +180,7 @@ index 5ccc23f1a8..c4d8ac5425 100644
      [AV_PIX_FMT_0YUV] = {
          .name = "0yuv",
          .nb_components = 3,
-@@ -265,6 +288,32 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+@@ -262,6 +285,32 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
          },
          .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BITSTREAM | AV_PIX_FMT_FLAG_BE,
      },
@@ -213,7 +213,7 @@ index 5ccc23f1a8..c4d8ac5425 100644
      [AV_PIX_FMT_RGB24] = {
          .name = "rgb24",
          .nb_components = 3,
-@@ -2184,6 +2233,30 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+@@ -2159,6 +2208,30 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
          },
          .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_BE,
      },
@@ -245,10 +245,10 @@ index 5ccc23f1a8..c4d8ac5425 100644
          .name = "p016le",
          .nb_components = 3,
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index 045df7f321..11a6cd07a7 100644
+index 9c0136078653..10047a9f48ab 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
-@@ -297,6 +297,8 @@ enum AVPixelFormat {
+@@ -287,6 +287,8 @@ enum AVPixelFormat {
      AV_PIX_FMT_GRAY10BE,   ///<        Y        , 10bpp, big-endian
      AV_PIX_FMT_GRAY10LE,   ///<        Y        , 10bpp, little-endian
  
@@ -257,7 +257,7 @@ index 045df7f321..11a6cd07a7 100644
      AV_PIX_FMT_P016LE, ///< like NV12, with 16bpp per component, little-endian
      AV_PIX_FMT_P016BE, ///< like NV12, with 16bpp per component, big-endian
  
-@@ -358,10 +360,16 @@ enum AVPixelFormat {
+@@ -348,10 +350,16 @@ enum AVPixelFormat {
      AV_PIX_FMT_Y210BE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, big-endian
      AV_PIX_FMT_Y210LE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, little-endian
  
@@ -274,7 +274,7 @@ index 045df7f321..11a6cd07a7 100644
      AV_PIX_FMT_X2RGB10LE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), little-endian, X=unused/undefined
      AV_PIX_FMT_X2RGB10BE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), big-endian, X=unused/undefined
      AV_PIX_FMT_NB         ///< number of pixel formats, DO NOT USE THIS if you want to link with shared libav* because the number of formats might differ between versions
-@@ -450,10 +458,13 @@ enum AVPixelFormat {
+@@ -440,10 +448,13 @@ enum AVPixelFormat {
  #define AV_PIX_FMT_NV20       AV_PIX_FMT_NE(NV20BE,  NV20LE)
  #define AV_PIX_FMT_AYUV64     AV_PIX_FMT_NE(AYUV64BE, AYUV64LE)
  #define AV_PIX_FMT_P010       AV_PIX_FMT_NE(P010BE,  P010LE)
@@ -289,7 +289,7 @@ index 045df7f321..11a6cd07a7 100644
  
  /**
 diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
-index ddf6ff3345..26e35ff91e 100644
+index a44ea547a5ab..1762b8ed14d8 100644
 --- a/tests/ref/fate/imgutils
 +++ b/tests/ref/fate/imgutils
 @@ -214,6 +214,8 @@ gray12be        planes: 1, linesizes: 128   0   0   0, plane_sizes:  6144     0
@@ -315,7 +315,7 @@ index ddf6ff3345..26e35ff91e 100644
  x2rgb10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
 diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
-index f023430356..50d134ef32 100644
+index f0234303566f..50d134ef3291 100644
 --- a/tests/ref/fate/sws-pixdesc-query
 +++ b/tests/ref/fate/sws-pixdesc-query
 @@ -57,14 +57,20 @@ isNBPS:
@@ -429,5 +429,5 @@ index f023430356..50d134ef32 100644
    p016le
    yuv410p
 -- 
-2.25.1
+2.25.4
 

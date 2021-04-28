@@ -1,7 +1,7 @@
-From 8518832950dc9413f0732af277ef5fc54ceb0049 Mon Sep 17 00:00:00 2001
+From dc3e2dd211f543a78cb87e4aaac9c88047bfbbee Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Fri, 21 Jun 2019 00:39:08 +0800
-Subject: [PATCH 10/81] doc/vaapi_encode: add documentations for max_frame_size
+Subject: [PATCH 10/82] doc/vaapi_encode: add documentations for max_frame_size
 
 Add docs for max_frame_size option.
 
@@ -11,7 +11,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 6 insertions(+)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 2ba9938da2..3f549d3203 100644
+index 2ba9938da2a2..3f549d32030c 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
 @@ -3268,6 +3268,12 @@ will refer only to P- or I-frames.  When set to greater values multiple layers
@@ -28,5 +28,5 @@ index 2ba9938da2..3f549d3203 100644
  Set the rate control mode to use.  A given driver may only support a subset of
  modes.
 -- 
-2.25.1
+2.25.4
 

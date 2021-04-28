@@ -1,7 +1,7 @@
-From 629ce360107f72dd2a879571de74678199d049cd Mon Sep 17 00:00:00 2001
+From 94187f343badd6561e0f18f8aaac432be4b149e2 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:41 +0800
-Subject: [PATCH 38/81] lavc/hevc_ps: Add pps parse support for HEVC SCC
+Subject: [PATCH 38/82] lavc/hevc_ps: Add pps parse support for HEVC SCC
  extension
 
 Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
@@ -12,7 +12,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  2 files changed, 86 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
-index 7e72acc2e9..460a392358 100644
+index 7e72acc2e950..460a39235865 100644
 --- a/libavcodec/hevc_ps.c
 +++ b/libavcodec/hevc_ps.c
 @@ -1404,6 +1404,48 @@ static int pps_range_extensions(GetBitContext *gb, AVCodecContext *avctx,
@@ -104,7 +104,7 @@ index 7e72acc2e9..460a392358 100644
  
      ret = setup_pps(avctx, gb, pps, sps);
 diff --git a/libavcodec/hevc_ps.h b/libavcodec/hevc_ps.h
-index be23758008..155b66062e 100644
+index be237580083f..155b66062e78 100644
 --- a/libavcodec/hevc_ps.h
 +++ b/libavcodec/hevc_ps.h
 @@ -312,6 +312,9 @@ typedef struct HEVCPPS {
@@ -139,5 +139,5 @@ index be23758008..155b66062e 100644
      unsigned int *column_width;  ///< ColumnWidth
      unsigned int *row_height;    ///< RowHeight
 -- 
-2.25.1
+2.25.4
 

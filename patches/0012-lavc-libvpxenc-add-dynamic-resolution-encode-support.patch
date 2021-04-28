@@ -1,7 +1,7 @@
-From 6f108cfa67eb19b0533cc4d274ad4770ed012618 Mon Sep 17 00:00:00 2001
+From 209df05f88e282959e61b9c99f9347575d74b345 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Wed, 31 Jul 2019 12:18:21 +0800
-Subject: [PATCH 12/81] lavc/libvpxenc: add dynamic resolution encode support
+Subject: [PATCH 12/82] lavc/libvpxenc: add dynamic resolution encode support
  for libvpx
 
 According to spec, libvpx should support dynamic resolution changes.
@@ -21,10 +21,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 32 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/libvpxenc.c b/libavcodec/libvpxenc.c
-index 3f36943c12..a1a40de233 100644
+index 8173af5dce36..b6dd1c08eb9d 100644
 --- a/libavcodec/libvpxenc.c
 +++ b/libavcodec/libvpxenc.c
-@@ -1580,6 +1580,34 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
+@@ -1544,6 +1544,34 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
      vpx_svc_layer_id_t layer_id;
      int layer_id_valid = 0;
  
@@ -59,7 +59,7 @@ index 3f36943c12..a1a40de233 100644
      if (frame) {
          const AVFrameSideData *sd = av_frame_get_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
          rawimg                      = &ctx->rawimg;
-@@ -1589,6 +1617,8 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
+@@ -1553,6 +1581,8 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
          rawimg->stride[VPX_PLANE_Y] = frame->linesize[0];
          rawimg->stride[VPX_PLANE_U] = frame->linesize[1];
          rawimg->stride[VPX_PLANE_V] = frame->linesize[2];
@@ -68,7 +68,7 @@ index 3f36943c12..a1a40de233 100644
          if (ctx->is_alpha) {
              rawimg_alpha = &ctx->rawimg_alpha;
              res = realloc_alpha_uv(avctx, frame->width, frame->height);
-@@ -1870,7 +1900,7 @@ AVCodec ff_libvpx_vp8_encoder = {
+@@ -1834,7 +1864,7 @@ const AVCodec ff_libvpx_vp8_encoder = {
      .init           = vp8_init,
      .encode2        = vpx_encode,
      .close          = vpx_free,
@@ -77,7 +77,7 @@ index 3f36943c12..a1a40de233 100644
      .caps_internal  = FF_CODEC_CAP_AUTO_THREADS,
      .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUVA420P, AV_PIX_FMT_NONE },
      .priv_class     = &class_vp8,
-@@ -1901,7 +1931,7 @@ AVCodec ff_libvpx_vp9_encoder = {
+@@ -1865,7 +1895,7 @@ AVCodec ff_libvpx_vp9_encoder = {
      .init           = vp9_init,
      .encode2        = vpx_encode,
      .close          = vpx_free,
@@ -87,5 +87,5 @@ index 3f36943c12..a1a40de233 100644
      .profiles       = NULL_IF_CONFIG_SMALL(ff_vp9_profiles),
      .priv_class     = &class_vp9,
 -- 
-2.25.1
+2.25.4
 

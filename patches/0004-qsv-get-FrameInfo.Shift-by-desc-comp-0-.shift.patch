@@ -1,7 +1,7 @@
-From 4534768e4882478de6aab6035b45b90a35402f3f Mon Sep 17 00:00:00 2001
+From 6c31aad76c6973a6d3fc29838b522eaf84ab9090 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:32:40 +0800
-Subject: [PATCH 04/81] qsv: get FrameInfo.Shift by desc->comp[0].shift
+Subject: [PATCH 04/82] qsv: get FrameInfo.Shift by desc->comp[0].shift
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
@@ -10,7 +10,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 566a5c8552..1c8c5333a8 100644
+index 0ec8e0e59728..7511c18dd58e 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -448,7 +448,7 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
@@ -32,7 +32,7 @@ index 566a5c8552..1c8c5333a8 100644
      // If the minor version is greater than or equal to 19,
      // then can use the same alignment settings as H.264 for HEVC
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 30b0d81f84..2ff7ec2f4c 100644
+index 08a6e0ee1c68..a21907ef5e8f 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -327,7 +327,7 @@ static int qsv_init_surface(AVHWFramesContext *ctx, mfxFrameSurface1 *surf)
@@ -45,5 +45,5 @@ index 30b0d81f84..2ff7ec2f4c 100644
      if (desc->log2_chroma_w && desc->log2_chroma_h)
          surf->Info.ChromaFormat   = MFX_CHROMAFORMAT_YUV420;
 -- 
-2.25.1
+2.25.4
 

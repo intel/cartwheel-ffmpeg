@@ -1,7 +1,7 @@
-From be672487e83f18e4ea8c7a632fb0188f0d2f64dd Mon Sep 17 00:00:00 2001
+From 98ab0c76dd3720c952e92479bef77233141fcc42 Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Mon, 23 Dec 2019 15:29:32 +0800
-Subject: [PATCH 32/81] avfilter: Add H2H support in tonemap_vaapi
+Subject: [PATCH 32/82] avfilter: Add H2H support in tonemap_vaapi
 
 Signed-off-by: Xinpeng Sun <xinpeng.sun@intel.com>
 ---
@@ -9,7 +9,7 @@ Signed-off-by: Xinpeng Sun <xinpeng.sun@intel.com>
  1 file changed, 181 insertions(+), 10 deletions(-)
 
 diff --git a/libavfilter/vf_tonemap_vaapi.c b/libavfilter/vf_tonemap_vaapi.c
-index 540d656dca..d16312d9b6 100644
+index e269a2c2e57f..3f3adcc2c911 100644
 --- a/libavfilter/vf_tonemap_vaapi.c
 +++ b/libavfilter/vf_tonemap_vaapi.c
 @@ -41,7 +41,11 @@ typedef struct HDRVAAPIContext {
@@ -257,5 +257,5 @@ index 540d656dca..d16312d9b6 100644
  
  static const AVFilterPad tonemap_vaapi_inputs[] = {
 -- 
-2.25.1
+2.25.4
 

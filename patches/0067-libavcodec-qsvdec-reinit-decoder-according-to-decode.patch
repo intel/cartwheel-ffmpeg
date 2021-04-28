@@ -1,7 +1,7 @@
-From 1584e3803dd0ac6ae2e4beb6f9b464df4c17cdca Mon Sep 17 00:00:00 2001
+From 12e0bc0ba5aec1bdd082a590a4d1ac658fc97c2e Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:16:33 +0800
-Subject: [PATCH 67/81] libavcodec/qsvdec: reinit decoder according to decode()
+Subject: [PATCH 67/82] libavcodec/qsvdec: reinit decoder according to decode()
  return value
 
 FFmpeg-qsv decoder reinit codec when width and height change, but there
@@ -15,7 +15,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 65d9b510bc..490ead52ab 100644
+index 768766540022..2f6b59dc8330 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -632,6 +632,13 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
@@ -32,7 +32,7 @@ index 65d9b510bc..490ead52ab 100644
      if (ret != MFX_ERR_NONE &&
          ret != MFX_ERR_MORE_DATA &&
          ret != MFX_WRN_VIDEO_PARAM_CHANGED &&
-@@ -794,10 +801,10 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -789,10 +796,10 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
  
      ret = qsv_decode_header(avctx, q, pkt, pix_fmt, &param);
  
@@ -46,5 +46,5 @@ index 65d9b510bc..490ead52ab 100644
          mfxFrameAllocRequest request;
          AVHWFramesContext *hw_frames_ctx;
 -- 
-2.25.1
+2.25.4
 

@@ -1,7 +1,7 @@
-From e13752f5ac89a9bb7046597a4b024216ae8fabef Mon Sep 17 00:00:00 2001
+From 7c7f75f61c1b0cd092ba98a26edba7f3396da77a Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Fri, 27 Mar 2020 14:01:44 +0800
-Subject: [PATCH 25/81] lavc/vaapi_encode_h265: fix
+Subject: [PATCH 25/82] lavc/vaapi_encode_h265: fix
  max_transform_hierarchy_depth_inter/intra
 
 Set the max_transform_hierarchy_depth_inter/intra to 2 by default
@@ -18,7 +18,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index a04c1ccd02..87dbd7d50e 100644
+index 23cf558693ad..3308be7d1ed6 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -432,8 +432,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
@@ -34,5 +34,5 @@ index a04c1ccd02..87dbd7d50e 100644
      sps->amp_enabled_flag = 1;
      // SAO and temporal MVP do not work.
 -- 
-2.25.1
+2.25.4
 

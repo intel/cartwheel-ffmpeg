@@ -1,7 +1,7 @@
-From ca963e40a1fc24aab03e06d268e3a3894dbea332 Mon Sep 17 00:00:00 2001
+From 54d2dd7650907833ff2a1de5522605202cd0f246 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Tue, 9 Jun 2020 11:09:32 +0800
-Subject: [PATCH 21/81] lavc/hevc_refs: exclude current frame from long term
+Subject: [PATCH 21/82] lavc/hevc_refs: exclude current frame from long term
  refs
 
 suppose
@@ -16,7 +16,7 @@ add_candidate_ref will report an error for this
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index 63e34f3fb7..f78a690b25 100644
+index 63e34f3fb7ed..f78a690b2500 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
 @@ -380,7 +380,7 @@ static HEVCFrame *find_ref_idx(HEVCContext *s, int poc, uint8_t use_msb)
@@ -29,5 +29,5 @@ index 63e34f3fb7..f78a690b25 100644
          }
      }
 -- 
-2.25.1
+2.25.4
 

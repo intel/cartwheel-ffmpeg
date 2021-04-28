@@ -1,7 +1,7 @@
-From 0ec7318ed278574f444a49f3758d136b0a14ae7f Mon Sep 17 00:00:00 2001
+From 25038d7024d05961488035d313a06c8bc898bf7f Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 14:49:46 +0800
-Subject: [PATCH 79/81] configure: allow user to build FFmpeg against oneVPL
+Subject: [PATCH 79/82] configure: allow user to build FFmpeg against oneVPL
 
 --enable-libvpl: build Intel oneVPL code via libvpl
 
@@ -12,10 +12,10 @@ when both --enable-libvpl and --enable-libmfx are specified.
  1 file changed, 19 insertions(+), 6 deletions(-)
 
 diff --git a/configure b/configure
-index d86fc96d12..f2f5ceb1e0 100755
+index 62e00240353b..22090ac9199b 100755
 --- a/configure
 +++ b/configure
-@@ -338,6 +338,7 @@ External library support:
+@@ -337,6 +337,7 @@ External library support:
    --disable-ffnvcodec      disable dynamically linked Nvidia code [autodetect]
    --enable-libdrm          enable DRM code (Linux) [no]
    --enable-libmfx          enable Intel MediaSDK (AKA Quick Sync Video) code via libmfx [no]
@@ -23,7 +23,7 @@ index d86fc96d12..f2f5ceb1e0 100755
    --enable-libnpp          enable Nvidia Performance Primitives-based code [no]
    --enable-mmal            enable Broadcom Multi-Media Abstraction Layer (Raspberry Pi) via MMAL [no]
    --disable-nvdec          disable Nvidia video decoding acceleration (via hwaccel) [autodetect]
-@@ -1865,6 +1866,7 @@ HWACCEL_LIBRARY_NONFREE_LIST="
+@@ -1864,6 +1865,7 @@ HWACCEL_LIBRARY_NONFREE_LIST="
  HWACCEL_LIBRARY_LIST="
      $HWACCEL_LIBRARY_NONFREE_LIST
      libmfx
@@ -31,7 +31,7 @@ index d86fc96d12..f2f5ceb1e0 100755
      mmal
      omx
      opencl
-@@ -6384,16 +6386,27 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
+@@ -6377,16 +6379,27 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
  # Media SDK or Intel Media Server Studio, these don't come with
  # pkg-config support.  Instead, users should make sure that the build
  # can find the libraries and headers through other means.
@@ -66,5 +66,5 @@ index d86fc96d12..f2f5ceb1e0 100755
     check_cc MFX_CODEC_VP9 "mfxdefs.h mfxstructures.h" "MFX_CODEC_VP9"
  fi
 -- 
-2.25.1
+2.25.4
 

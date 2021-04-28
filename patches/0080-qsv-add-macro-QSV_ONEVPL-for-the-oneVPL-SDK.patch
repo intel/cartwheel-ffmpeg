@@ -1,7 +1,7 @@
-From 5ccd3adeeb50cb0ca63e6619c9065ef8bc389ca7 Mon Sep 17 00:00:00 2001
+From 1c1d9550fd0672992aa3535579055e5a87da7daf Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:45:48 +0800
-Subject: [PATCH 80/81] qsv: add macro QSV_ONEVPL for the oneVPL SDK
+Subject: [PATCH 80/82] qsv: add macro QSV_ONEVPL for the oneVPL SDK
 
 ---
  libavcodec/qsv.c          | 4 ++--
@@ -14,7 +14,7 @@ Subject: [PATCH 80/81] qsv: add macro QSV_ONEVPL for the oneVPL SDK
  7 files changed, 11 insertions(+), 8 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index a53b06b5c4..cb976419d1 100644
+index a53b06b5c4df..cb976419d17a 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -36,8 +36,8 @@
@@ -29,7 +29,7 @@ index a53b06b5c4..cb976419d1 100644
  #if QSV_VERSION_ATLEAST(1, 12)
  #include "mfxvp8.h"
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 7b0ee8cf20..f20769493b 100644
+index 7b0ee8cf203b..f20769493b79 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -65,7 +65,8 @@
@@ -43,7 +43,7 @@ index 7b0ee8cf20..f20769493b 100644
  typedef struct QSVMid {
      AVBufferRef *hw_frames_ref;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 5cce3755a0..ae249261eb 100644
+index 0cb0e1e5f138..356db740b0df 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -103,7 +103,7 @@ static const struct {
@@ -56,7 +56,7 @@ index 5cce3755a0..ae249261eb 100644
  #endif
  #if QSV_HAVE_LA_HRD
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 3c98bd27ee..22e27ce7b4 100644
+index 3c98bd27eeb4..22e27ce7b4a4 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -65,7 +65,7 @@
@@ -69,7 +69,7 @@ index 3c98bd27ee..22e27ce7b4 100644
  
  #if !QSV_HAVE_LA_DS
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 203181cf40..4d05e6aeda 100644
+index 203181cf4019..4d05e6aeda59 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -39,7 +39,7 @@
@@ -82,7 +82,7 @@ index 203181cf40..4d05e6aeda 100644
  static const AVRational default_tb = { 1, 90000 };
  
 diff --git a/libavfilter/qsvvpp.h b/libavfilter/qsvvpp.h
-index e04115ca4b..67c351f297 100644
+index e04115ca4bb5..67c351f2977b 100644
 --- a/libavfilter/qsvvpp.h
 +++ b/libavfilter/qsvvpp.h
 @@ -40,7 +40,8 @@
@@ -96,7 +96,7 @@ index e04115ca4b..67c351f297 100644
  typedef struct QSVFrame {
      AVFrame          *frame;
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 6c1093c80a..1e5207ba8b 100644
+index bbc56b87cbce..d4fe8c9b23de 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -54,7 +54,8 @@
@@ -110,5 +110,5 @@ index 6c1093c80a..1e5207ba8b 100644
  typedef struct QSVDevicePriv {
      AVBufferRef *child_device_ctx;
 -- 
-2.25.1
+2.25.4
 

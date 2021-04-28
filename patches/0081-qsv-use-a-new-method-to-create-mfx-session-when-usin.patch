@@ -1,7 +1,7 @@
-From 3792b81f91dc7a6d551c7c00fad4168e7b7aabf5 Mon Sep 17 00:00:00 2001
+From 23ad4fc96178a11c03cb01a6c33cf761277921fe Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
-Subject: [PATCH 81/81] qsv: use a new method to create mfx session when using
+Subject: [PATCH 81/82] qsv: use a new method to create mfx session when using
  the oneVPL SDK
 
 In oneVPL, MFXLoad() and MFXCreateSession() are required to create a
@@ -27,7 +27,7 @@ workable mfx session[1]
  15 files changed, 532 insertions(+), 87 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index cb976419d1..f110ae943b 100644
+index cb976419d17a..f110ae943bbb 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -448,6 +448,164 @@ static int ff_qsv_set_display_handle(AVCodecContext *avctx, QSVSession *qs)
@@ -261,7 +261,7 @@ index cb976419d1..f110ae943b 100644
  #ifdef AVCODEC_QSV_LINUX_SESSION_HANDLE
      av_buffer_unref(&qs->va_device_ref);
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index f20769493b..9d0d76aa4d 100644
+index f20769493b79..9d0d76aa4dc3 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -92,6 +92,7 @@ typedef struct QSVFrame {
@@ -273,7 +273,7 @@ index f20769493b..9d0d76aa4d 100644
      AVBufferRef *va_device_ref;
      AVHWDeviceContext *va_device_ctx;
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 951662816c..7bdb661b4f 100644
+index 93786c0d77cd..1ba719701bb2 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -159,7 +159,9 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
@@ -297,7 +297,7 @@ index 951662816c..7bdb661b4f 100644
  
          ret = ff_qsv_init_session_device(avctx, &q->internal_qs.session,
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 22e27ce7b4..ea906c699a 100644
+index 22e27ce7b4a4..ea906c699af4 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -28,6 +28,9 @@
@@ -311,7 +311,7 @@ index 22e27ce7b4..ea906c699a 100644
  #include "libavutil/fifo.h"
  
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
-index 553cb6b0f3..706df9ab05 100644
+index 68555a073591..06abc5fc657a 100644
 --- a/libavcodec/qsvenc_h264.c
 +++ b/libavcodec/qsvenc_h264.c
 @@ -32,7 +32,6 @@
@@ -323,7 +323,7 @@ index 553cb6b0f3..706df9ab05 100644
  #include "atsc_a53.h"
  
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index c1bcc84e97..3ab2ba461e 100644
+index 3bab882996c2..366830958d2c 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -35,7 +35,6 @@
@@ -335,7 +335,7 @@ index c1bcc84e97..3ab2ba461e 100644
  
  enum LoadPlugin {
 diff --git a/libavcodec/qsvenc_jpeg.c b/libavcodec/qsvenc_jpeg.c
-index 163608a725..fcd96f2d72 100644
+index ad8f09befe49..f473b1ddbc7a 100644
 --- a/libavcodec/qsvenc_jpeg.c
 +++ b/libavcodec/qsvenc_jpeg.c
 @@ -30,7 +30,6 @@
@@ -347,7 +347,7 @@ index 163608a725..fcd96f2d72 100644
  
  typedef struct QSVMJPEGEncContext {
 diff --git a/libavcodec/qsvenc_mpeg2.c b/libavcodec/qsvenc_mpeg2.c
-index dd7b867ed6..57e03bb82d 100644
+index 610bbf79c197..0e2a51811c0a 100644
 --- a/libavcodec/qsvenc_mpeg2.c
 +++ b/libavcodec/qsvenc_mpeg2.c
 @@ -30,7 +30,6 @@
@@ -359,7 +359,7 @@ index dd7b867ed6..57e03bb82d 100644
  
  typedef struct QSVMpeg2EncContext {
 diff --git a/libavcodec/qsvenc_vp9.c b/libavcodec/qsvenc_vp9.c
-index 159f5cb983..0b298cdd84 100644
+index 0a382eb76d9d..9d88b03bbfa9 100644
 --- a/libavcodec/qsvenc_vp9.c
 +++ b/libavcodec/qsvenc_vp9.c
 @@ -30,7 +30,6 @@
@@ -371,7 +371,7 @@ index 159f5cb983..0b298cdd84 100644
  
  typedef struct QSVVP9EncContext {
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 4d05e6aeda..66df750e9d 100644
+index 4d05e6aeda59..66df750e9da1 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -23,8 +23,6 @@
@@ -500,7 +500,7 @@ index 4d05e6aeda..66df750e9d 100644
 +
 +#endif
 diff --git a/libavfilter/qsvvpp.h b/libavfilter/qsvvpp.h
-index 67c351f297..d1c12be25b 100644
+index 67c351f2977b..d1c12be25b18 100644
 --- a/libavfilter/qsvvpp.h
 +++ b/libavfilter/qsvvpp.h
 @@ -28,6 +28,8 @@
@@ -521,7 +521,7 @@ index 67c351f297..d1c12be25b 100644
 +
  #endif /* AVFILTER_QSVVPP_H */
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index 01659b34b7..126a3955eb 100644
+index b31a49a0f66a..03e253ab28f3 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -213,13 +213,11 @@ static int init_out_session(AVFilterContext *ctx)
@@ -544,7 +544,7 @@ index 01659b34b7..126a3955eb 100644
      if (handle) {
          err = MFXVideoCORE_SetHandle(s->session, handle_type, handle);
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
-index 5cf9202eb4..d7818575f4 100644
+index 7f957a9f7937..b5cfc5cbcf65 100644
 --- a/libavfilter/vf_scale_qsv.c
 +++ b/libavfilter/vf_scale_qsv.c
 @@ -333,11 +333,11 @@ static int init_out_session(AVFilterContext *ctx)
@@ -565,7 +565,7 @@ index 5cf9202eb4..d7818575f4 100644
      if (handle) {
          err = MFXVideoCORE_SetHandle(s->session, handle_type, handle);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 1e5207ba8b..b0c5bccd8b 100644
+index d4fe8c9b23de..f6366a286464 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -73,8 +73,10 @@ typedef struct QSVDeviceContext {
@@ -942,7 +942,7 @@ index 1e5207ba8b..b0c5bccd8b 100644
  }
  
 diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
-index 42e34d0dda..65415d3d8c 100644
+index 42e34d0dda96..65415d3d8c4c 100644
 --- a/libavutil/hwcontext_qsv.h
 +++ b/libavutil/hwcontext_qsv.h
 @@ -19,8 +19,23 @@
@@ -978,5 +978,5 @@ index 42e34d0dda..65415d3d8c 100644
  } AVQSVDeviceContext;
  
 -- 
-2.25.1
+2.25.4
 

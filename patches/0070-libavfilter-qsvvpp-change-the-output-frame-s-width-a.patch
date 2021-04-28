@@ -1,7 +1,7 @@
-From fb42844edce1c42ed267ef4609f68a3bf6748057 Mon Sep 17 00:00:00 2001
+From e0e9d3eaf5c0ccb00fd3ab0615d8ec49f4ade2f8 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:24:03 +0800
-Subject: [PATCH 70/81] libavfilter/qsvvpp: change the output frame's width and
+Subject: [PATCH 70/82] libavfilter/qsvvpp: change the output frame's width and
  height
 
 qsvvpp align the width and height with 16, and that right. But qsvvpp asign this value
@@ -19,7 +19,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 7a297505a7..deef9c29b5 100644
+index 7a297505a7f8..deef9c29b52f 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -460,15 +460,14 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
@@ -41,5 +41,5 @@ index 7a297505a7..deef9c29b5 100644
  
      return out_frame;
 -- 
-2.25.1
+2.25.4
 

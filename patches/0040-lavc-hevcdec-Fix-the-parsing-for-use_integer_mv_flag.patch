@@ -1,7 +1,7 @@
-From b8fa9ceed59bfa88ac5be05229f06495a699be4c Mon Sep 17 00:00:00 2001
+From f0b652bcfff5cb313dd1087b3283586787e49970 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:43 +0800
-Subject: [PATCH 40/81] lavc/hevcdec: Fix the parsing for use_integer_mv_flag
+Subject: [PATCH 40/82] lavc/hevcdec: Fix the parsing for use_integer_mv_flag
 
 According to 7.3.6.1, use_integer_mv_flag should be parsed if
 motion_vector_resolution_control_idc equals to 2.
@@ -16,7 +16,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 9 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 52df8cee18..42ac1f0ee9 100644
+index 818ae3dd64a2..18dd0d432936 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -822,6 +822,14 @@ static int hls_slice_header(HEVCContext *s)
@@ -35,7 +35,7 @@ index 52df8cee18..42ac1f0ee9 100644
  
          sh->slice_qp_delta = get_se_golomb(gb);
 diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
-index f3e311bd40..3dbf54adfa 100644
+index f3e311bd4092..3dbf54adfa60 100644
 --- a/libavcodec/hevcdec.h
 +++ b/libavcodec/hevcdec.h
 @@ -303,6 +303,7 @@ typedef struct SliceHeader {
@@ -47,5 +47,5 @@ index f3e311bd40..3dbf54adfa 100644
      unsigned *entry_point_offset;
      int * offset;
 -- 
-2.25.1
+2.25.4
 

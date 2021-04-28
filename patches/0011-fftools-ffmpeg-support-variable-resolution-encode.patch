@@ -1,7 +1,7 @@
-From b744e24577fbce890e6ae901358add023c86e2db Mon Sep 17 00:00:00 2001
+From 50111507866eb3ac776754bc4b11821c911b482b Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 2 Nov 2020 10:45:29 +0800
-Subject: [PATCH 11/81] fftools/ffmpeg: support variable resolution encode
+Subject: [PATCH 11/82] fftools/ffmpeg: support variable resolution encode
 
 Flush encoders when resolution change happens.
 
@@ -15,7 +15,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 15 insertions(+)
 
 diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
-index 3ad11452da..155d1106c1 100644
+index 3ad11452da53..155d1106c14d 100644
 --- a/fftools/ffmpeg.c
 +++ b/fftools/ffmpeg.c
 @@ -130,6 +130,7 @@ static void do_video_stats(OutputStream *ost, int frame_size);
@@ -47,15 +47,15 @@ index 3ad11452da..155d1106c1 100644
          ist = input_streams[ost->source_index];
  
 diff --git a/libavcodec/rawenc.c b/libavcodec/rawenc.c
-index d181b74570..0cccd21420 100644
+index baaab749fd91..625e5bf380e2 100644
 --- a/libavcodec/rawenc.c
 +++ b/libavcodec/rawenc.c
-@@ -92,4 +92,5 @@ AVCodec ff_rawvideo_encoder = {
+@@ -87,4 +87,5 @@ const AVCodec ff_rawvideo_encoder = {
      .id             = AV_CODEC_ID_RAWVIDEO,
      .init           = raw_encode_init,
      .encode2        = raw_encode,
 +    .capabilities   = AV_CODEC_CAP_PARAM_CHANGE | AV_CODEC_CAP_ENCODER_FLUSH,
  };
 -- 
-2.25.1
+2.25.4
 

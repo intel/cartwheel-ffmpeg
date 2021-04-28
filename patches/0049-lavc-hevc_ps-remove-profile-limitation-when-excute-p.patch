@@ -1,7 +1,7 @@
-From 10306df1e6c35033dbee361e196768101e048afc Mon Sep 17 00:00:00 2001
+From f35fbd25b509e56f436ad20ba85798b62dd8dc20 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 10 Nov 2020 15:19:39 -0500
-Subject: [PATCH 49/81] lavc/hevc_ps: remove profile limitation when excute
+Subject: [PATCH 49/82] lavc/hevc_ps: remove profile limitation when excute
  pps_range_extensions
 
 See spec 7.3.2.3.1.
@@ -13,7 +13,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  2 files changed, 26 insertions(+), 26 deletions(-)
 
 diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
-index 460a392358..5eaa0a4c02 100644
+index 460a39235865..5eaa0a4c02a6 100644
 --- a/libavcodec/hevc_ps.c
 +++ b/libavcodec/hevc_ps.c
 @@ -1814,7 +1814,7 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
@@ -26,7 +26,7 @@ index 460a392358..5eaa0a4c02 100644
                  goto err;
          }
 diff --git a/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3 b/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3
-index 59b82b72bb..d1d86b2dc9 100644
+index 59b82b72bb56..d1d86b2dc9d4 100644
 --- a/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3
 +++ b/tests/ref/fate/hevc-conformance-PS_A_VIDYO_3
 @@ -3,28 +3,28 @@
@@ -84,5 +84,5 @@ index 59b82b72bb..d1d86b2dc9 100644
 +0,         23,         23,        1,   149760, 0xf455f752
 +0,         24,         24,        1,   149760, 0x569fec99
 -- 
-2.25.1
+2.25.4
 

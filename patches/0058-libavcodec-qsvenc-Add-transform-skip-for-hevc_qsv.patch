@@ -1,7 +1,7 @@
-From 04f0d2e2c5dfdf59c4888d20fe493d4dbe1ebc98 Mon Sep 17 00:00:00 2001
+From 11c972be504f0685df23ff5f6ddf7aee34b1fb30 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 14:14:37 +0800
-Subject: [PATCH 58/81] libavcodec/qsvenc: Add transform skip for hevc_qsv
+Subject: [PATCH 58/82] libavcodec/qsvenc: Add transform skip for hevc_qsv
 
 Add transform skip option for hevc_qsv. Command line option
 is "transform_skip". By enabling this option, the
@@ -16,7 +16,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index ad5134ceb2..a97fd5fcd4 100644
+index 361d8785d34d..174d94852c45 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -307,7 +307,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -30,7 +30,7 @@ index ad5134ceb2..a97fd5fcd4 100644
  }
  
  static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
-@@ -820,10 +822,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -808,10 +810,14 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
              av_log(avctx, AV_LOG_WARNING, "Please set max_b_frames(-bf) to 0 to enable P-pyramid\n");
          }
  
@@ -47,7 +47,7 @@ index ad5134ceb2..a97fd5fcd4 100644
  #endif
      }
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 7da6e0a50f..d1de914724 100644
+index 7da6e0a50f36..d1de9147240b 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -197,6 +197,7 @@ typedef struct QSVEncContext {
@@ -59,7 +59,7 @@ index 7da6e0a50f..d1de914724 100644
      int a53_cc;
  
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 663f21439f..7c08cbffaa 100644
+index 83d6af9c9b24..ae9a0c1f0734 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -249,6 +249,9 @@ static const AVOption options[] = {
@@ -73,5 +73,5 @@ index 663f21439f..7c08cbffaa 100644
      { NULL },
  };
 -- 
-2.25.1
+2.25.4
 

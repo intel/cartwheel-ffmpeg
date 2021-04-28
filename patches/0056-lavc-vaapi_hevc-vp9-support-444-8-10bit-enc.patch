@@ -1,7 +1,7 @@
-From d003ad00b2ca987a37c394d5ab4713db55f90596 Mon Sep 17 00:00:00 2001
+From 17e8f560c31e76f2e6c5a62b1a3d309212b847e9 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 14 Jan 2021 13:15:32 -0500
-Subject: [PATCH 56/81] lavc/vaapi_hevc/vp9: support 444 8/10bit enc
+Subject: [PATCH 56/82] lavc/vaapi_hevc/vp9: support 444 8/10bit enc
 
 hevc 444 8bit:
 ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt 0yuv -s:v 1920x1080 -i 1920x1080_100.ayuv -vf 'format=0yuv,hwupload' -c:v hevc_vaapi -profile:v rext -rc_mode CQP -g 30 -qp 28 -slices 1 -low_power 1 -y out.h265
@@ -22,7 +22,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  2 files changed, 4 insertions(+)
 
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index dbe18d98ed..4671e1d77b 100644
+index b7ddcf13e7dd..3ec24defe36c 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -1182,6 +1182,8 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
@@ -35,7 +35,7 @@ index dbe18d98ed..4671e1d77b 100644
      { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
      { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
 diff --git a/libavcodec/vaapi_encode_vp9.c b/libavcodec/vaapi_encode_vp9.c
-index 0e1c52c92a..d3b8f81aea 100644
+index b3f45fb8fe6f..da706f140fcc 100644
 --- a/libavcodec/vaapi_encode_vp9.c
 +++ b/libavcodec/vaapi_encode_vp9.c
 @@ -209,7 +209,9 @@ static av_cold int vaapi_encode_vp9_configure(AVCodecContext *avctx)
@@ -49,5 +49,5 @@ index 0e1c52c92a..d3b8f81aea 100644
  };
  
 -- 
-2.25.1
+2.25.4
 

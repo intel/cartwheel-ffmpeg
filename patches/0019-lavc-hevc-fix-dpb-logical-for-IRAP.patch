@@ -1,7 +1,7 @@
-From 9468b5efb2918b41fbb1cd8c16ffb2ab05ee005c Mon Sep 17 00:00:00 2001
+From 8e45dbaea0b02a9ed8659551016d723010d234cf Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Fri, 13 Mar 2020 09:14:48 -0400
-Subject: [PATCH 19/81] lavc: hevc, fix dpb logical for IRAP
+Subject: [PATCH 19/82] lavc: hevc, fix dpb logical for IRAP
 
 According to C.5.2.2, item 2. When we got an IRAP, and the NoOutputOfPriorPicsFlag = 0,
 we need bump all outputable frames.
@@ -10,7 +10,7 @@ we need bump all outputable frames.
  1 file changed, 13 insertions(+), 10 deletions(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index 4f6d985ae6..9e391b0970 100644
+index 4f6d985ae604..9e391b0970d4 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
 @@ -173,21 +173,24 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
@@ -49,5 +49,5 @@ index 4f6d985ae6..9e391b0970 100644
              HEVCFrame *frame = &s->DPB[i];
              if ((frame->flags & HEVC_FRAME_FLAG_OUTPUT) &&
 -- 
-2.25.1
+2.25.4
 

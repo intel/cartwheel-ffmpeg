@@ -1,7 +1,7 @@
-From 857a6a29c856b3020cc75795d8fab597e1b0e35a Mon Sep 17 00:00:00 2001
+From c9498fb56d4e23067f176e48f5ab4bd6c49020d2 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 4 Jan 2021 09:52:34 +0800
-Subject: [PATCH 55/81] libavcodec/qsvenc: add low latency P-pyramid support
+Subject: [PATCH 55/82] libavcodec/qsvenc: add low latency P-pyramid support
  for qsv
 
 Add low latency P-pyramid support for qsv, and it relates to a new
@@ -17,7 +17,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 32 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 3040b31174..ad5134ceb2 100644
+index 7159ebd3e2dd..361d8785d34d 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -271,6 +271,14 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -35,7 +35,7 @@ index 3040b31174..ad5134ceb2 100644
      av_log(avctx, AV_LOG_VERBOSE, "\n");
  #endif
  
-@@ -790,6 +798,28 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -778,6 +786,28 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
  #if QSV_HAVE_CO3
          q->extco3.Header.BufferId      = MFX_EXTBUFF_CODING_OPTION3;
          q->extco3.Header.BufferSz      = sizeof(q->extco3);
@@ -65,7 +65,7 @@ index 3040b31174..ad5134ceb2 100644
          if (avctx->codec_id == AV_CODEC_ID_HEVC)
              q->extco3.GPB              = q->gpb ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 3720320789..7da6e0a50f 100644
+index 3720320789de..7da6e0a50f36 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -95,6 +95,7 @@
@@ -85,5 +85,5 @@ index 3720320789..7da6e0a50f 100644
  
      int int_ref_type;
 -- 
-2.25.1
+2.25.4
 

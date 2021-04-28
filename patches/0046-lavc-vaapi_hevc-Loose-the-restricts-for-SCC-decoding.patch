@@ -1,7 +1,7 @@
-From 0b80c7385b73d0a4ca4562893cc9257b5c1120de Mon Sep 17 00:00:00 2001
+From 7f2fb327307cd5f687a6a14e24a7835821667cbc Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Wed, 8 Jul 2020 17:27:48 +0800
-Subject: [PATCH 46/81] lavc/vaapi_hevc: Loose the restricts for SCC decoding
+Subject: [PATCH 46/82] lavc/vaapi_hevc: Loose the restricts for SCC decoding
 
 Allow current picture as the reference picture.
 
@@ -13,7 +13,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index fb9cee36bd..1fc26590fd 100644
+index fb9cee36bd4b..1fc26590fdfe 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -103,7 +103,8 @@ static void fill_vaapi_reference_frames(const HEVCContext *h, VAPictureParameter
@@ -48,5 +48,5 @@ index fb9cee36bd..1fc26590fd 100644
  
      slice_param->luma_log2_weight_denom = sh->luma_log2_weight_denom;
 -- 
-2.25.1
+2.25.4
 
