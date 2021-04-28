@@ -1,7 +1,7 @@
-From 039b9d93d02c7388393219c0f2f9fbce03e77135 Mon Sep 17 00:00:00 2001
+From de4a952c6dd2b8ff713bbd60343826958418e996 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 12:49:14 +0800
-Subject: [PATCH 76/81] qsvenc: don't support MFX_RATECONTROL_LA_EXT when
+Subject: [PATCH 76/82] qsvenc: don't support MFX_RATECONTROL_LA_EXT when
  MFX_VERSION >= 2.0
 
 MFX_RATECONTROL_LA_EXT isn't supported for MFX_VERSION >= 2.0[1][2],
@@ -14,7 +14,7 @@ this is in preparation for oneVPL support
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index ba76124008..9b6aa5b785 100644
+index 069dd7c61963..5d0fa129cab1 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -103,7 +103,7 @@ static const struct {
@@ -27,5 +27,5 @@ index ba76124008..9b6aa5b785 100644
  #endif
  #if QSV_HAVE_LA_HRD
 -- 
-2.25.1
+2.25.4
 

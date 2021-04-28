@@ -1,7 +1,7 @@
-From 065312e6daa39d3cf6f9c009c983616a85584323 Mon Sep 17 00:00:00 2001
+From 97dd4754907a701d80d7fe286e88d8d190b354f4 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Mon, 16 Mar 2020 03:51:40 -0400
-Subject: [PATCH 20/81] lavc: hevc, do not let missing ref frames invovle in
+Subject: [PATCH 20/82] lavc: hevc, do not let missing ref frames invovle in
  dpb process
 
 We will generate a new frame for a missed reference. The frame can only be used for reference.
@@ -13,7 +13,7 @@ We assign an invalid decode sequence to it, so it will not involve any dpb proce
  3 files changed, 17 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index 9e391b0970..63e34f3fb7 100644
+index 9e391b0970d4..63e34f3fb7ed 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
 @@ -171,8 +171,19 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
@@ -46,7 +46,7 @@ index 9e391b0970..63e34f3fb7 100644
  
      if (s->threads_type == FF_THREAD_FRAME)
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 2231aed259..da9638792d 100644
+index 2d35b0b1824a..cd686a825132 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -550,7 +550,7 @@ static int hls_slice_header(HEVCContext *s)
@@ -68,7 +68,7 @@ index 2231aed259..da9638792d 100644
      }
  
 diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
-index 482638a8e5..e738a7b063 100644
+index 482638a8e524..e738a7b063a2 100644
 --- a/libavcodec/hevcdec.h
 +++ b/libavcodec/hevcdec.h
 @@ -393,6 +393,9 @@ typedef struct DBParams {
@@ -82,5 +82,5 @@ index 482638a8e5..e738a7b063 100644
      AVFrame *frame;
      ThreadFrame tf;
 -- 
-2.25.1
+2.25.4
 

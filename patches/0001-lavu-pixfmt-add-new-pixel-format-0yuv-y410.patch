@@ -1,7 +1,7 @@
-From 63753a35dfabebfa247f9ca4abc0a0f6611cd849 Mon Sep 17 00:00:00 2001
+From 4bf8ddeff3fc921824ffd439c69276b5af6b4073 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 10:58:19 +0800
-Subject: [PATCH 01/81] lavu/pixfmt: add new pixel format 0yuv/y410
+Subject: [PATCH 01/82] lavu/pixfmt: add new pixel format 0yuv/y410
 
 Previously, media driver provided planar format(like 420 8 bit),
 but for HEVC Range Extension (444 8/10 bit), the decoded image
@@ -25,10 +25,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  4 files changed, 56 insertions(+)
 
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index 18c7a0efc8..5ccc23f1a8 100644
+index 751843e99158..b7b480c97af2 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
-@@ -228,6 +228,43 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+@@ -225,6 +225,43 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
          },
          .flags = AV_PIX_FMT_FLAG_BE,
      },
@@ -73,10 +73,10 @@ index 18c7a0efc8..5ccc23f1a8 100644
          .name = "rgb24",
          .nb_components = 3,
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index 46ef211add..045df7f321 100644
+index 30591133a485..9c0136078653 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
-@@ -358,6 +358,10 @@ enum AVPixelFormat {
+@@ -348,6 +348,10 @@ enum AVPixelFormat {
      AV_PIX_FMT_Y210BE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, big-endian
      AV_PIX_FMT_Y210LE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, little-endian
  
@@ -87,7 +87,7 @@ index 46ef211add..045df7f321 100644
      AV_PIX_FMT_X2RGB10LE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), little-endian, X=unused/undefined
      AV_PIX_FMT_X2RGB10BE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), big-endian, X=unused/undefined
      AV_PIX_FMT_NB         ///< number of pixel formats, DO NOT USE THIS if you want to link with shared libav* because the number of formats might differ between versions
-@@ -449,6 +453,7 @@ enum AVPixelFormat {
+@@ -439,6 +443,7 @@ enum AVPixelFormat {
  #define AV_PIX_FMT_P016       AV_PIX_FMT_NE(P016BE,  P016LE)
  
  #define AV_PIX_FMT_Y210       AV_PIX_FMT_NE(Y210BE,  Y210LE)
@@ -96,7 +96,7 @@ index 46ef211add..045df7f321 100644
  
  /**
 diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
-index c968ea0e85..ddf6ff3345 100644
+index f510150ea16e..a44ea547a5ab 100644
 --- a/tests/ref/fate/imgutils
 +++ b/tests/ref/fate/imgutils
 @@ -234,5 +234,8 @@ nv24            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144
@@ -109,7 +109,7 @@ index c968ea0e85..ddf6ff3345 100644
  x2rgb10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
 diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
-index c3cccfa492..f023430356 100644
+index c3cccfa492f0..f0234303566f 100644
 --- a/tests/ref/fate/sws-pixdesc-query
 +++ b/tests/ref/fate/sws-pixdesc-query
 @@ -63,6 +63,8 @@ isNBPS:
@@ -173,5 +173,5 @@ index c3cccfa492..f023430356 100644
    ya16le
    ya8
 -- 
-2.25.1
+2.25.4
 

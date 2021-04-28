@@ -1,7 +1,7 @@
-From b7923c23afc11990830596223abbe845a99662e6 Mon Sep 17 00:00:00 2001
+From f3be579974bf7492b222d4733869d5b5966898e1 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 18 Aug 2020 15:30:32 +0800
-Subject: [PATCH 74/81] qsv: build audio related code when MFX_VERSION < 2.0
+Subject: [PATCH 74/82] qsv: build audio related code when MFX_VERSION < 2.0
 
 Audio isn't supported for MFX_VERSION >= 2.0[1][2], this is in
 preparation for oneVPL support
@@ -14,7 +14,7 @@ preparation for oneVPL support
  2 files changed, 10 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index acf152e7d9..3fcb215404 100644
+index acf152e7d90a..3fcb21540403 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -37,6 +37,7 @@
@@ -47,7 +47,7 @@ index acf152e7d9..3fcb215404 100644
  
  int ff_qsv_map_error(mfxStatus mfx_err, const char **desc)
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index deef9c29b5..3241eaf0d9 100644
+index deef9c29b52f..3241eaf0d99d 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -37,6 +37,7 @@
@@ -80,5 +80,5 @@ index deef9c29b5..3241eaf0d9 100644
  
  static int qsv_map_error(mfxStatus mfx_err, const char **desc)
 -- 
-2.25.1
+2.25.4
 

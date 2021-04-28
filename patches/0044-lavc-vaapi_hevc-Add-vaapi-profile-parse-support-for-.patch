@@ -1,7 +1,7 @@
-From 70f2e0e85f5f384ef25837ba6e8da2ea48f8af54 Mon Sep 17 00:00:00 2001
+From 637954e0ebb6a65cda46ed41be108b4c2276036d Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 2 Jun 2020 14:34:00 +0800
-Subject: [PATCH 44/81] lavc/vaapi_hevc: Add vaapi profile parse support for
+Subject: [PATCH 44/82] lavc/vaapi_hevc: Add vaapi profile parse support for
  SCC
 
 Note that Screen-Extended Main 4:4:4 and 4:4:4 10 supports
@@ -15,7 +15,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 12 insertions(+)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 692004cd98..d4085c5a39 100644
+index c6e3886b02be..8026e0411f2f 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -416,6 +416,8 @@ static const struct {
@@ -28,7 +28,7 @@ index 692004cd98..d4085c5a39 100644
      MAP(MJPEG,       MJPEG_HUFFMAN_BASELINE_DCT,
                                        JPEGBaseline),
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 4e3ae6cf3b..28fe76c40e 100644
+index 4e3ae6cf3b4c..28fe76c40e09 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -608,6 +608,16 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
@@ -49,5 +49,5 @@ index 4e3ae6cf3b..28fe76c40e 100644
      av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
             "not supported with this VA version.\n", profile->name);
 -- 
-2.25.1
+2.25.4
 

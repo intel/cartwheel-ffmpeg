@@ -1,7 +1,7 @@
-From 19c5995acce2ec02511ff93cb6d6c93ba9132639 Mon Sep 17 00:00:00 2001
+From 9c2b87c0f9e4ba8d2b3ba79d3e1dbd0291d87f95 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 4 Jan 2021 09:49:22 +0800
-Subject: [PATCH 54/81] libavcodec/qsvenc: add DisableDeblockingIdc support for
+Subject: [PATCH 54/82] libavcodec/qsvenc: add DisableDeblockingIdc support for
  qsv
 
 MediaSDK already has a flag to control deblocking (DisableDeblockingIdc). Add dblk_idc parameter in ffmpeg to expose this flag to user.
@@ -13,7 +13,7 @@ Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 9 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 46c6ba6615..3040b31174 100644
+index f5c4cc491a86..7159ebd3e2dd 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -298,6 +298,8 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -25,7 +25,7 @@ index 46c6ba6615..3040b31174 100644
  }
  
  static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
-@@ -717,6 +719,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -711,6 +713,10 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
              if (q->max_slice_size >= 0)
                  q->extco2.MaxSliceSize = q->max_slice_size;
  #endif
@@ -37,7 +37,7 @@ index 46c6ba6615..3040b31174 100644
  #if QSV_HAVE_TRELLIS
              if (avctx->trellis >= 0)
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 6d305f87dd..3720320789 100644
+index 6d305f87ddbe..3720320789de 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -44,6 +44,7 @@
@@ -65,5 +65,5 @@ index 6d305f87dd..3720320789 100644
      int tile_cols;
      int tile_rows;
 -- 
-2.25.1
+2.25.4
 

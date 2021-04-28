@@ -1,7 +1,7 @@
-From 6ed780675e68723981a25147bc64701f69f7a728 Mon Sep 17 00:00:00 2001
+From 8b77c00366e9d663be2d22f696b17351b583cc16 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 22 Jun 2020 09:51:24 +0800
-Subject: [PATCH 09/81] lavc/vaapi_encode: add support for maxframesize
+Subject: [PATCH 09/82] lavc/vaapi_encode: add support for maxframesize
 
 Add support for max frame size:
     - max_frame_size (bytes) to indicate the max allowed size for frame.
@@ -31,7 +31,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 84 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 607858435f..a4bbc1cce1 100644
+index 7510816ec193..63de9a0a3b6b 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -348,7 +348,16 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
@@ -131,7 +131,7 @@ index 607858435f..a4bbc1cce1 100644
  
      av_freep(&ctx->codec_sequence_params);
 diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
-index b41604a883..1c40a734a5 100644
+index b41604a88329..1c40a734a532 100644
 --- a/libavcodec/vaapi_encode.h
 +++ b/libavcodec/vaapi_encode.h
 @@ -58,6 +58,11 @@ enum {
@@ -189,5 +189,5 @@ index b41604a883..1c40a734a5 100644
  #define VAAPI_ENCODE_RC_MODE(name, desc) \
      { #name, desc, 0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_ ## name }, \
 -- 
-2.25.1
+2.25.4
 

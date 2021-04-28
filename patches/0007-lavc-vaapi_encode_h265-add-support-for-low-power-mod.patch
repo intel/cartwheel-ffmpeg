@@ -1,7 +1,7 @@
-From 61602fe9a95e696e812dd16bf76b68ea934b851e Mon Sep 17 00:00:00 2001
+From 927d34a87f3241775f485ca2d53187829bc3f322 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 3 Dec 2019 16:07:48 +0800
-Subject: [PATCH 07/81] lavc/vaapi_encode_h265: add support for low power mode
+Subject: [PATCH 07/82] lavc/vaapi_encode_h265: add support for low power mode
  for HEVC encode
 
 Enable hevc_vaapi vdenc:
@@ -17,7 +17,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 28 insertions(+), 6 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 287ac58690..ca1bb0d49a 100644
+index e1dc53dfa96e..a185f5de7f8c 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -421,9 +421,12 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
@@ -98,5 +98,5 @@ index 287ac58690..ca1bb0d49a 100644
      if (priv->qp > 0)
          ctx->explicit_qp = priv->qp;
 -- 
-2.25.1
+2.25.4
 

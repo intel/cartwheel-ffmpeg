@@ -1,7 +1,7 @@
-From 2256a935ae0d80e665687281eebd3ff13fdd09c5 Mon Sep 17 00:00:00 2001
+From 6c3fd2b6163d8f4de6f114f6ab30e8499ab8cc8d Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 12 Mar 2021 13:56:52 +0800
-Subject: [PATCH 68/81] libavcodec/qsvdec: use the param from decodeHeader to
+Subject: [PATCH 68/82] libavcodec/qsvdec: use the param from decodeHeader to
  configure surface
 
 MSDK recognizes both yuv420p10 and yuv420p9 as MFX_FOURCC_P010, but param
@@ -16,7 +16,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 490ead52ab..39cb81e874 100644
+index 2f6b59dc8330..9982303423c9 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -362,13 +362,13 @@ static int alloc_frame(AVCodecContext *avctx, QSVContext *q, QSVFrame *frame)
@@ -36,5 +36,5 @@ index 490ead52ab..39cb81e874 100644
          ret = ff_qsv_find_surface_idx(&q->frames_ctx, frame);
          if (ret < 0)
 -- 
-2.25.1
+2.25.4
 

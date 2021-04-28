@@ -1,7 +1,7 @@
-From 3f805e357bd2296f8b5ddf027bd1652819ddd465 Mon Sep 17 00:00:00 2001
+From c729b57744eb590b977e0325f73fcd07c9daa04b Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 9 Apr 2021 14:00:40 +0800
-Subject: [PATCH] libavcodec/qsvenc: add mbbrc to hevc_qsv
+Subject: [PATCH 82/82] libavcodec/qsvenc: add mbbrc to hevc_qsv
 
 Add mbbrc to hevc_qsv
 For detailed description, please see "mbbrc" part in:
@@ -13,10 +13,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 566a5c8552..19e246a8fb 100644
+index 356db740b0df..375cdcbe890d 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -701,8 +701,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -724,8 +724,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
  
              if (q->bitrate_limit >= 0)
                  q->extco2.BitrateLimit = q->bitrate_limit ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
@@ -25,7 +25,7 @@ index 566a5c8552..19e246a8fb 100644
  
              if (q->max_frame_size >= 0)
                  q->extco2.MaxFrameSize = q->max_frame_size;
-@@ -755,6 +753,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -776,6 +774,9 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
                  q->extco2.MaxQPP = q->extco2.MaxQPB = q->extco2.MaxQPI;
              }
  #endif
@@ -36,5 +36,5 @@ index 566a5c8552..19e246a8fb 100644
              q->extco2.Header.BufferSz = sizeof(q->extco2);
  
 -- 
-2.25.1
+2.25.4
 

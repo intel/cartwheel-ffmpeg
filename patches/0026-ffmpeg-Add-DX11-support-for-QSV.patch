@@ -1,7 +1,7 @@
-From ba4346937810c0a4c9d5ead9bf9b3c9c387b2749 Mon Sep 17 00:00:00 2001
+From 52f19381f10d12362cbaacbe5b4fa2d0309bd262 Mon Sep 17 00:00:00 2001
 From: "Galin, Artem" <artem.galin@intel.com>
 Date: Tue, 26 May 2020 14:28:46 +0800
-Subject: [PATCH 26/81] ffmpeg: Add DX11 support for QSV
+Subject: [PATCH 26/82] ffmpeg: Add DX11 support for QSV
 
 ---
  fftools/ffmpeg_opt.c             |   6 +-
@@ -17,7 +17,7 @@ Subject: [PATCH 26/81] ffmpeg: Add DX11 support for QSV
  10 files changed, 511 insertions(+), 162 deletions(-)
 
 diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
-index 807e783422..5fc17ed473 100644
+index c0b9f023bd64..45ddd51f9066 100644
 --- a/fftools/ffmpeg_opt.c
 +++ b/fftools/ffmpeg_opt.c
 @@ -580,7 +580,11 @@ static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
@@ -34,7 +34,7 @@ index 807e783422..5fc17ed473 100644
  }
  
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index f2d3b74a96..dadfb83889 100644
+index f2d3b74a96df..dadfb838898a 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -36,6 +36,8 @@
@@ -160,7 +160,7 @@ index f2d3b74a96..dadfb83889 100644
      if (!handle) {
          av_log(avctx, AV_LOG_VERBOSE, "No supported hw handle could be retrieved "
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 6b2fbbe252..5d276b091c 100644
+index 6b2fbbe25252..5d276b091c5d 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -62,7 +62,7 @@
@@ -173,7 +173,7 @@ index 6b2fbbe252..5d276b091c 100644
      AVFrame *locked_frame;
      AVFrame *hw_frame;
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 4768f6208b..7a297505a7 100644
+index 4768f6208b47..7a297505a7f8 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -36,12 +36,7 @@
@@ -241,7 +241,7 @@ index 4768f6208b..7a297505a7 100644
          return ff_qsvvpp_print_error(avctx, ret, "Error getting the session handle");
      else if (ret > 0) {
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index 34feb616ab..d5106bcf59 100644
+index 3c2d87c7c84b..cd128c2dca45 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -42,6 +42,8 @@
@@ -328,7 +328,7 @@ index 34feb616ab..d5106bcf59 100644
      }
  
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
-index 2ac2373955..3e9b116f33 100644
+index 189223a58a32..692592072c61 100644
 --- a/libavfilter/vf_scale_qsv.c
 +++ b/libavfilter/vf_scale_qsv.c
 @@ -70,6 +70,7 @@ enum var_name {
@@ -425,7 +425,7 @@ index 2ac2373955..3e9b116f33 100644
      }
  
 diff --git a/libavutil/hwcontext_d3d11va.c b/libavutil/hwcontext_d3d11va.c
-index 2a3549ebd8..1e6a063b6e 100644
+index 27274ee3fa1e..9f1614120405 100644
 --- a/libavutil/hwcontext_d3d11va.c
 +++ b/libavutil/hwcontext_d3d11va.c
 @@ -72,8 +72,8 @@ static av_cold void load_functions(void)
@@ -479,8 +479,8 @@ index 2a3549ebd8..1e6a063b6e 100644
 +    return wrap_texture_buf(ctx, tex, 0);
  }
  
- static AVBufferRef *d3d11va_pool_alloc(void *opaque, buffer_size_t size)
-@@ -220,7 +228,7 @@ static AVBufferRef *d3d11va_pool_alloc(void *opaque, buffer_size_t size)
+ static AVBufferRef *d3d11va_pool_alloc(void *opaque, size_t size)
+@@ -220,7 +228,7 @@ static AVBufferRef *d3d11va_pool_alloc(void *opaque, size_t size)
      }
  
      ID3D11Texture2D_AddRef(hwctx->texture);
@@ -573,7 +573,7 @@ index 2a3549ebd8..1e6a063b6e 100644
          }
      }
 diff --git a/libavutil/hwcontext_d3d11va.h b/libavutil/hwcontext_d3d11va.h
-index 9f91e9b1b6..dd782bcc12 100644
+index 9f91e9b1b67b..dd782bcc12c6 100644
 --- a/libavutil/hwcontext_d3d11va.h
 +++ b/libavutil/hwcontext_d3d11va.h
 @@ -164,6 +164,13 @@ typedef struct AVD3D11VAFramesContext {
@@ -591,7 +591,7 @@ index 9f91e9b1b6..dd782bcc12 100644
  
  #endif /* AVUTIL_HWCONTEXT_D3D11VA_H */
 diff --git a/libavutil/hwcontext_opencl.c b/libavutil/hwcontext_opencl.c
-index ee814602b2..850c690977 100644
+index 41fac432297c..964b783a8f56 100644
 --- a/libavutil/hwcontext_opencl.c
 +++ b/libavutil/hwcontext_opencl.c
 @@ -2249,7 +2249,8 @@ static int opencl_map_from_qsv(AVHWFramesContext *dst_fc, AVFrame *dst,
@@ -605,7 +605,7 @@ index ee814602b2..850c690977 100644
  #endif
          if (src->format == AV_PIX_FMT_VAAPI) {
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 3a642ec554..c810abe5ed 100644
+index ebc15e09b37f..48836edd0ffd 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -27,9 +27,13 @@
@@ -760,7 +760,7 @@ index 3a642ec554..c810abe5ed 100644
      av_buffer_unref(&s->child_frames_ref);
  }
  
-@@ -208,6 +241,8 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, buffer_size_t size)
+@@ -208,6 +241,8 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, size_t size)
  
      if (s->nb_surfaces_used < hwctx->nb_surfaces) {
          s->nb_surfaces_used++;
@@ -1261,5 +1261,5 @@ index 3a642ec554..c810abe5ed 100644
      return qsv_device_derive_from_child(ctx, impl, child_device, 0);
  }
 -- 
-2.25.1
+2.25.4
 

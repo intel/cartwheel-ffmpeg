@@ -1,7 +1,7 @@
-From 6c83826e48433ef679df65181a671596099676d9 Mon Sep 17 00:00:00 2001
+From 706605bdf6cb5183a4a829ee557e6ac26c6b9f26 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 24 Feb 2020 19:27:19 +0800
-Subject: [PATCH 17/81] lavc/qsvenc: add return check for ff_qsv_map_pixfmt
+Subject: [PATCH 17/82] lavc/qsvenc: add return check for ff_qsv_map_pixfmt
 
 Return an error directly if pixfmt is not supported for encoding, otherwise
 it may be hidden until query/check in MSDK.
@@ -12,7 +12,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 1c8c5333a8..60392865e0 100644
+index 7511c18dd58e..f84c8a7e4b17 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -437,7 +437,9 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
@@ -38,5 +38,5 @@ index 1c8c5333a8..60392865e0 100644
      q->param.mfx.FrameInfo.CropX          = 0;
      q->param.mfx.FrameInfo.CropY          = 0;
 -- 
-2.25.1
+2.25.4
 

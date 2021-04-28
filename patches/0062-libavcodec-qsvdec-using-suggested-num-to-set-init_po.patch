@@ -1,7 +1,7 @@
-From dd53d7e850d639337c5a4ba44b7a912b539a5d72 Mon Sep 17 00:00:00 2001
+From 567e940971904b286e6541c51d368f4331e5721c Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Tue, 26 Jan 2021 09:55:59 +0800
-Subject: [PATCH 62/81] libavcodec/qsvdec: using suggested num to set
+Subject: [PATCH 62/82] libavcodec/qsvdec: using suggested num to set
  init_pool_size
 
 The init_pool_size is set to be 64 and it is too many.
@@ -18,7 +18,7 @@ Sigend-off-by Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 35 insertions(+), 2 deletions(-)
 
 diff --git a/fftools/ffmpeg_qsv.c b/fftools/ffmpeg_qsv.c
-index 960c88b69d..3862dc1e7d 100644
+index 960c88b69d5e..3862dc1e7dec 100644
 --- a/fftools/ffmpeg_qsv.c
 +++ b/fftools/ffmpeg_qsv.c
 @@ -74,6 +74,7 @@ int qsv_init(AVCodecContext *s)
@@ -52,10 +52,10 @@ index 960c88b69d..3862dc1e7d 100644
  
      ret = av_hwframe_ctx_init(ist->hw_frames_ctx);
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index e689766062..4287d05b26 100644
+index 3f692a33d9be..4a4b95bab2e9 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -767,6 +767,7 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -762,6 +762,7 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
                              AVFrame *frame, int *got_frame, const AVPacket *pkt)
  {
      int ret;
@@ -63,7 +63,7 @@ index e689766062..4287d05b26 100644
      mfxVideoParam param = { 0 };
      enum AVPixelFormat pix_fmt = AV_PIX_FMT_NV12;
  
-@@ -785,12 +786,20 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -780,12 +781,20 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
      if (!avctx->coded_height)
          avctx->coded_height = 720;
  
@@ -85,7 +85,7 @@ index e689766062..4287d05b26 100644
  
          if (q->buffered_count) {
              q->reinit_flag = 1;
-@@ -805,6 +814,23 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -800,6 +809,23 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
          avctx->coded_width  = param.mfx.FrameInfo.Width;
          avctx->coded_height = param.mfx.FrameInfo.Height;
  
@@ -110,5 +110,5 @@ index e689766062..4287d05b26 100644
          if (ret < 0)
              goto reinit_fail;
 -- 
-2.25.1
+2.25.4
 

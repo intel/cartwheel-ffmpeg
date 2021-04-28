@@ -1,7 +1,7 @@
-From 940b88481a5bdfbd58b7c621386b1ce9d4918bab Mon Sep 17 00:00:00 2001
+From 4b3060eca11fb15f6fc5462132b8f2bee192bcab Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 15:46:19 +0800
-Subject: [PATCH 60/81] libavocdec/qsvenc_hevc: encode RGB format rawvideo
+Subject: [PATCH 60/82] libavocdec/qsvenc_hevc: encode RGB format rawvideo
 
 Add support for hevc_qsv to input RGB format frame. It will
 transform frame to yuv inside MediaSDK instead of using auto
@@ -20,7 +20,7 @@ Sigend-of-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 39 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index fb53768193..29f08b6641 100644
+index fb53768193d4..29f08b664113 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -198,6 +198,12 @@ int ff_qsv_print_warning(void *log_ctx, mfxStatus err,
@@ -54,7 +54,7 @@ index fb53768193..29f08b6641 100644
      case AV_PIX_FMT_YUYV422:
          *fourcc = MFX_FOURCC_YUY2;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 6ad390ad96..4e10efc1e0 100644
+index d06ae610316f..4d006d8c91a1 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -620,6 +620,13 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
@@ -71,7 +71,7 @@ index 6ad390ad96..4e10efc1e0 100644
      switch (q->param.mfx.RateControlMethod) {
      case MFX_RATECONTROL_CBR:
      case MFX_RATECONTROL_VBR:
-@@ -1429,8 +1436,16 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+@@ -1417,8 +1424,16 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
              qf->surface.Info.PicStruct |= MFX_PICSTRUCT_FRAME_TRIPLING;
  
          qf->surface.Data.PitchLow  = qf->frame->linesize[0];
@@ -91,10 +91,10 @@ index 6ad390ad96..4e10efc1e0 100644
  
      qf->surface.Data.TimeStamp = av_rescale_q(frame->pts, q->avctx->time_base, (AVRational){1, 90000});
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 7c08cbffaa..e08aa4a88c 100644
+index ae9a0c1f0734..8c918081acb2 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -292,6 +292,12 @@ AVCodec ff_hevc_qsv_encoder = {
+@@ -289,6 +289,12 @@ const AVCodec ff_hevc_qsv_encoder = {
      .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
                                                      AV_PIX_FMT_P010,
                                                      AV_PIX_FMT_QSV,
@@ -108,5 +108,5 @@ index 7c08cbffaa..e08aa4a88c 100644
      .priv_class     = &class,
      .defaults       = qsv_enc_defaults,
 -- 
-2.25.1
+2.25.4
 

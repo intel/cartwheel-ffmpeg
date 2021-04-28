@@ -1,7 +1,7 @@
-From 442de08c401da4399008ddcb82370d7a309174e5 Mon Sep 17 00:00:00 2001
+From d0de4db150c9c05cce53e55b1b90c48f776bde00 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
-Subject: [PATCH 57/81] libavcodec/qsvdec.c: extract frame packing arrangement
+Subject: [PATCH 57/82] libavcodec/qsvdec.c: extract frame packing arrangement
  data
 
 Use h264_sei to parse SEI data got from MediaSDK. Extract frame
@@ -15,7 +15,7 @@ Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 157 insertions(+)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 5d276b091c..e674464c6c 100644
+index 5d276b091c5d..e674464c6c6f 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -52,6 +52,8 @@
@@ -28,7 +28,7 @@ index 5d276b091c..e674464c6c 100644
      (MFX_VERSION_MAJOR > (MAJOR) ||         \
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 5f2e641373..e689766062 100644
+index f543defb1821..3f692a33d9be 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -38,12 +38,15 @@
@@ -217,10 +217,10 @@ index 5f2e641373..e689766062 100644
 +        if (ret < 0)
 +            av_log(avctx, AV_LOG_WARNING, "Extracting side from packet failed\n");
 +
- #if FF_API_PKT_PTS
- FF_DISABLE_DEPRECATION_WARNINGS
-         frame->pkt_pts = outsurf->Data.TimeStamp;
-@@ -606,6 +759,8 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
+         frame->pts = outsurf->Data.TimeStamp;
+ 
+         frame->repeat_pict =
+@@ -601,6 +754,8 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
      av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
      av_buffer_unref(&q->frames_ctx.mids_buf);
      av_buffer_pool_uninit(&q->pool);
@@ -230,5 +230,5 @@ index 5f2e641373..e689766062 100644
  
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
 -- 
-2.25.1
+2.25.4
 

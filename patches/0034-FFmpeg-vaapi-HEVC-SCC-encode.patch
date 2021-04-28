@@ -1,7 +1,7 @@
-From 3f0b2c4aacebfe53d8312b793755209f4d030b60 Mon Sep 17 00:00:00 2001
+From 58a47dd307defab50f3c888ae78c2ad31ba118ea Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 18 Oct 2020 16:15:37 -0400
-Subject: [PATCH 34/81] FFmpeg vaapi HEVC SCC encode.
+Subject: [PATCH 34/82] FFmpeg vaapi HEVC SCC encode.
 
 Depend on 0008 hevc low power enable patch.
 
@@ -26,10 +26,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  4 files changed, 50 insertions(+), 14 deletions(-)
 
 diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index ed9f1f64d2..a10247210e 100644
+index c3edab939ec3..f81290ada488 100644
 --- a/libavcodec/avcodec.h
 +++ b/libavcodec/avcodec.h
-@@ -1948,6 +1948,7 @@ typedef struct AVCodecContext {
+@@ -1721,6 +1721,7 @@ typedef struct AVCodecContext {
  #define FF_PROFILE_HEVC_MAIN_10                     2
  #define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3
  #define FF_PROFILE_HEVC_REXT                        4
@@ -38,7 +38,7 @@ index ed9f1f64d2..a10247210e 100644
  #define FF_PROFILE_VVC_MAIN_10                      1
  #define FF_PROFILE_VVC_MAIN_10_444                 33
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 6f4de1f7cc..c5fedd8373 100644
+index 313d4eeb65a5..5db8005555f7 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1256,6 +1256,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
@@ -50,7 +50,7 @@ index 6f4de1f7cc..c5fedd8373 100644
      { "YUV444",    VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
      { "YUV411",    VA_RT_FORMAT_YUV411,        8, 3, 2, 0 },
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 9ca48030c9..6006c4b75f 100644
+index 5c37ed042c43..4d0ce8705980 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -300,17 +300,13 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
@@ -192,10 +192,10 @@ index 9ca48030c9..6006c4b75f 100644
  
      { "tier", "Set tier (general_tier_flag)",
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index c4d8ac5425..d986cdb390 100644
+index 5315e4845ab5..78b94d5bddae 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
-@@ -264,27 +264,25 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+@@ -261,27 +261,25 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
      },
      [AV_PIX_FMT_Y410LE] = {
          .name = "y410le",
@@ -226,5 +226,5 @@ index c4d8ac5425..d986cdb390 100644
          .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BITSTREAM | AV_PIX_FMT_FLAG_BE,
      },
 -- 
-2.25.1
+2.25.4
 

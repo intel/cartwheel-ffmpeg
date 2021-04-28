@@ -1,7 +1,7 @@
-From 4662f1f7f5a1c1d397c7106fc3fe491d6c139940 Mon Sep 17 00:00:00 2001
+From 505928fd12e932a3f80ae9ed9988391cbcb00274 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 28 May 2020 14:14:32 -0400
-Subject: [PATCH 29/81] lavc/qsv: support hevc/vp9 12bit
+Subject: [PATCH 29/82] lavc/qsv: support hevc/vp9 12bit
 
 ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v hevc_qsv -i GENERAL_12b_420_RExt_Sony_1.bit -vf hwdownload,format=p012 -vsync passthrough -frames 25 -f md5 -y qsv_out.md5
 
@@ -20,7 +20,7 @@ ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose 
  2 files changed, 35 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index dadfb83889..fb53768193 100644
+index dadfb838898a..fb53768193d4 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -210,6 +210,11 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
@@ -57,7 +57,7 @@ index dadfb83889..fb53768193 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index c810abe5ed..a4b9e0569b 100644
+index 48836edd0ffd..df3d15f9a30e 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -113,6 +113,14 @@ static const struct {
@@ -105,5 +105,5 @@ index c810abe5ed..a4b9e0569b 100644
      default:
          return MFX_ERR_UNSUPPORTED;
 -- 
-2.25.1
+2.25.4
 

@@ -1,7 +1,7 @@
-From 1c37194f116642d6183d0b935669b4f623aa14e5 Mon Sep 17 00:00:00 2001
+From 0182c20e5d3117274359abaeea9d862207b54e1d Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 12 Mar 2021 10:33:37 +0800
-Subject: [PATCH 64/81] libavcodec/qsvdec.c: using queue count to unref frame
+Subject: [PATCH 64/82] libavcodec/qsvdec.c: using queue count to unref frame
 
 MSDK vc1 and av1 sometimes output frame into the same suface, but
 ffmpeg-qsv assume the surface will be used only once, so it will
@@ -14,7 +14,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 583d42a4dc..65d9b510bc 100644
+index 52a4e8b4a05e..768766540022 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -664,7 +664,7 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
@@ -36,5 +36,5 @@ index 583d42a4dc..65d9b510bc 100644
          if (avctx->pix_fmt != AV_PIX_FMT_QSV) {
              do {
 -- 
-2.25.1
+2.25.4
 

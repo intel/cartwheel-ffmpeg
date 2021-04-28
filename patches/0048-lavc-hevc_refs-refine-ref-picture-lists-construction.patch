@@ -1,7 +1,7 @@
-From 09d003ae7deed4ffbecb83252c12afd98da1ce28 Mon Sep 17 00:00:00 2001
+From 21488c8f94c459d7f82acc23584f7b084c74c751 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 9 Nov 2020 10:39:08 -0500
-Subject: [PATCH 48/81] lavc/hevc_refs: refine ref picture lists construction
+Subject: [PATCH 48/82] lavc/hevc_refs: refine ref picture lists construction
 
 1. update current frame's POC info into reference list when the frame
 is added into reference list.
@@ -14,7 +14,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index e6054696a3..51f72cd35f 100644
+index e6054696a337..51f72cd35fde 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
 @@ -344,6 +344,7 @@ int ff_hevc_slice_rpl(HEVCContext *s)
@@ -41,5 +41,5 @@ index e6054696a3..51f72cd35f 100644
  
          if (sh->collocated_list == list_idx &&
 -- 
-2.25.1
+2.25.4
 

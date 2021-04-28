@@ -1,7 +1,7 @@
-From 01af2dc76341aaf1375ad3e01ff15b6799332de4 Mon Sep 17 00:00:00 2001
+From 63bb70cc5ade2b724e96dd59c268f6399ca1992b Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 28 Sep 2020 14:14:42 +0800
-Subject: [PATCH 35/81] lavc/qsvenc: add support for Screen Content Coding
+Subject: [PATCH 35/82] lavc/qsvenc: add support for Screen Content Coding
  (SCC) extension
 
 This patch adds support for SCC encoding on ICL+ platform
@@ -16,7 +16,7 @@ ffmpeg -init_hw_device qsv=qsv:hw -f lavfi -i testsrc -vf \
  2 files changed, 6 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 60392865e0..851dca92b1 100644
+index f84c8a7e4b17..6f454b675c21 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -69,6 +69,9 @@ static const struct {
@@ -30,7 +30,7 @@ index 60392865e0..851dca92b1 100644
  
  static const char *print_profile(mfxU16 profile)
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 347f30655e..663f21439f 100644
+index a5671ebbca22..83d6af9c9b24 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -241,6 +241,9 @@ static const AVOption options[] = {
@@ -44,5 +44,5 @@ index 347f30655e..663f21439f 100644
      { "gpb", "1: GPB (generalized P/B frame); 0: regular P frame", OFFSET(qsv.gpb), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, VE},
  
 -- 
-2.25.1
+2.25.4
 
