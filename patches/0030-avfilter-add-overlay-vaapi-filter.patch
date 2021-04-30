@@ -1,4 +1,4 @@
-From 9b375bcf76dcbfea9ef5b0b38ca0a0893d9f822b Mon Sep 17 00:00:00 2001
+From 5c5599514be50b50990833214dc3968c7e7c8ebe Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Wed, 26 Feb 2020 13:53:34 +0800
 Subject: [PATCH 30/82] avfilter: add overlay vaapi filter
@@ -27,18 +27,18 @@ Signed-off-by: Zachary Zhou <zachary.zhou@intel.com>
  create mode 100644 libavfilter/vf_overlay_vaapi.c
 
 diff --git a/configure b/configure
-index 820f719a329d..63650e52ea60 100755
+index 6580859ef296..53fb9e7a9e1b 100755
 --- a/configure
 +++ b/configure
-@@ -3593,6 +3593,7 @@ openclsrc_filter_deps="opencl"
+@@ -3624,6 +3624,7 @@ openclsrc_filter_deps="opencl"
  overlay_opencl_filter_deps="opencl"
  overlay_qsv_filter_deps="libmfx"
  overlay_qsv_filter_select="qsvvpp"
 +overlay_vaapi_filter_deps="vaapi"
- overlay_vulkan_filter_deps="vulkan libglslang"
+ overlay_vulkan_filter_deps="vulkan_lib libglslang"
  owdenoise_filter_deps="gpl"
  pad_opencl_filter_deps="opencl"
-@@ -3652,6 +3653,7 @@ tonemap_vaapi_filter_deps="vaapi VAProcFilterParameterBufferHDRToneMapping"
+@@ -3683,6 +3684,7 @@ tonemap_vaapi_filter_deps="vaapi VAProcFilterParameterBufferHDRToneMapping"
  tonemap_opencl_filter_deps="opencl const_nan"
  transpose_opencl_filter_deps="opencl"
  transpose_vaapi_filter_deps="vaapi VAProcPipelineCaps_rotation_flags"
@@ -46,7 +46,7 @@ index 820f719a329d..63650e52ea60 100755
  unsharp_opencl_filter_deps="opencl"
  uspp_filter_deps="gpl avcodec"
  vaguedenoiser_filter_deps="gpl"
-@@ -6698,6 +6700,7 @@ if enabled vaapi; then
+@@ -6729,6 +6731,7 @@ if enabled vaapi; then
      check_struct "va/va.h" "VADecPictureParameterBufferAV1" bit_depth_idx
      check_type   "va/va.h va/va_vpp.h" "VAProcFilterParameterBufferHDRToneMapping"
      check_struct "va/va.h va/va_vpp.h" "VAProcPipelineCaps" rotation_flags
@@ -55,10 +55,10 @@ index 820f719a329d..63650e52ea60 100755
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
 diff --git a/doc/filters.texi b/doc/filters.texi
-index e99d70a2d3dc..c3fd6f0e1d1b 100644
+index 36e35a175b39..b2d6cac3a8f1 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -23593,6 +23593,57 @@ To enable compilation of these filters you need to configure FFmpeg with
+@@ -23600,6 +23600,57 @@ To enable compilation of these filters you need to configure FFmpeg with
  
  To use vaapi filters, you need to setup the vaapi device correctly. For more information, please read @url{https://trac.ffmpeg.org/wiki/Hardware/VAAPI}
  
