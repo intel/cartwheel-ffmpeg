@@ -1,4 +1,4 @@
-From 50111507866eb3ac776754bc4b11821c911b482b Mon Sep 17 00:00:00 2001
+From ba5b27b3979697157605c6541e0c9216e35e4ec7 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 2 Nov 2020 10:45:29 +0800
 Subject: [PATCH 11/82] fftools/ffmpeg: support variable resolution encode
@@ -47,14 +47,15 @@ index 3ad11452da53..155d1106c14d 100644
          ist = input_streams[ost->source_index];
  
 diff --git a/libavcodec/rawenc.c b/libavcodec/rawenc.c
-index baaab749fd91..625e5bf380e2 100644
+index 73b0b9291617..bb7efbff9096 100644
 --- a/libavcodec/rawenc.c
 +++ b/libavcodec/rawenc.c
-@@ -87,4 +87,5 @@ const AVCodec ff_rawvideo_encoder = {
+@@ -87,5 +87,6 @@ const AVCodec ff_rawvideo_encoder = {
      .id             = AV_CODEC_ID_RAWVIDEO,
      .init           = raw_encode_init,
      .encode2        = raw_encode,
 +    .capabilities   = AV_CODEC_CAP_PARAM_CHANGE | AV_CODEC_CAP_ENCODER_FLUSH,
+     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
  };
 -- 
 2.25.4
