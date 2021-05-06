@@ -1,7 +1,7 @@
-From ba5b27b3979697157605c6541e0c9216e35e4ec7 Mon Sep 17 00:00:00 2001
+From 0e00f8a92773b14a680dad8a2ab76ee2e590b3d0 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 2 Nov 2020 10:45:29 +0800
-Subject: [PATCH 11/82] fftools/ffmpeg: support variable resolution encode
+Subject: [PATCH] fftools/ffmpeg: support variable resolution encode
 
 Flush encoders when resolution change happens.
 
@@ -11,8 +11,8 @@ it supports variable/dynamic resolution encoding.
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
  fftools/ffmpeg.c    | 14 ++++++++++++++
- libavcodec/rawenc.c |  1 +
- 2 files changed, 15 insertions(+)
+ libavcodec/rawenc.c |  2 +-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
 
 diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
 index 3ad11452da53..155d1106c14d 100644
@@ -47,16 +47,18 @@ index 3ad11452da53..155d1106c14d 100644
          ist = input_streams[ost->source_index];
  
 diff --git a/libavcodec/rawenc.c b/libavcodec/rawenc.c
-index 73b0b9291617..bb7efbff9096 100644
+index bd992239a593..3166b46fdd28 100644
 --- a/libavcodec/rawenc.c
 +++ b/libavcodec/rawenc.c
-@@ -87,5 +87,6 @@ const AVCodec ff_rawvideo_encoder = {
+@@ -86,7 +86,7 @@ const AVCodec ff_rawvideo_encoder = {
+     .long_name      = NULL_IF_CONFIG_SMALL("raw video"),
+     .type           = AVMEDIA_TYPE_VIDEO,
      .id             = AV_CODEC_ID_RAWVIDEO,
+-    .capabilities   = AV_CODEC_CAP_DR1,
++    .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_PARAM_CHANGE | AV_CODEC_CAP_ENCODER_FLUSH,
      .init           = raw_encode_init,
      .encode2        = raw_encode,
-+    .capabilities   = AV_CODEC_CAP_PARAM_CHANGE | AV_CODEC_CAP_ENCODER_FLUSH,
      .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
- };
 -- 
 2.25.4
 
