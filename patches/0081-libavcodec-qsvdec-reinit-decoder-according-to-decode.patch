@@ -1,7 +1,7 @@
-From 12e0bc0ba5aec1bdd082a590a4d1ac658fc97c2e Mon Sep 17 00:00:00 2001
+From a6305974600338c47f49b4e614c659d343df967b Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:16:33 +0800
-Subject: [PATCH 67/82] libavcodec/qsvdec: reinit decoder according to decode()
+Subject: [PATCH 1/3] libavcodec/qsvdec: reinit decoder according to decode()
  return value
 
 FFmpeg-qsv decoder reinit codec when width and height change, but there
@@ -10,15 +10,16 @@ return value from DecodeFrameAsync() to decide whether decoder need to
 be reinitialized.
 
 Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
+Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
 ---
  libavcodec/qsvdec.c | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 768766540022..2f6b59dc8330 100644
+index ba8109c412..f1aec262ce 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -632,6 +632,13 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
+@@ -645,6 +645,13 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
  
      } while (ret == MFX_WRN_DEVICE_BUSY || ret == MFX_ERR_MORE_SURFACE);
  
@@ -32,19 +33,18 @@ index 768766540022..2f6b59dc8330 100644
      if (ret != MFX_ERR_NONE &&
          ret != MFX_ERR_MORE_DATA &&
          ret != MFX_WRN_VIDEO_PARAM_CHANGED &&
-@@ -789,10 +796,10 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -797,9 +804,9 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
  
      ret = qsv_decode_header(avctx, q, pkt, pix_fmt, &param);
  
 -    if (ret >= 0 && (q->orig_pix_fmt != ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC) ||
 +    if (q->reinit_flag || (ret >= 0 && (q->orig_pix_fmt != ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC) ||
          avctx->coded_width  != param.mfx.FrameInfo.Width ||
-         avctx->coded_height != param.mfx.FrameInfo.Height ||
--        first_init == 1)) {
-+        first_init == 1))) {
+-        avctx->coded_height != param.mfx.FrameInfo.Height)) {
++        avctx->coded_height != param.mfx.FrameInfo.Height))) {
          AVPacket zero_pkt = {0};
-         mfxFrameAllocRequest request;
-         AVHWFramesContext *hw_frames_ctx;
+ 
+         if (q->buffered_count) {
 -- 
-2.25.4
+2.25.1
 
