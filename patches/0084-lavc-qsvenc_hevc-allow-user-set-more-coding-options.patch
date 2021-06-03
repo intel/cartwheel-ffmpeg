@@ -1,0 +1,74 @@
+From 6461a2ff5c157e546d2af66d769766aa84d8517b Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Fri, 23 Apr 2021 15:54:32 +0800
+Subject: [PATCH 83/84] lavc/qsvenc_hevc: allow user set more coding options
+
+The SDK supports NalHrdConformance, RecoveryPointSEI and AUDelimiter for
+hevc encoder, so we may allow user to set these coding options like what
+we did for h264_qsv encoder.
+
+'-strict xxx' to turn on / off NalHrdConformance
+'-recovery_point_sei xxx' to turn on / off RecoveryPointSEI
+'-aud xxx' to turn on / off AUDelimiter
+
+Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
+---
+ libavcodec/qsvenc.c      | 15 ++++++++++++---
+ libavcodec/qsvenc_hevc.c |  2 ++
+ 2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 375cdcbe89..0878bef4eb 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -303,6 +303,10 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+                "NalHrdConformance: %s; SingleSeiNalUnit: %s; VuiVclHrdParameters: %s VuiNalHrdParameters: %s\n",
+                print_threestate(co->NalHrdConformance), print_threestate(co->SingleSeiNalUnit),
+                print_threestate(co->VuiVclHrdParameters), print_threestate(co->VuiNalHrdParameters));
++    } else if (avctx->codec_id == AV_CODEC_ID_HEVC) {
++        av_log(avctx, AV_LOG_VERBOSE,
++               "NalHrdConformance: %s; VuiNalHrdParameters: %s\n",
++               print_threestate(co->NalHrdConformance), print_threestate(co->VuiNalHrdParameters));
+     }
+ 
+     av_log(avctx, AV_LOG_VERBOSE, "FrameRateExtD: %"PRIu32"; FrameRateExtN: %"PRIu32" \n",
+@@ -699,15 +703,20 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+             q->extco.CAVLC = q->cavlc ? MFX_CODINGOPTION_ON
+                                       : MFX_CODINGOPTION_UNKNOWN;
+ 
++            if (q->single_sei_nal_unit >= 0)
++                q->extco.SingleSeiNalUnit = q->single_sei_nal_unit ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
++
++            q->extco.MaxDecFrameBuffering = q->max_dec_frame_buffering;
++        }
++
++        if (avctx->codec_id == AV_CODEC_ID_H264 ||
++            avctx->codec_id == AV_CODEC_ID_HEVC) {
+             if (avctx->strict_std_compliance != FF_COMPLIANCE_NORMAL)
+                 q->extco.NalHrdConformance = avctx->strict_std_compliance > FF_COMPLIANCE_NORMAL ?
+                                              MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+ 
+-            if (q->single_sei_nal_unit >= 0)
+-                q->extco.SingleSeiNalUnit = q->single_sei_nal_unit ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+             if (q->recovery_point_sei >= 0)
+                 q->extco.RecoveryPointSEI = q->recovery_point_sei ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+-            q->extco.MaxDecFrameBuffering = q->max_dec_frame_buffering;
+             q->extco.AUDelimiter          = q->aud ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+         }
+ 
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index 366830958d..43ae665c77 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -251,6 +251,8 @@ static const AVOption options[] = {
+ #if QSV_VERSION_ATLEAST(1, 26)
+     { "transform_skip", "Turn this option ON to enable transformskip",   OFFSET(qsv.transform_skip),          AV_OPT_TYPE_INT,    { .i64 = -1},   -1, 1,  VE},
+ #endif
++    { "recovery_point_sei", "Insert recovery point SEI messages",       OFFSET(qsv.recovery_point_sei),      AV_OPT_TYPE_INT, { .i64 = -1 },               -1,          1, VE },
++    { "aud", "Insert the Access Unit Delimiter NAL", OFFSET(qsv.aud), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE},
+ 
+     { NULL },
+ };
+-- 
+2.25.1
+
