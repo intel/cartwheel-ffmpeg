@@ -1,7 +1,7 @@
-From a2f97f0db58344ff04fc1e0bf8f4db893bbfcdcc Mon Sep 17 00:00:00 2001
+From eb795b1f3e9d2fb33a05d2763e7aa996e4c88859 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 14:56:25 +0800
-Subject: [PATCH 33/82] lavc/vaapi_hevc: add -skip_frame invalid to skip
+Subject: [PATCH 33/85] lavc/vaapi_hevc: add -skip_frame invalid to skip
  invalid nalus
 
 Works in single thread mode:
@@ -14,17 +14,17 @@ $ ffmpeg -skip_frame invalid -hwaccel vaapi -i input-100frames.h265 -f null -
 
 Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
 ---
- libavcodec/avcodec.h       | 1 +
+ libavcodec/defs.h          | 1 +
  libavcodec/hevcdec.c       | 6 +++++-
  libavcodec/options_table.h | 1 +
  libavcodec/pthread_frame.c | 1 +
  4 files changed, 8 insertions(+), 1 deletion(-)
 
-diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index 0ef1676daff0..c3edab939ec3 100644
---- a/libavcodec/avcodec.h
-+++ b/libavcodec/avcodec.h
-@@ -206,6 +206,7 @@ enum AVDiscard{
+diff --git a/libavcodec/defs.h b/libavcodec/defs.h
+index 420a042b8ff4..25052048b4e0 100644
+--- a/libavcodec/defs.h
++++ b/libavcodec/defs.h
+@@ -47,6 +47,7 @@ enum AVDiscard{
       * keyframes for intra-only or drop just some bidir frames). */
      AVDISCARD_NONE    =-16, ///< discard nothing
      AVDISCARD_DEFAULT =  0, ///< discard useless packets like 0 size packets in avi
