@@ -1,7 +1,7 @@
-From d0de4db150c9c05cce53e55b1b90c48f776bde00 Mon Sep 17 00:00:00 2001
+From 3012bfeb43df9cf48e02706c5cab5b8c970a61a7 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
-Subject: [PATCH 57/82] libavcodec/qsvdec.c: extract frame packing arrangement
+Subject: [PATCH 57/85] libavcodec/qsvdec.c: extract frame packing arrangement
  data
 
 Use h264_sei to parse SEI data got from MediaSDK. Extract frame
@@ -15,7 +15,7 @@ Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 157 insertions(+)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 5d276b091c5d..e674464c6c6f 100644
+index 5d276b091c..e674464c6c 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -52,6 +52,8 @@
@@ -28,7 +28,7 @@ index 5d276b091c5d..e674464c6c6f 100644
      (MFX_VERSION_MAJOR > (MAJOR) ||         \
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index f543defb1821..3f692a33d9be 100644
+index 622750927c..22cd1a899c 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -38,12 +38,15 @@
@@ -46,8 +46,8 @@ index f543defb1821..3f692a33d9be 100644
 +#include "h264_sei.h"
  #include "qsv_internal.h"
  
- typedef struct QSVContext {
-@@ -80,8 +83,13 @@ typedef struct QSVContext {
+ static const AVRational mfx_tb = { 1, 90000 };
+@@ -90,8 +93,13 @@ typedef struct QSVContext {
  
      char *load_plugins;
  
@@ -61,7 +61,7 @@ index f543defb1821..3f692a33d9be 100644
  } QSVContext;
  
  static const AVCodecHWConfigInternal *const qsv_hw_configs[] = {
-@@ -441,6 +449,147 @@ static QSVFrame *find_frame(QSVContext *q, mfxFrameSurface1 *surf)
+@@ -451,6 +459,147 @@ static QSVFrame *find_frame(QSVContext *q, mfxFrameSurface1 *surf)
      return NULL;
  }
  
@@ -209,7 +209,7 @@ index f543defb1821..3f692a33d9be 100644
  static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
                        AVFrame *frame, int *got_frame,
                        const AVPacket *avpkt)
-@@ -544,6 +693,10 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
+@@ -554,6 +703,10 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
  
          outsurf = &out_frame->surface;
  
@@ -217,10 +217,10 @@ index f543defb1821..3f692a33d9be 100644
 +        if (ret < 0)
 +            av_log(avctx, AV_LOG_WARNING, "Extracting side from packet failed\n");
 +
-         frame->pts = outsurf->Data.TimeStamp;
+         frame->pts = MFX_PTS_TO_PTS(outsurf->Data.TimeStamp, avctx->pkt_timebase);
  
          frame->repeat_pict =
-@@ -601,6 +754,8 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
+@@ -611,6 +764,8 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
      av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
      av_buffer_unref(&q->frames_ctx.mids_buf);
      av_buffer_pool_uninit(&q->pool);
@@ -230,5 +230,5 @@ index f543defb1821..3f692a33d9be 100644
  
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
 -- 
-2.25.4
+2.25.1
 
