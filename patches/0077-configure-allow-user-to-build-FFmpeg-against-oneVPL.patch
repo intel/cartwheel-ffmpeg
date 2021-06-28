@@ -1,18 +1,18 @@
-From fbac4a1ce1777f54c6f488a64b075c0d6544b812 Mon Sep 17 00:00:00 2001
+From 5871d0953937456b0d682baf2de24d037549cf7a Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 14:49:46 +0800
-Subject: [PATCH 79/82] configure: allow user to build FFmpeg against oneVPL
+Subject: [PATCH 77/85] configure: allow user to build FFmpeg against oneVPL
 
 --enable-libvpl: build Intel oneVPL code via libvpl
 
 The version 2.2 of oneVPL is required, --enable-libvpl will take effect
 when both --enable-libvpl and --enable-libmfx are specified.
 ---
- configure | 26 ++++++++++++++++++++------
- 1 file changed, 20 insertions(+), 6 deletions(-)
+ configure | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/configure b/configure
-index 6dc78c7e7f..a3ab4b6dcf 100755
+index 0a086eedb6..16d6d4f7ef 100755
 --- a/configure
 +++ b/configure
 @@ -337,6 +337,7 @@ External library support:
@@ -31,16 +31,13 @@ index 6dc78c7e7f..a3ab4b6dcf 100755
      mmal
      omx
      opencl
-@@ -6413,16 +6415,28 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
+@@ -6421,16 +6423,25 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
  # Media SDK or Intel Media Server Studio, these don't come with
  # pkg-config support.  Instead, users should make sure that the build
  # can find the libraries and headers through other means.
 -enabled libmfx            && { { { check_pkg_config libmfx "libmfx < 2.0" "mfxvideo.h" MFXInit ||
 +
 +if enabled libvpl; then
-+    if ! enabled libmfx; then
-+        enabled libmfx
-+    fi
 +    check_pkg_config libmfx "vpl >= 2.2" "mfxvideo.h" MFXInit && \
 +        warn "Build FFmpeg against oneVPL, OPAQUE memory, multi-frame encode\n"\
 +             " and LA_EXT rate control mode in FFmpeg QSV won't be supported." ||
