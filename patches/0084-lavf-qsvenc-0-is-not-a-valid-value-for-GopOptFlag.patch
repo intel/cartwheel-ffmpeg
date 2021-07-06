@@ -1,4 +1,4 @@
-From 09e88126a5ec7e3775b64e305fce8627632388c9 Mon Sep 17 00:00:00 2001
+From 131c67f33531539fbe689cd9694df15cc2cf532a Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Fri, 23 Apr 2021 15:55:38 +0800
 Subject: [PATCH 84/84] lavf/qsvenc: '0' is not a valid value for GopOptFlag
@@ -12,7 +12,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 0878bef4eb..53407720ba 100644
+index 4c2107c4a1..e3cabeb56b 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -551,7 +551,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)

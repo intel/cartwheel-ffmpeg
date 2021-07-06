@@ -1,7 +1,7 @@
-From 11c972be504f0685df23ff5f6ddf7aee34b1fb30 Mon Sep 17 00:00:00 2001
+From fa4eca749be1c041f3bc3e8c2d9062f54eea064e Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 14:14:37 +0800
-Subject: [PATCH 58/82] libavcodec/qsvenc: Add transform skip for hevc_qsv
+Subject: [PATCH 58/84] libavcodec/qsvenc: Add transform skip for hevc_qsv
 
 Add transform skip option for hevc_qsv. Command line option
 is "transform_skip". By enabling this option, the
@@ -16,10 +16,10 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 361d8785d34d..174d94852c45 100644
+index 3bb1dfcf7b..e4c077e102 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -307,7 +307,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -311,7 +311,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
             info->FrameInfo.FrameRateExtD, info->FrameInfo.FrameRateExtN);
  
      av_log(avctx, AV_LOG_VERBOSE, "DisableDeblockingIdc: %"PRIu32" \n", co2->DisableDeblockingIdc);
@@ -30,7 +30,7 @@ index 361d8785d34d..174d94852c45 100644
  }
  
  static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
-@@ -808,10 +810,14 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -821,10 +823,14 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
              av_log(avctx, AV_LOG_WARNING, "Please set max_b_frames(-bf) to 0 to enable P-pyramid\n");
          }
  
@@ -47,7 +47,7 @@ index 361d8785d34d..174d94852c45 100644
  #endif
      }
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 7da6e0a50f36..d1de9147240b 100644
+index 7da6e0a50f..d1de914724 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -197,6 +197,7 @@ typedef struct QSVEncContext {
@@ -59,13 +59,13 @@ index 7da6e0a50f36..d1de9147240b 100644
      int a53_cc;
  
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 83d6af9c9b24..ae9a0c1f0734 100644
+index ced9fe026f..13b0347798 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -249,6 +249,9 @@ static const AVOption options[] = {
- 
-     { "tile_cols",  "Number of columns for tiled encoding",   OFFSET(qsv.tile_cols),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
+@@ -251,6 +251,9 @@ static const AVOption options[] = {
      { "tile_rows",  "Number of rows for tiled encoding",      OFFSET(qsv.tile_rows),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
+     { "recovery_point_sei", "Insert recovery point SEI messages",       OFFSET(qsv.recovery_point_sei),      AV_OPT_TYPE_INT, { .i64 = -1 },               -1,          1, VE },
+     { "aud", "Insert the Access Unit Delimiter NAL", OFFSET(qsv.aud), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE},
 +#if QSV_VERSION_ATLEAST(1, 26)
 +    { "transform_skip", "Turn this option ON to enable transformskip",   OFFSET(qsv.transform_skip),          AV_OPT_TYPE_INT,    { .i64 = -1},   -1, 1,  VE},
 +#endif
@@ -73,5 +73,5 @@ index 83d6af9c9b24..ae9a0c1f0734 100644
      { NULL },
  };
 -- 
-2.25.4
+2.25.1
 
