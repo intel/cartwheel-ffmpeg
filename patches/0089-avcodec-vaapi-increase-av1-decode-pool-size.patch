@@ -1,0 +1,33 @@
+From d8bdd3095251ca708a98973a3218e8d0da45d0e8 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Thu, 3 Jun 2021 13:58:27 -0400
+Subject: [PATCH 5/9] avcodec/vaapi: increase av1 decode pool size
+
+For film grain clip, vaapi_av1 decoder will cache additional 8
+surfaces that will be used to store frames which apply film grain.
+So increase the pool size by plus 8 to avoid leak of surface.
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavcodec/vaapi_decode.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index 958ddf49da..665af370ed 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -577,10 +577,10 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+         switch (avctx->codec_id) {
+         case AV_CODEC_ID_H264:
+         case AV_CODEC_ID_HEVC:
++        case AV_CODEC_ID_AV1:
+             frames->initial_pool_size += 16;
+             break;
+         case AV_CODEC_ID_VP9:
+-        case AV_CODEC_ID_AV1:
+             frames->initial_pool_size += 8;
+             break;
+         case AV_CODEC_ID_VP8:
+-- 
+2.17.1
+
