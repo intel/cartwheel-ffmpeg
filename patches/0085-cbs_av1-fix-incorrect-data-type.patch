@@ -1,0 +1,30 @@
+From 16ebb045dc1d6b14f5ab80ec3a0a424362f4e5f2 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Thu, 20 May 2021 16:28:16 -0400
+Subject: [PATCH 1/9] cbs_av1: fix incorrect data type
+
+Since order_hint_bits_minus_1 range is 0~7, cur_frame_hint can be
+most 128. And similar return value for cbs_av1_get_relative_dist.
+So if plus them and use int8_t for the result may lose its precision.
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavcodec/cbs_av1_syntax_template.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/cbs_av1_syntax_template.c b/libavcodec/cbs_av1_syntax_template.c
+index 6fe6e9a4f3..d98d3d42de 100644
+--- a/libavcodec/cbs_av1_syntax_template.c
++++ b/libavcodec/cbs_av1_syntax_template.c
+@@ -355,7 +355,7 @@ static int FUNC(set_frame_refs)(CodedBitstreamContext *ctx, RWContext *rw,
+         AV1_REF_FRAME_ALTREF2, AV1_REF_FRAME_ALTREF
+     };
+     int8_t ref_frame_idx[AV1_REFS_PER_FRAME], used_frame[AV1_NUM_REF_FRAMES];
+-    int8_t shifted_order_hints[AV1_NUM_REF_FRAMES];
++    int16_t shifted_order_hints[AV1_NUM_REF_FRAMES];
+     int cur_frame_hint, latest_order_hint, earliest_order_hint, ref;
+     int i, j;
+ 
+-- 
+2.17.1
+
