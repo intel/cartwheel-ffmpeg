@@ -1,7 +1,7 @@
-From 8b06e4c839ec74109cf544171be71ffe9ecbc69f Mon Sep 17 00:00:00 2001
+From ae42d0b6ab3679b63941bd1594bcca1c589242ee Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 9 Jun 2021 15:03:03 +0800
-Subject: [PATCH 7/9] avcodec/av1_vaapi: set display surface when apply film
+Subject: [PATCH 90/92] avcodec/av1_vaapi: set display surface when apply film
  grain
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
