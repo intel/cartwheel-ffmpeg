@@ -1,7 +1,7 @@
-From 8c620d1e36837bc5b1ce0764896e674df19fe2a9 Mon Sep 17 00:00:00 2001
+From 300df4493afde411b4efe010a364ec11277dce0a Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 20 May 2021 16:26:39 -0400
-Subject: [PATCH 2/9] avcodec/av1: extend some definitions in spec section 3
+Subject: [PATCH 85/92] avcodec/av1: extend some definitions in spec section 3
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---

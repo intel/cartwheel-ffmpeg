@@ -1,7 +1,7 @@
-From 4a28c5765a00dfd870495dcc1ab98aa80c3388f0 Mon Sep 17 00:00:00 2001
+From dc5c178133ef9ea205b27700cb9b845f9425873d Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 9 Jun 2021 15:00:28 +0800
-Subject: [PATCH 8/9] avcodec/av1_vaapi: enable segmentation features
+Subject: [PATCH 91/92] avcodec/av1_vaapi: enable segmentation features
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---

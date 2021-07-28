@@ -1,7 +1,7 @@
-From d8c58d957920aa2cba3078d3cf94311e4d5fb10f Mon Sep 17 00:00:00 2001
+From 060378250fae578d4832f7e370ffebd0e07947ab Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 9 Jun 2021 14:36:42 +0800
-Subject: [PATCH 4/9] avcodec/av1_vaapi: add gm params valid check
+Subject: [PATCH 87/92] avcodec/av1_vaapi: add gm params valid check
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
