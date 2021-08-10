@@ -1,4 +1,4 @@
-From 6587731d69c039668dd807faacdc91df56df4e70 Mon Sep 17 00:00:00 2001
+From 3173c910071aef75cc0b1ae295f38c63f0cdbf75 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
 Subject: [PATCH 77/92] qsv: use a new method to create mfx session when using
@@ -33,10 +33,10 @@ Signed-off-by: galinart <artem.galin@intel.com>
  15 files changed, 549 insertions(+), 89 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index d1a38678ee..ff4c5c16c8 100644
+index 5a32322a52..9fda80b2dc 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -448,6 +448,164 @@ static int ff_qsv_set_display_handle(AVCodecContext *avctx, QSVSession *qs)
+@@ -435,6 +435,164 @@ static int ff_qsv_set_display_handle(AVCodecContext *avctx, QSVSession *qs)
  }
  #endif //AVCODEC_QSV_LINUX_SESSION_HANDLE
  
@@ -201,7 +201,7 @@ index d1a38678ee..ff4c5c16c8 100644
  int ff_qsv_init_internal_session(AVCodecContext *avctx, QSVSession *qs,
                                   const char *load_plugins, int gpu_copy)
  {
-@@ -457,20 +615,13 @@ int ff_qsv_init_internal_session(AVCodecContext *avctx, QSVSession *qs,
+@@ -444,20 +602,13 @@ int ff_qsv_init_internal_session(AVCodecContext *avctx, QSVSession *qs,
      mfxIMPL          impl = MFX_IMPL_AUTO_ANY;
  #endif
      mfxVersion        ver = { { QSV_VERSION_MINOR, QSV_VERSION_MAJOR } };
@@ -226,7 +226,7 @@ index d1a38678ee..ff4c5c16c8 100644
  
  #ifdef AVCODEC_QSV_LINUX_SESSION_HANDLE
      ret = ff_qsv_set_display_handle(avctx, qs);
-@@ -771,7 +922,7 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
+@@ -758,7 +909,7 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
      AVHWDeviceContext    *device_ctx = (AVHWDeviceContext*)device_ref->data;
      AVQSVDeviceContext *device_hwctx = device_ctx->hwctx;
      mfxSession        parent_session = device_hwctx->session;
@@ -235,7 +235,7 @@ index d1a38678ee..ff4c5c16c8 100644
      mfxHDL                    handle = NULL;
      int          hw_handle_supported = 0;
  
-@@ -812,15 +963,11 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
+@@ -799,15 +950,11 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
                 "from the session\n");
      }
  
@@ -256,7 +256,7 @@ index d1a38678ee..ff4c5c16c8 100644
  
      if (handle) {
          err = MFXVideoCORE_SetHandle(session, handle_type, handle);
-@@ -897,7 +1044,9 @@ int ff_qsv_close_internal_session(QSVSession *qs)
+@@ -884,7 +1031,9 @@ int ff_qsv_close_internal_session(QSVSession *qs)
  {
      if (qs->session) {
          MFXClose(qs->session);
@@ -267,7 +267,7 @@ index d1a38678ee..ff4c5c16c8 100644
  #ifdef AVCODEC_QSV_LINUX_SESSION_HANDLE
      av_buffer_unref(&qs->va_device_ref);
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 7af661a157..0851de0205 100644
+index 35cf74831d..c25f4f2e2a 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -92,6 +92,7 @@ typedef struct QSVFrame {
@@ -279,7 +279,7 @@ index 7af661a157..0851de0205 100644
      AVBufferRef *va_device_ref;
      AVHWDeviceContext *va_device_ctx;
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 855da09cfb..bfdd5338b6 100644
+index f26516b1bf..f37e698367 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -169,7 +169,9 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
@@ -303,7 +303,7 @@ index 855da09cfb..bfdd5338b6 100644
  
          ret = ff_qsv_init_session_device(avctx, &q->internal_qs.session,
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 22e27ce7b4..ea906c699a 100644
+index e432381b71..1024c23dcc 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -28,6 +28,9 @@
@@ -377,7 +377,7 @@ index 0a382eb76d..9d88b03bbf 100644
  
  typedef struct QSVVP9EncContext {
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 7a82f03806..56333e0bd5 100644
+index 43d8c30c89..d3c3a1f1f2 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -23,8 +23,6 @@
@@ -408,9 +408,9 @@ index 7a82f03806..56333e0bd5 100644
  
      if (handle) {
          ret = MFXVideoCORE_SetHandle(s->session, handle_type, handle);
-@@ -910,3 +906,96 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -913,3 +909,96 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
  
-     return ret;
+     return 0;
  }
 +
 +#if QSV_ONEVPL
