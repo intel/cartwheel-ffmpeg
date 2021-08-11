@@ -1,0 +1,30 @@
+From 57f130644b6b5fed38c27df26c41c5ada7d15087 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Wed, 11 Aug 2021 15:41:13 +0800
+Subject: [PATCH 93/93] hwcontext_qsv: update implementation for DXVA2
+
+---
+ libavutil/hwcontext_qsv.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index 5bbcc149e9..b19559b757 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -1615,8 +1615,11 @@ static mfxIMPL choose_implementation(const char *device, enum AVHWDeviceType chi
+             impl = strtol(device, NULL, 0);
+     }
+ 
+-    if ( (child_device_type == AV_HWDEVICE_TYPE_D3D11VA) && (impl != MFX_IMPL_SOFTWARE) ) {
+-        impl |= MFX_IMPL_VIA_D3D11;
++    if (impl != MFX_IMPL_SOFTWARE) {
++        if (child_device_type == AV_HWDEVICE_TYPE_D3D11VA)
++            impl |= MFX_IMPL_VIA_D3D11;
++        else if (child_device_type == AV_HWDEVICE_TYPE_DXVA2)
++            impl |= MFX_IMPL_VIA_D3D9;
+     }
+ 
+     return impl;
+-- 
+2.17.1
+
