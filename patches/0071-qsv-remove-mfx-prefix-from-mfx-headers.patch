@@ -1,7 +1,7 @@
-From 788fb474cc1826fcf08ad69bc641270ab83af14d Mon Sep 17 00:00:00 2001
+From babceeff1353bd89e294d52fc08dc6c679640543 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 8 Sep 2020 11:17:27 +0800
-Subject: [PATCH 71/93] qsv: remove mfx/ prefix from mfx headers
+Subject: [PATCH 71/92] qsv: remove mfx/ prefix from mfx headers
 
 The following Cflags has been added to libmfx.pc, so mfx/ prefix is no
 longer needed when including mfx headers in FFmpeg.
@@ -26,7 +26,6 @@ This is in preparation for oneVPL support (mfx headers in oneVPL are
 installed under vpl directory)
 ---
  configure                        | 13 +++++++++----
- fftools/ffmpeg_qsv.c             |  2 +-
  libavcodec/qsv.c                 |  8 ++++----
  libavcodec/qsv.h                 |  2 +-
  libavcodec/qsv_internal.h        |  2 +-
@@ -44,13 +43,13 @@ installed under vpl directory)
  libavutil/hwcontext_opencl.c     |  2 +-
  libavutil/hwcontext_qsv.c        |  2 +-
  libavutil/hwcontext_qsv.h        |  2 +-
- 19 files changed, 30 insertions(+), 25 deletions(-)
+ 18 files changed, 29 insertions(+), 24 deletions(-)
 
 diff --git a/configure b/configure
-index 252ecf2677..37815264cc 100755
+index c16b4e0485..890e4a8178 100755
 --- a/configure
 +++ b/configure
-@@ -6452,13 +6452,18 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
+@@ -6438,13 +6438,18 @@ enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_
  # Media SDK or Intel Media Server Studio, these don't come with
  # pkg-config support.  Instead, users should make sure that the build
  # can find the libraries and headers through other means.
@@ -73,21 +72,8 @@ index 252ecf2677..37815264cc 100755
  fi
  
  enabled libmodplug        && require_pkg_config libmodplug libmodplug libmodplug/modplug.h ModPlug_Load
-diff --git a/fftools/ffmpeg_qsv.c b/fftools/ffmpeg_qsv.c
-index 960c88b69d..0df0b5832c 100644
---- a/fftools/ffmpeg_qsv.c
-+++ b/fftools/ffmpeg_qsv.c
-@@ -16,7 +16,7 @@
-  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-  */
- 
--#include <mfx/mfxvideo.h>
-+#include <mfxvideo.h>
- #include <stdlib.h>
- 
- #include "libavutil/dict.h"
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 29f08b6641..ea14f11737 100644
+index a38d31a53f..a1af639409 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -18,9 +18,9 @@
@@ -126,7 +112,7 @@ index b77158ec26..04ae0d6f34 100644
  #include "libavutil/buffer.h"
  
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 707e5d6be0..dbef6f8bcd 100644
+index 2f76e52518..e466fd4117 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -39,7 +39,7 @@
@@ -139,7 +125,7 @@ index 707e5d6be0..dbef6f8bcd 100644
  #include "libavutil/frame.h"
  
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 3d2e6110da..ec420d2d90 100644
+index ab0663cc2e..9442ed0e5c 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -25,7 +25,7 @@
@@ -152,7 +138,7 @@ index 3d2e6110da..ec420d2d90 100644
  #include "libavutil/common.h"
  #include "libavutil/fifo.h"
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 59c0cf033c..9dd8478b8d 100644
+index a812acaa21..828834c8b6 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -23,7 +23,7 @@
@@ -165,7 +151,7 @@ index 59c0cf033c..9dd8478b8d 100644
  #include "libavutil/common.h"
  #include "libavutil/hwcontext.h"
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 99befefde1..3fa825eef3 100644
+index b7d4828eb4..b141ae3989 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -26,7 +26,7 @@
@@ -256,7 +242,7 @@ index e0f4c8f5bb..8c0cf3ed95 100644
  #include "avfilter.h"
  #include "libavutil/fifo.h"
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index cd128c2dca..b56f2afaf7 100644
+index 238e83bfd3..2602ce2978 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -21,7 +21,7 @@
@@ -269,7 +255,7 @@ index cd128c2dca..b56f2afaf7 100644
  #include <stdio.h>
  #include <string.h>
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
-index 692592072c..3170d97a41 100644
+index f32cacc1e2..e9697f52b2 100644
 --- a/libavfilter/vf_scale_qsv.c
 +++ b/libavfilter/vf_scale_qsv.c
 @@ -21,7 +21,7 @@
@@ -295,7 +281,7 @@ index 964b783a8f..320751a8e4 100644
  #include <va/va.h>
  #include <CL/cl_va_api_media_sharing_intel.h>
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 0306f908d8..da92d089d0 100644
+index 6ee64657c6..7f379cd6ca 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -19,7 +19,7 @@
