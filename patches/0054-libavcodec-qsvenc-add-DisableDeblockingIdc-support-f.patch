@@ -1,7 +1,7 @@
-From 9c2b87c0f9e4ba8d2b3ba79d3e1dbd0291d87f95 Mon Sep 17 00:00:00 2001
+From c51d73101f45b2d00c0fc55faf31bd58f75ca538 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 4 Jan 2021 09:49:22 +0800
-Subject: [PATCH 54/82] libavcodec/qsvenc: add DisableDeblockingIdc support for
+Subject: [PATCH 54/92] libavcodec/qsvenc: add DisableDeblockingIdc support for
  qsv
 
 MediaSDK already has a flag to control deblocking (DisableDeblockingIdc). Add dblk_idc parameter in ffmpeg to expose this flag to user.
@@ -13,10 +13,10 @@ Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 9 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index f5c4cc491a86..7159ebd3e2dd 100644
+index 29540d5f7d..0884e20bfc 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -298,6 +298,8 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -302,6 +302,8 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
      av_log(avctx, AV_LOG_VERBOSE, "FrameRateExtD: %"PRIu32"; FrameRateExtN: %"PRIu32" \n",
             info->FrameInfo.FrameRateExtD, info->FrameInfo.FrameRateExtN);
  
@@ -25,7 +25,7 @@ index f5c4cc491a86..7159ebd3e2dd 100644
  }
  
  static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
-@@ -711,6 +713,10 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -726,6 +728,10 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
              if (q->max_slice_size >= 0)
                  q->extco2.MaxSliceSize = q->max_slice_size;
  #endif
@@ -37,7 +37,7 @@ index f5c4cc491a86..7159ebd3e2dd 100644
  #if QSV_HAVE_TRELLIS
              if (avctx->trellis >= 0)
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 6d305f87ddbe..3720320789de 100644
+index 31516b8e55..c79fdff41f 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -44,6 +44,7 @@
@@ -51,12 +51,12 @@ index 6d305f87ddbe..3720320789de 100644
 @@ -97,6 +98,7 @@
  { "b_strategy",     "Strategy to choose between I/P/B-frames", OFFSET(qsv.b_strategy),    AV_OPT_TYPE_INT, { .i64 = -1 }, -1,          1, VE },                         \
  { "forced_idr",     "Forcing I frames as IDR frames",         OFFSET(qsv.forced_idr),     AV_OPT_TYPE_BOOL,{ .i64 = 0  },  0,          1, VE },                         \
- { "low_power", "enable low power mode(experimental: many limitations by mfx version, BRC modes, etc.)", OFFSET(qsv.low_power), AV_OPT_TYPE_BOOL, { .i64 = 0}, 0, 1, VE},\
+ { "low_power", "enable low power mode(experimental: many limitations by mfx version, BRC modes, etc.)", OFFSET(qsv.low_power), AV_OPT_TYPE_BOOL, { .i64 = -1}, -1, 1, VE},\
 +{ "dblk_idc", "value of DisableDeblockingIdc (default is 0), in range [0,2]",   OFFSET(qsv.dblk_idc),   AV_OPT_TYPE_INT,    { .i64 = 0 },   0,  2,  VE},    \
  
  extern const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[];
  
-@@ -167,6 +169,7 @@ typedef struct QSVEncContext {
+@@ -169,6 +171,7 @@ typedef struct QSVEncContext {
      int rdo;
      int max_frame_size;
      int max_slice_size;
@@ -65,5 +65,5 @@ index 6d305f87ddbe..3720320789de 100644
      int tile_cols;
      int tile_rows;
 -- 
-2.25.4
+2.17.1
 
