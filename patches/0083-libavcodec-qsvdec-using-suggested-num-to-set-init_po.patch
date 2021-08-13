@@ -1,7 +1,7 @@
-From a4b2ad9955f81121ba28a6c2189a8fdc573d0c21 Mon Sep 17 00:00:00 2001
+From 9e9751a6bfecd59f4cc6ea591cd706893044e0a2 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Tue, 26 Jan 2021 09:55:59 +0800
-Subject: [PATCH 3/3] libavcodec/qsvdec: using suggested num to set
+Subject: [PATCH 83/92] libavcodec/qsvdec: using suggested num to set
  init_pool_size
 
 The init_pool_size is set to be 64 and it is too many.
@@ -14,54 +14,36 @@ may followed by VPP, use NumFrameSuggest + 16 to set init_pool_size.
 Sigend-off-by Wenbin Chen <wenbin.chen@intel.com>
 Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
 ---
- fftools/ffmpeg_qsv.c |  9 ++++++++-
- libavcodec/qsvdec.c  | 14 ++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ libavcodec/qsvdec.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
 
-diff --git a/fftools/ffmpeg_qsv.c b/fftools/ffmpeg_qsv.c
-index 0df0b5832c..77ad4c9bbf 100644
---- a/fftools/ffmpeg_qsv.c
-+++ b/fftools/ffmpeg_qsv.c
-@@ -74,6 +74,7 @@ int qsv_init(AVCodecContext *s)
-     InputStream *ist = s->opaque;
-     AVHWFramesContext *frames_ctx;
-     AVQSVFramesContext *frames_hwctx;
-+    int suggest_pool_size;
-     int ret;
- 
-     if (!hw_device_ctx) {
-@@ -82,6 +83,12 @@ int qsv_init(AVCodecContext *s)
-             return ret;
-     }
- 
-+    suggest_pool_size = 0;
-+    if (ist->hw_frames_ctx) {
-+        frames_ctx = (AVHWFramesContext *)ist->hw_frames_ctx->data;
-+        suggest_pool_size = frames_ctx->initial_pool_size;
-+    }
-+
-     av_buffer_unref(&ist->hw_frames_ctx);
-     ist->hw_frames_ctx = av_hwframe_ctx_alloc(hw_device_ctx);
-     if (!ist->hw_frames_ctx)
-@@ -94,7 +101,7 @@ int qsv_init(AVCodecContext *s)
-     frames_ctx->height            = FFALIGN(s->coded_height, 32);
-     frames_ctx->format            = AV_PIX_FMT_QSV;
-     frames_ctx->sw_format         = s->sw_pix_fmt;
--    frames_ctx->initial_pool_size = 64 + s->extra_hw_frames;
-+    frames_ctx->initial_pool_size = suggest_pool_size + 16 + s->extra_hw_frames;
-     frames_hwctx->frame_type      = MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET;
- 
-     ret = av_hwframe_ctx_init(ist->hw_frames_ctx);
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 2cfa0fcfe1..bdea9bc08b 100644
+index 6a5e4e9abb..92a816a344 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -808,18 +808,32 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -82,7 +82,7 @@ typedef struct QSVContext {
+     uint32_t fourcc;
+     mfxFrameInfo frame_info;
+     AVBufferPool *pool;
+-
++    int suggest_pool_size;
+     int initialized;
+ 
+     // options set by the caller
+@@ -282,7 +282,7 @@ static int qsv_decode_preinit(AVCodecContext *avctx, QSVContext *q, enum AVPixel
+         hwframes_ctx->height            = FFALIGN(avctx->coded_height, 32);
+         hwframes_ctx->format            = AV_PIX_FMT_QSV;
+         hwframes_ctx->sw_format         = avctx->sw_pix_fmt;
+-        hwframes_ctx->initial_pool_size = 64 + avctx->extra_hw_frames;
++        hwframes_ctx->initial_pool_size = q->suggest_pool_size + 16 + avctx->extra_hw_frames;
+         frames_hwctx->frame_type        = MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET;
+ 
+         ret = av_hwframe_ctx_init(avctx->hw_frames_ctx);
+@@ -865,18 +865,28 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
      }
  
      if (q->reinit_flag || !q->session) {
 +        mfxFrameAllocRequest request;
-+        AVHWFramesContext *hw_frames_ctx;
 +        memset(&request, 0, sizeof(request));
 +
          q->reinit_flag = 0;
@@ -81,14 +63,11 @@ index 2cfa0fcfe1..bdea9bc08b 100644
 +        if (ret < 0)
 +            return ff_qsv_print_error(avctx, ret, "Error querying IO surface");
 +
-+        if (avctx->hw_frames_ctx) {
-+            hw_frames_ctx = (AVHWFramesContext *)avctx->hw_frames_ctx->data;
-+            hw_frames_ctx->initial_pool_size = request.NumFrameSuggested;
-+        }
++        q->suggest_pool_size = request.NumFrameSuggested;
 +
          ret = qsv_decode_preinit(avctx, q, pix_fmt, &param);
          if (ret < 0)
              goto reinit_fail;
 -- 
-2.25.1
+2.17.1
 
