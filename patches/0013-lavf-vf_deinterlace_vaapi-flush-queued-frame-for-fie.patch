@@ -1,7 +1,7 @@
-From 70e9d5ce2b2a1c798e4f9b047dd1eba5fed53450 Mon Sep 17 00:00:00 2001
+From dd223f6de119a833598591231a32908de61affa7 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Fri, 2 Aug 2019 16:11:38 +0800
-Subject: [PATCH 13/82] lavf/vf_deinterlace_vaapi: flush queued frame for field
+Subject: [PATCH 13/94] lavf/vf_deinterlace_vaapi: flush queued frame for field
  in DeinterlacingBob
 
 For DeinterlacingBob mode with rate=field, the frame number of output
@@ -31,10 +31,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 38 insertions(+), 6 deletions(-)
 
 diff --git a/libavfilter/vf_deinterlace_vaapi.c b/libavfilter/vf_deinterlace_vaapi.c
-index 0e645f50f249..d685237e1ddf 100644
+index 5ec830213e..ab5c377231 100644
 --- a/libavfilter/vf_deinterlace_vaapi.c
 +++ b/libavfilter/vf_deinterlace_vaapi.c
-@@ -48,6 +48,9 @@ typedef struct DeintVAAPIContext {
+@@ -46,6 +46,9 @@ typedef struct DeintVAAPIContext {
      int                queue_count;
      AVFrame           *frame_queue[MAX_REFERENCES];
      int                extra_delay_for_timestamps;
@@ -44,7 +44,7 @@ index 0e645f50f249..d685237e1ddf 100644
  } DeintVAAPIContext;
  
  static const char *deint_vaapi_mode_name(int mode)
-@@ -190,9 +193,11 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
+@@ -188,9 +191,11 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
      void *filter_params_addr = NULL;
      int err, i, field, current_frame_index;
  
@@ -59,7 +59,7 @@ index 0e645f50f249..d685237e1ddf 100644
  
      if (ctx->queue_count < ctx->queue_depth) {
          ctx->frame_queue[ctx->queue_count++] = input_frame;
-@@ -210,6 +215,9 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
+@@ -208,6 +213,9 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
      current_frame_index = ctx->pipeline_caps.num_forward_references;
  
      input_frame = ctx->frame_queue[current_frame_index];
@@ -69,7 +69,7 @@ index 0e645f50f249..d685237e1ddf 100644
      input_surface = (VASurfaceID)(uintptr_t)input_frame->data[3];
      for (i = 0; i < ctx->pipeline_caps.num_forward_references; i++)
          forward_references[i] = (VASurfaceID)(uintptr_t)
-@@ -291,6 +299,8 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
+@@ -289,6 +297,8 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
          if (ctx->field_rate == 2) {
              if (field == 0)
                  output_frame->pts = 2 * input_frame->pts;
@@ -78,7 +78,7 @@ index 0e645f50f249..d685237e1ddf 100644
              else
                  output_frame->pts = input_frame->pts +
                      ctx->frame_queue[current_frame_index + 1]->pts;
-@@ -306,6 +316,8 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
+@@ -304,6 +314,8 @@ static int deint_vaapi_filter_frame(AVFilterLink *inlink, AVFrame *input_frame)
              break;
      }
  
@@ -87,7 +87,7 @@ index 0e645f50f249..d685237e1ddf 100644
      return err;
  
  fail:
-@@ -315,6 +327,25 @@ fail:
+@@ -313,6 +325,25 @@ fail:
      return err;
  }
  
@@ -113,7 +113,7 @@ index 0e645f50f249..d685237e1ddf 100644
  static av_cold int deint_vaapi_init(AVFilterContext *avctx)
  {
      VAAPIVPPContext *vpp_ctx = avctx->priv;
-@@ -376,9 +407,10 @@ static const AVFilterPad deint_vaapi_inputs[] = {
+@@ -373,9 +404,10 @@ static const AVFilterPad deint_vaapi_inputs[] = {
  
  static const AVFilterPad deint_vaapi_outputs[] = {
      {
@@ -125,8 +125,8 @@ index 0e645f50f249..d685237e1ddf 100644
 +        .request_frame  = &deint_vaapi_request_frame,
 +        .config_props   = &deint_vaapi_config_output,
      },
-     { NULL }
  };
+ 
 -- 
-2.25.4
+2.25.1
 
