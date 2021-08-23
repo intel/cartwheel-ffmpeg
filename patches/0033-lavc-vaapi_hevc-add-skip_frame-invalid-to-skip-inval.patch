@@ -1,7 +1,7 @@
-From eb795b1f3e9d2fb33a05d2763e7aa996e4c88859 Mon Sep 17 00:00:00 2001
+From c2459c1448e84c1ad4a14706f9a65b0b60c1a958 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 14:56:25 +0800
-Subject: [PATCH 33/85] lavc/vaapi_hevc: add -skip_frame invalid to skip
+Subject: [PATCH 33/94] lavc/vaapi_hevc: add -skip_frame invalid to skip
  invalid nalus
 
 Works in single thread mode:
@@ -21,7 +21,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  4 files changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/defs.h b/libavcodec/defs.h
-index 420a042b8ff4..25052048b4e0 100644
+index 420a042b8f..25052048b4 100644
 --- a/libavcodec/defs.h
 +++ b/libavcodec/defs.h
 @@ -47,6 +47,7 @@ enum AVDiscard{
@@ -33,10 +33,10 @@ index 420a042b8ff4..25052048b4e0 100644
      AVDISCARD_BIDIR   = 16, ///< discard all bidirectional frames
      AVDISCARD_NONINTRA= 24, ///< discard all non intra frames
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index f20136d15593..1feb41350630 100644
+index c3005876b4..fc3d0bebaa 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -567,8 +567,11 @@ static int hls_slice_header(HEVCContext *s)
+@@ -568,8 +568,11 @@ static int hls_slice_header(HEVCContext *s)
              ff_hevc_clear_refs(s);
      }
      sh->no_output_of_prior_pics_flag = 0;
@@ -49,7 +49,7 @@ index f20136d15593..1feb41350630 100644
  
      sh->pps_id = get_ue_golomb_long(gb);
      if (sh->pps_id >= HEVC_MAX_PPS_COUNT || !s->ps.pps_list[sh->pps_id]) {
-@@ -3050,6 +3053,7 @@ static int decode_nal_unit(HEVCContext *s, const H2645NAL *nal)
+@@ -3106,6 +3109,7 @@ static int decode_nal_unit(HEVCContext *s, const H2645NAL *nal)
          if (
              (s->avctx->skip_frame >= AVDISCARD_BIDIR && s->sh.slice_type == HEVC_SLICE_B) ||
              (s->avctx->skip_frame >= AVDISCARD_NONINTRA && s->sh.slice_type != HEVC_SLICE_I) ||
@@ -58,7 +58,7 @@ index f20136d15593..1feb41350630 100644
              break;
          }
 diff --git a/libavcodec/options_table.h b/libavcodec/options_table.h
-index ed428b131046..f38bb56a0e46 100644
+index ae42b65b7b..2fd6dcabf3 100644
 --- a/libavcodec/options_table.h
 +++ b/libavcodec/options_table.h
 @@ -248,6 +248,7 @@ static const AVOption avcodec_options[] = {
@@ -70,17 +70,17 @@ index ed428b131046..f38bb56a0e46 100644
  {"bidir"           , "discard all bidirectional frames",    0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_BIDIR   }, INT_MIN, INT_MAX, V|D, "avdiscard"},
  {"nokey"           , "discard all frames except keyframes", 0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_NONKEY  }, INT_MIN, INT_MAX, V|D, "avdiscard"},
 diff --git a/libavcodec/pthread_frame.c b/libavcodec/pthread_frame.c
-index 2ff71ca39ecd..f6e83c3c7e66 100644
+index 8c0966f026..98fbd2a7f3 100644
 --- a/libavcodec/pthread_frame.c
 +++ b/libavcodec/pthread_frame.c
-@@ -277,6 +277,7 @@ static int update_context_from_thread(AVCodecContext *dst, AVCodecContext *src,
- 
+@@ -278,6 +278,7 @@ static int update_context_from_thread(AVCodecContext *dst, AVCodecContext *src,
          dst->has_b_frames = src->has_b_frames;
          dst->idct_algo    = src->idct_algo;
+         dst->properties   = src->properties;
 +        dst->skip_frame   = src->skip_frame;
  
          dst->bits_per_coded_sample = src->bits_per_coded_sample;
          dst->sample_aspect_ratio   = src->sample_aspect_ratio;
 -- 
-2.25.4
+2.17.1
 

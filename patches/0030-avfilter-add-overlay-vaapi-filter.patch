@@ -1,4 +1,4 @@
-From 3f731028b976c794a1457383d92de4bda02647d7 Mon Sep 17 00:00:00 2001
+From 9db21a69066230da8d849ae41c52e508af46032d Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Wed, 26 Feb 2020 13:53:34 +0800
 Subject: [PATCH 30/94] avfilter: add overlay vaapi filter
@@ -15,6 +15,7 @@ FFMPEG -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -hwaccel_output_format v
 "[0:v]hwupload[a], [1:v]format=yuv420p, hwupload[b], [a][b]overlay_vaapi, hwdownload" \
 OUTPUT
 
+Signed-off-by: U. Artie Eoff <ullysses.a.eoff@intel.com>
 Signed-off-by: Xinpeng Sun <xinpeng.sun@intel.com>
 Signed-off-by: Zachary Zhou <zachary.zhou@intel.com>
 ---
@@ -22,12 +23,12 @@ Signed-off-by: Zachary Zhou <zachary.zhou@intel.com>
  doc/filters.texi               |  51 ++++
  libavfilter/Makefile           |   1 +
  libavfilter/allfilters.c       |   1 +
- libavfilter/vf_overlay_vaapi.c | 426 +++++++++++++++++++++++++++++++++
- 5 files changed, 482 insertions(+)
+ libavfilter/vf_overlay_vaapi.c | 424 +++++++++++++++++++++++++++++++++
+ 5 files changed, 480 insertions(+)
  create mode 100644 libavfilter/vf_overlay_vaapi.c
 
 diff --git a/configure b/configure
-index 9249254b7082..5f54edab5bec 100755
+index 9249254b70..5f54edab5b 100755
 --- a/configure
 +++ b/configure
 @@ -3623,6 +3623,7 @@ openclsrc_filter_deps="opencl"
@@ -55,7 +56,7 @@ index 9249254b7082..5f54edab5bec 100755
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
 diff --git a/doc/filters.texi b/doc/filters.texi
-index f8d99b717128..a4067fe814ac 100644
+index c84202cf85..0bb5741085 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
 @@ -23973,6 +23973,57 @@ To enable compilation of these filters you need to configure FFmpeg with
@@ -117,7 +118,7 @@ index f8d99b717128..a4067fe814ac 100644
  
  Perform HDR(High Dynamic Range) to SDR(Standard Dynamic Range) conversion with tone-mapping.
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index 102ce7beff68..a4978da29523 100644
+index 102ce7beff..a4978da295 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
 @@ -356,6 +356,7 @@ OBJS-$(CONFIG_OVERLAY_CUDA_FILTER)           += vf_overlay_cuda.o framesync.o vf
@@ -129,7 +130,7 @@ index 102ce7beff68..a4978da29523 100644
  OBJS-$(CONFIG_OWDENOISE_FILTER)              += vf_owdenoise.o
  OBJS-$(CONFIG_PAD_FILTER)                    += vf_pad.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 73040d2824b4..8d2150739f66 100644
+index 73040d2824..8d2150739f 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
 @@ -339,6 +339,7 @@ extern const AVFilter ff_vf_oscilloscope;
@@ -142,10 +143,10 @@ index 73040d2824b4..8d2150739f66 100644
  extern const AVFilter ff_vf_owdenoise;
 diff --git a/libavfilter/vf_overlay_vaapi.c b/libavfilter/vf_overlay_vaapi.c
 new file mode 100644
-index 000000000000..249e24cd4263
+index 0000000000..e0e583525d
 --- /dev/null
 +++ b/libavfilter/vf_overlay_vaapi.c
-@@ -0,0 +1,426 @@
+@@ -0,0 +1,424 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -547,7 +548,6 @@ index 000000000000..249e24cd4263
 +        .type             = AVMEDIA_TYPE_VIDEO,
 +        .get_buffer.video = ff_default_get_video_buffer,
 +    },
-+    { NULL }
 +};
 +
 +static const AVFilterPad overlay_vaapi_outputs[] = {
@@ -556,7 +556,6 @@ index 000000000000..249e24cd4263
 +        .type          = AVMEDIA_TYPE_VIDEO,
 +        .config_props  = &overlay_vaapi_config_output,
 +    },
-+    { NULL }
 +};
 +
 +AVFilter ff_vf_overlay_vaapi = {
@@ -568,10 +567,10 @@ index 000000000000..249e24cd4263
 +    .uninit          = &overlay_vaapi_uninit,
 +    .query_formats   = &overlay_vaapi_query_formats,
 +    .activate        = &overlay_vaapi_activate,
-+    .inputs          = overlay_vaapi_inputs,
-+    .outputs         = overlay_vaapi_outputs,
++    FILTER_INPUTS(overlay_vaapi_inputs),
++    FILTER_OUTPUTS(overlay_vaapi_outputs),
 +    .flags_internal  = FF_FILTER_FLAG_HWFRAME_AWARE,
 +};
 -- 
-2.25.4
+2.17.1
 
