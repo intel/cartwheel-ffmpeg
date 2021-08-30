@@ -1,7 +1,7 @@
-From 61fe559714455417ca0dc424a343970cb7ac1739 Mon Sep 17 00:00:00 2001
+From 546c04a704995f554f0cd324378eb2aa1ed5f665 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 14:49:46 +0800
-Subject: [PATCH 78/93] configure: add --enable-libvpl option
+Subject: [PATCH 78/94] configure: add --enable-libvpl option
 
 This allows user to build FFmpeg against Intel's oneVPL SDK. oneVPL 2.2
 is the required minimum version when building Intel oneVPL SDK code.
@@ -9,11 +9,11 @@ is the required minimum version when building Intel oneVPL SDK code.
 It will fail to run configure script if both libmfx and libvpl are
 enabled.
 ---
- configure | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ configure | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
 
 diff --git a/configure b/configure
-index cbefec9850..d61feb9a17 100755
+index 4ec1bb017b..ad022c5a99 100755
 --- a/configure
 +++ b/configure
 @@ -337,6 +337,7 @@ External library support:
@@ -32,7 +32,7 @@ index cbefec9850..d61feb9a17 100755
      mmal
      omx
      opencl
-@@ -6441,22 +6443,33 @@ enabled libilbc           && require libilbc ilbc.h WebRtcIlbcfix_InitDecode -li
+@@ -6428,22 +6430,34 @@ enabled libilbc           && require libilbc ilbc.h WebRtcIlbcfix_InitDecode -li
  enabled libklvanc         && require libklvanc libklvanc/vanc.h klvanc_context_create -lklvanc
  enabled libkvazaar        && require_pkg_config libkvazaar "kvazaar >= 0.8.1" kvazaar.h kvz_api_get
  enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_db_new
@@ -62,7 +62,8 @@ index cbefec9850..d61feb9a17 100755
 +    warn "build FFmpeg against libmfx 1.x, obsolete features of libmfx such as OPAQUE memory,\n"\
 +         "multi-frame encode, user plugins and LA_EXT rate control mode are enabled"
 +elif enabled libvpl; then
-+# Consider pkg-config only, libmfx is still used for --enable-vpl option
++# Consider pkg-config only. The name of libmfx is still used in the following check for --enable-vpl option
++# because QSV has dependency on libmfx, we can use the same dependency if using libmfx in this check.
 +    check_pkg_config libmfx "vpl >= 2.2" "mfxvideo.h mfxdispatcher.h" MFXLoad && \
 +        warn "build FFmpeg against oneVPL 2.2+, OPAQUE memory, multi-frame encode, user plugins\n"\
 +             "and LA_EXT rate control mode in FFmpeg QSV won't be supported." ||

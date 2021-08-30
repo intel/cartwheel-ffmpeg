@@ -1,15 +1,15 @@
-From 0ad4681e9d7f82b7bd076d1d68cd89f8e087e1de Mon Sep 17 00:00:00 2001
+From 8af7f826f407147c5a16113999436c7c3fd8420a Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Fri, 19 Feb 2021 08:51:35 +0800
-Subject: [PATCH 70/93] configure: fix the check for MFX_CODEC_VP9
+Subject: [PATCH 70/94] configure: fix the check for MFX_CODEC_VP9
 
-The data structures for VP9 in mfxvp9.h were wrapped by
+The data structures for VP9 in mfxvp9.h is wrapped by
 MFX_VERSION_NEXT, which means those data structures have never been used
-in a public release. Actually MFX_CODEC_VP9 and other VP9 stuffs were
-added in mfxstructures.h. In addition, mfxdefs.h was included in
+in a public release. Actually MFX_CODEC_VP9 and other VP9 stuffs is
+added in mfxstructures.h. In addition, mfxdefs.h is included in
 mfxvp9.h, so we may use the check in this patch for MFX_CODEC_VP9
 
-This is in preparation for oneVPL support because mfxvp9.h was removed
+This is in preparation for oneVPL support because mfxvp9.h is removed
 from oneVPL [1]
 
 [1]: https://github.com/oneapi-src/oneVPL
@@ -18,10 +18,10 @@ from oneVPL [1]
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index fa79f9e8ad..252ecf2677 100755
+index 2edbe12970..0c297f3095 100755
 --- a/configure
 +++ b/configure
-@@ -6458,7 +6458,7 @@ enabled libmfx            && { { check_pkg_config libmfx "libmfx < 2.0" "mfx/mfx
+@@ -6440,7 +6440,7 @@ enabled libmfx            && { { check_pkg_config libmfx "libmfx < 2.0" "mfx/mfx
                                      "multi-frame encode, user plugins and LA_EXT rate control mode are enabled"; }
  
  if enabled libmfx; then

@@ -1,12 +1,12 @@
-From 1ca0f5d34af4e4ba05ab7314fce86bf2325ea457 Mon Sep 17 00:00:00 2001
+From 95aa7f31d698fb596561df47b662cafe3a7f04fa Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 18 Aug 2020 15:20:38 +0800
-Subject: [PATCH 72/92] qsv: load user plugin for MFX_VERSION < 2.0
+Subject: [PATCH 72/94] qsv: load user plugin for MFX_VERSION < 2.0
 
 User plugin isn't supported for MFX_VERSION >= 2.0[1][2]. This is in
 preparation for oneVPL Support
 
-[1]: https://spec.oneapi.com/versions/latest/elements/oneVPL/source/appendix/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
+[1]: https://spec.oneapi.io/versions/latest/elements/oneVPL/source/appendix/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
 [2]: https://github.com/oneapi-src/oneVPL
 ---
  libavcodec/qsv.c          | 8 +++++++-
@@ -14,7 +14,7 @@ preparation for oneVPL Support
  2 files changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index a73f38c8e4..ccf6b0bfc1 100644
+index a1af639409..192b8cda28 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -19,7 +19,6 @@
@@ -42,7 +42,7 @@ index a73f38c8e4..ccf6b0bfc1 100644
  int ff_qsv_codec_id_to_mfx(enum AVCodecID codec_id)
  {
      switch (codec_id) {
-@@ -352,6 +356,7 @@ enum AVPictureType ff_qsv_map_pictype(int mfx_pic_type)
+@@ -339,6 +343,7 @@ enum AVPictureType ff_qsv_map_pictype(int mfx_pic_type)
  static int qsv_load_plugins(mfxSession session, const char *load_plugins,
                              void *logctx)
  {
@@ -50,7 +50,7 @@ index a73f38c8e4..ccf6b0bfc1 100644
      if (!load_plugins || !*load_plugins)
          return 0;
  
-@@ -395,6 +400,7 @@ load_plugin_fail:
+@@ -382,6 +387,7 @@ load_plugin_fail:
          if (err < 0)
              return err;
      }
@@ -59,7 +59,7 @@ index a73f38c8e4..ccf6b0bfc1 100644
      return 0;
  
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 3666d42553..7b5416bc68 100644
+index e466fd4117..d22398393c 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -65,6 +65,8 @@
