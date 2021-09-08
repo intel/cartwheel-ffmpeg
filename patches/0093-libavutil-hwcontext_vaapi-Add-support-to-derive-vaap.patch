@@ -1,0 +1,61 @@
+From a4615e385c1470700e5856868006edf980cb97fe Mon Sep 17 00:00:00 2001
+From: "Chen,Wenbin" <wenbin.chen@intel.com>
+Date: Mon, 31 May 2021 14:07:46 +0800
+Subject: [PATCH 11/13] libavutil/hwcontext_vaapi: Add support to derive vaapi
+ device from qsv
+
+Add support to derive vaapi device_context from qsv device_context
+
+Now the following command line works:
+
+ffmpeg -v verbose -hwaccel qsv -c:v h264_qsv -i input_1080p.264 -vf
+"hwmap=derive_device=vaapi,format=vaapi,hwmap=derive_device=vulkan,
+format=vulkan,scale_vulkan=w=1920:h=1080,hwdownload,format=nv12" -f rawvideo output.yuv
+
+Signed-off-by: Wenbin,Chen <wenbin.chen@intel.com>
+---
+ libavutil/hwcontext_vaapi.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
+index 08cf8e3dd7..32325d9797 100644
+--- a/libavutil/hwcontext_vaapi.c
++++ b/libavutil/hwcontext_vaapi.c
+@@ -47,6 +47,9 @@
+ #include "hwcontext_drm.h"
+ #include "hwcontext_internal.h"
+ #include "hwcontext_vaapi.h"
++#if CONFIG_QSV
++#include "hwcontext_qsv.h"
++#endif
+ #include "mem.h"
+ #include "pixdesc.h"
+ #include "pixfmt.h"
+@@ -1815,6 +1818,24 @@ static int vaapi_device_derive(AVHWDeviceContext *ctx,
+         return vaapi_device_connect(ctx, display);
+     }
+ #endif
++
++#if CONFIG_QSV
++    if (src_ctx->type == AV_HWDEVICE_TYPE_QSV) {
++        AVQSVDeviceContext *src_hwctx = src_ctx->hwctx;
++        mfxHDL handle;
++        mfxHandleType handle_type = MFX_HANDLE_VA_DISPLAY;
++        mfxStatus ret;
++        AVVAAPIDeviceContext *hwctx = ctx->hwctx;
++        ret = MFXVideoCORE_GetHandle(src_hwctx->session, handle_type, &handle);
++        if (ret < 0) {
++            av_log(ctx, AV_LOG_VERBOSE, "No supported hw handle could be retrieved "
++               "from the session\n");
++            return AVERROR(EINVAL);
++        }
++        hwctx->display = (VADisplay)handle;
++        return 0;
++    }
++#endif
+     return AVERROR(ENOSYS);
+ }
+ 
+-- 
+2.25.1
+
