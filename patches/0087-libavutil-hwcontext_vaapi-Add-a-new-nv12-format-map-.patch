@@ -1,0 +1,29 @@
+From 86d355499952ec6a46a53035e3058166658ea9cc Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 31 May 2021 13:58:02 +0800
+Subject: [PATCH 05/13] libavutil/hwcontext_vaapi: Add a new nv12 format map to
+ support vulkan frame
+
+Vulkan will map nv12 to R8 and GR88, so add this map to vaapi to support
+vulkan frame.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavutil/hwcontext_vaapi.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
+index 7edc288e8e..08cf8e3dd7 100644
+--- a/libavutil/hwcontext_vaapi.c
++++ b/libavutil/hwcontext_vaapi.c
+@@ -1005,6 +1005,7 @@ static const struct {
+ } vaapi_drm_format_map[] = {
+ #ifdef DRM_FORMAT_R8
+     DRM_MAP(NV12, 2, DRM_FORMAT_R8,  DRM_FORMAT_RG88),
++    DRM_MAP(NV12, 2, DRM_FORMAT_R8,  DRM_FORMAT_GR88),
+ #endif
+     DRM_MAP(NV12, 1, DRM_FORMAT_NV12),
+ #if defined(VA_FOURCC_P010) && defined(DRM_FORMAT_R16)
+-- 
+2.25.1
+

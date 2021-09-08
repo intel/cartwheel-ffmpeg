@@ -1,0 +1,58 @@
+From f01d3a861bfa72d925b2afd2ece3a077ac9a3c3c Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 31 May 2021 13:36:35 +0800
+Subject: [PATCH 06/13] libavutil/hwcontext_vulkan: Add one_memory flag to make
+ vulkan compatible with vaapi device.
+
+Vaapi can import external surface, but all the planes of the external
+frames should be in the same drm object. A new flag is introduced and
+vulkan can choose to allocate planes in one memory according this flag.
+This flag will be enabled when the vulkan device is derived from vaapi
+device, so that this change will not affect current vulkan behaviour.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavutil/hwcontext_vulkan.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+index 9a29267aed..6417f59d4a 100644
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -211,6 +211,9 @@ typedef struct VulkanDevicePriv {
+     /* Settings */
+     int use_linear_images;
+ 
++    /* map all planes to one memory */
++    int use_one_memory;
++
+     /* Nvidia */
+     int dev_is_nvidia;
+ } VulkanDevicePriv;
+@@ -1321,6 +1324,11 @@ static int vulkan_device_create_internal(AVHWDeviceContext *ctx,
+     if (opt_d)
+         p->use_linear_images = strtol(opt_d->value, NULL, 10);
+ 
++    opt_d = av_dict_get(opts, "one_memory", NULL, 0);
++    if (opt_d)
++        p->use_one_memory = strtol(opt_d->value, NULL, 10);
++
++
+     hwctx->enabled_dev_extensions = dev_info.ppEnabledExtensionNames;
+     hwctx->nb_enabled_dev_extensions = dev_info.enabledExtensionCount;
+ 
+@@ -1443,8 +1451,10 @@ static int vulkan_device_derive(AVHWDeviceContext *ctx,
+             return AVERROR_EXTERNAL;
+         }
+ 
+-        if (strstr(vendor, "Intel"))
++        if (strstr(vendor, "Intel")) {
++            av_dict_set_int(&opts, "one_memory", 1, 0);
+             dev_select.vendor_id = 0x8086;
++        }
+         if (strstr(vendor, "AMD"))
+             dev_select.vendor_id = 0x1002;
+ 
+-- 
+2.25.1
+

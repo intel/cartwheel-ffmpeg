@@ -1,0 +1,45 @@
+From 2e1d3e7021016bf40530636aaf9535828cd27fcb Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 9 Aug 2021 13:30:48 +0800
+Subject: [PATCH 08/13] libavutil/hwcontext_vulkan: fix wrong offset of plane
+
+According to spec, if we use VkBindImagePlaneMemoryInfo to bind image
+we mush create image with disjoint flag.
+The offset in subresourcelayout is relative to the base address of
+the plane, but the offset in drm is relative to the drm objectis so
+I think this offset should be 0.
+Also, when I import vaapi frame to vulkan I got broken frame, and
+setting plane_data->offset to 0 makes command works.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavutil/hwcontext_vulkan.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+index 4983518a77..3a639c997b 100644
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -2382,7 +2382,9 @@ static int vulkan_map_from_drm_frame_desc(AVHWFramesContext *hwfc, AVVkFrame **f
+             .extent.depth          = 1,
+             .mipLevels             = 1,
+             .arrayLayers           = 1,
+-            .flags                 = VK_IMAGE_CREATE_ALIAS_BIT,
++            .flags                 = VK_IMAGE_CREATE_ALIAS_BIT |
++                                     (has_modifiers && planes > 1) ? VK_IMAGE_CREATE_DISJOINT_BIT :
++                                     0,
+             .tiling                = f->tiling,
+             .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED, /* specs say so */
+             .usage                 = frames_hwctx->usage,
+@@ -2397,7 +2399,7 @@ static int vulkan_map_from_drm_frame_desc(AVHWFramesContext *hwfc, AVVkFrame **f
+                      hwfc->sw_format, src->width, src->height, i);
+ 
+         for (int j = 0; j < planes; j++) {
+-            plane_data[j].offset     = desc->layers[i].planes[j].offset;
++            plane_data[j].offset     = 0;
+             plane_data[j].rowPitch   = desc->layers[i].planes[j].pitch;
+             plane_data[j].size       = 0; /* The specs say so for all 3 */
+             plane_data[j].arrayPitch = 0;
+-- 
+2.25.1
+

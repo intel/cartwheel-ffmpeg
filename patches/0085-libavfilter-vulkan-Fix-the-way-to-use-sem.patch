@@ -1,0 +1,231 @@
+From 2878c093c32e1cdd02d8e3b46e790cf481474383 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 9 Aug 2021 14:00:48 +0800
+Subject: [PATCH 03/13] libavfilter/vulkan: Fix the way to use sem
+
+We chould set waitSem and signalSem differently. Current ffmpeg-vulkan
+uses the same sem to set waitSem and signalSem and it doesn't work on
+latest intel-vulkan-driver. The commit:
+a193060221c4df123e26a562949cae5df3e73cde on mesa causes this problem.
+This commit add code to resets the signalSem. This will reset waitSem
+too on current ffmpeg-vulkan. Now set waitSem and signalSem separetely.
+
+Now the following command can run on the latest mesa on intel platform:
+ffmpeg -v verbose -init_hw_device vulkan=vul:0,linear_images=1 -filter_hw_device vul
+-i input1080p.264 -vf "hwupload=extra_hw_frames=16,scale_vulkan=1920:1080,
+hwdownload,format=yuv420p" -f rawvideo output.yuv
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavfilter/vf_avgblur_vulkan.c   |  4 +--
+ libavfilter/vf_chromaber_vulkan.c |  4 +--
+ libavfilter/vf_overlay_vulkan.c   |  6 ++--
+ libavfilter/vf_scale_vulkan.c     |  4 +--
+ libavfilter/vulkan.c              | 55 +++++++++++++++++--------------
+ libavfilter/vulkan.h              |  3 +-
+ libavutil/hwcontext_vulkan.c      | 14 ++++----
+ 7 files changed, 50 insertions(+), 40 deletions(-)
+
+diff --git a/libavfilter/vf_avgblur_vulkan.c b/libavfilter/vf_avgblur_vulkan.c
+index 5ae487fc8c..d2104c191e 100644
+--- a/libavfilter/vf_avgblur_vulkan.c
++++ b/libavfilter/vf_avgblur_vulkan.c
+@@ -304,8 +304,8 @@ static int process_frames(AVFilterContext *avctx, AVFrame *out_f, AVFrame *tmp_f
+     vkCmdDispatch(cmd_buf, s->vkctx.output_width,
+                   FFALIGN(s->vkctx.output_height, CGS)/CGS, 1);
+ 
+-    ff_vk_add_exec_dep(avctx, s->exec, in_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+-    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
++    ff_vk_add_exec_dep(avctx, s->exec, in_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 1);
++    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+ 
+     err = ff_vk_submit_exec_queue(avctx, s->exec);
+     if (err)
+diff --git a/libavfilter/vf_chromaber_vulkan.c b/libavfilter/vf_chromaber_vulkan.c
+index 96fdd7bd9c..fe66a31cea 100644
+--- a/libavfilter/vf_chromaber_vulkan.c
++++ b/libavfilter/vf_chromaber_vulkan.c
+@@ -249,8 +249,8 @@ static int process_frames(AVFilterContext *avctx, AVFrame *out_f, AVFrame *in_f)
+                   FFALIGN(s->vkctx.output_width,  CGROUPS[0])/CGROUPS[0],
+                   FFALIGN(s->vkctx.output_height, CGROUPS[1])/CGROUPS[1], 1);
+ 
+-    ff_vk_add_exec_dep(avctx, s->exec, in_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+-    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
++    ff_vk_add_exec_dep(avctx, s->exec, in_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 1);
++    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+ 
+     err = ff_vk_submit_exec_queue(avctx, s->exec);
+     if (err)
+diff --git a/libavfilter/vf_overlay_vulkan.c b/libavfilter/vf_overlay_vulkan.c
+index 1815709d82..2e5bef5be5 100644
+--- a/libavfilter/vf_overlay_vulkan.c
++++ b/libavfilter/vf_overlay_vulkan.c
+@@ -331,9 +331,9 @@ static int process_frames(AVFilterContext *avctx, AVFrame *out_f,
+                   FFALIGN(s->vkctx.output_width,  CGROUPS[0])/CGROUPS[0],
+                   FFALIGN(s->vkctx.output_height, CGROUPS[1])/CGROUPS[1], 1);
+ 
+-    ff_vk_add_exec_dep(avctx, s->exec, main_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+-    ff_vk_add_exec_dep(avctx, s->exec, overlay_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+-    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
++    ff_vk_add_exec_dep(avctx, s->exec, main_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 1);
++    ff_vk_add_exec_dep(avctx, s->exec, overlay_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 1);
++    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+ 
+     err = ff_vk_submit_exec_queue(avctx, s->exec);
+     if (err)
+diff --git a/libavfilter/vf_scale_vulkan.c b/libavfilter/vf_scale_vulkan.c
+index 4eb4fe5664..0d946e0416 100644
+--- a/libavfilter/vf_scale_vulkan.c
++++ b/libavfilter/vf_scale_vulkan.c
+@@ -377,8 +377,8 @@ static int process_frames(AVFilterContext *avctx, AVFrame *out_f, AVFrame *in_f)
+                   FFALIGN(s->vkctx.output_width,  CGROUPS[0])/CGROUPS[0],
+                   FFALIGN(s->vkctx.output_height, CGROUPS[1])/CGROUPS[1], 1);
+ 
+-    ff_vk_add_exec_dep(avctx, s->exec, in_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+-    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
++    ff_vk_add_exec_dep(avctx, s->exec, in_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 1);
++    ff_vk_add_exec_dep(avctx, s->exec, out_f, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+ 
+     err = ff_vk_submit_exec_queue(avctx, s->exec);
+     if (err)
+diff --git a/libavfilter/vulkan.c b/libavfilter/vulkan.c
+index 139a650363..8daea6d62f 100644
+--- a/libavfilter/vulkan.c
++++ b/libavfilter/vulkan.c
+@@ -462,9 +462,10 @@ VkCommandBuffer ff_vk_get_exec_buf(AVFilterContext *avctx, FFVkExecContext *e)
+ }
+ 
+ int ff_vk_add_exec_dep(AVFilterContext *avctx, FFVkExecContext *e,
+-                       AVFrame *frame, VkPipelineStageFlagBits in_wait_dst_flag)
++                       AVFrame *frame, VkPipelineStageFlagBits in_wait_dst_flag, int input_frame)
+ {
+     AVFrame **dst;
++    void *sem_temp;
+     VulkanFilterContext *s = avctx->priv;
+     AVVkFrame *f = (AVVkFrame *)frame->data[0];
+     FFVkQueueCtx *q = &e->queues[s->cur_queue_idx];
+@@ -472,33 +473,39 @@ int ff_vk_add_exec_dep(AVFilterContext *avctx, FFVkExecContext *e,
+     int planes = av_pix_fmt_count_planes(fc->sw_format);
+ 
+     for (int i = 0; i < planes; i++) {
+-        e->sem_wait = av_fast_realloc(e->sem_wait, &e->sem_wait_alloc,
+-                                      (e->sem_wait_cnt + 1)*sizeof(*e->sem_wait));
+-        if (!e->sem_wait) {
+-            ff_vk_discard_exec_deps(avctx, e);
+-            return AVERROR(ENOMEM);
+-        }
++        if (input_frame) {
++            sem_temp = av_fast_realloc(e->sem_wait, &e->sem_wait_alloc,
++                                        (e->sem_wait_cnt + 1)*sizeof(*e->sem_wait));
++            if (!sem_temp) {
++                ff_vk_discard_exec_deps(avctx, e);
++                return AVERROR(ENOMEM);
++            }
++            e->sem_wait = sem_temp;
+ 
+-        e->sem_wait_dst = av_fast_realloc(e->sem_wait_dst, &e->sem_wait_dst_alloc,
+-                                          (e->sem_wait_cnt + 1)*sizeof(*e->sem_wait_dst));
+-        if (!e->sem_wait_dst) {
+-            ff_vk_discard_exec_deps(avctx, e);
+-            return AVERROR(ENOMEM);
+-        }
++            sem_temp = av_fast_realloc(e->sem_wait_dst, &e->sem_wait_dst_alloc,
++                                            (e->sem_wait_cnt + 1)*sizeof(*e->sem_wait_dst));
++            if (!sem_temp) {
++                ff_vk_discard_exec_deps(avctx, e);
++                return AVERROR(ENOMEM);
++            }
++            e->sem_wait_dst = sem_temp;
+ 
+-        e->sem_sig = av_fast_realloc(e->sem_sig, &e->sem_sig_alloc,
+-                                     (e->sem_sig_cnt + 1)*sizeof(*e->sem_sig));
+-        if (!e->sem_sig) {
+-            ff_vk_discard_exec_deps(avctx, e);
+-            return AVERROR(ENOMEM);
+-        }
++            e->sem_wait[e->sem_wait_cnt] = f->sem[i];
++            e->sem_wait_dst[e->sem_wait_cnt] = in_wait_dst_flag;
++            e->sem_wait_cnt++;
++        } else {
+ 
+-        e->sem_wait[e->sem_wait_cnt] = f->sem[i];
+-        e->sem_wait_dst[e->sem_wait_cnt] = in_wait_dst_flag;
+-        e->sem_wait_cnt++;
++            sem_temp = av_fast_realloc(e->sem_sig, &e->sem_sig_alloc,
++                                        (e->sem_sig_cnt + 1)*sizeof(*e->sem_sig));
++            if (!sem_temp) {
++                ff_vk_discard_exec_deps(avctx, e);
++                return AVERROR(ENOMEM);
++            }
++            e->sem_sig = sem_temp;
+ 
+-        e->sem_sig[e->sem_sig_cnt] = f->sem[i];
+-        e->sem_sig_cnt++;
++            e->sem_sig[e->sem_sig_cnt] = f->sem[i];
++            e->sem_sig_cnt++;
++        }
+     }
+ 
+     dst = av_fast_realloc(q->frame_deps, &q->frame_deps_alloc_size,
+diff --git a/libavfilter/vulkan.h b/libavfilter/vulkan.h
+index dcc4d1b37b..fae522a50e 100644
+--- a/libavfilter/vulkan.h
++++ b/libavfilter/vulkan.h
+@@ -339,7 +339,8 @@ void ff_vk_discard_exec_deps(AVFilterContext *avctx, FFVkExecContext *e);
+  * Must be called before submission.
+  */
+ int ff_vk_add_exec_dep(AVFilterContext *avctx, FFVkExecContext *e,
+-                       AVFrame *frame, VkPipelineStageFlagBits in_wait_dst_flag);
++                       AVFrame *frame, VkPipelineStageFlagBits in_wait_dst_flag,
++                       int input_frame);
+ 
+ /**
+  * Submits a command buffer to the queue for execution.
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+index 43e384e3dd..41b166cf58 100644
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -1737,8 +1737,6 @@ static int prepare_frame(AVHWFramesContext *hwfc, VulkanExecCtx *ectx,
+ 
+     VkSubmitInfo s_info = {
+         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+-        .pSignalSemaphores    = frame->sem,
+-        .signalSemaphoreCount = planes,
+     };
+ 
+     VkPipelineStageFlagBits wait_st[AV_NUM_DATA_POINTERS];
+@@ -1750,11 +1748,15 @@ static int prepare_frame(AVHWFramesContext *hwfc, VulkanExecCtx *ectx,
+         new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+         new_access = VK_ACCESS_TRANSFER_WRITE_BIT;
+         dst_qf     = VK_QUEUE_FAMILY_IGNORED;
++        s_info.pSignalSemaphores    = frame->sem;
++        s_info.signalSemaphoreCount = planes;
+         break;
+     case PREP_MODE_RO_SHADER:
+         new_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+         new_access = VK_ACCESS_TRANSFER_READ_BIT;
+         dst_qf     = VK_QUEUE_FAMILY_IGNORED;
++        s_info.pSignalSemaphores    = frame->sem;
++        s_info.signalSemaphoreCount = planes;
+         break;
+     case PREP_MODE_EXTERNAL_EXPORT:
+         new_layout = VK_IMAGE_LAYOUT_GENERAL;
+@@ -3226,11 +3228,11 @@ static int transfer_image_buf(AVHWFramesContext *hwfc, const AVFrame *f,
+ 
+     VkSubmitInfo s_info = {
+         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+-        .pSignalSemaphores    = frame->sem,
+-        .pWaitSemaphores      = frame->sem,
++        .pSignalSemaphores    = to_buf ? NULL: frame->sem,
++        .pWaitSemaphores      = to_buf ? frame->sem : NULL,
+         .pWaitDstStageMask    = sem_wait_dst,
+-        .signalSemaphoreCount = planes,
+-        .waitSemaphoreCount   = planes,
++        .signalSemaphoreCount = to_buf ? 0 : planes,
++        .waitSemaphoreCount   = to_buf ? planes : 0,
+     };
+ 
+     if ((err = wait_start_exec_ctx(hwfc, ectx)))
+-- 
+2.25.1
+

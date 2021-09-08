@@ -1,0 +1,52 @@
+From ccdda6e9656a714991c9784dc1ca1994772d4334 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 31 May 2021 14:53:08 +0800
+Subject: [PATCH 10/13] libavutil/hwcontext_vulkan: Add hwupload and hwdownload
+ support when using one_memory flag.
+
+Add hwupload and hwdownload support to vulkan when frames are allocated
+in one memory
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavutil/hwcontext_vulkan.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+index 99b2190dc3..5dfa7adc6b 100644
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -2252,7 +2252,7 @@ static int vulkan_map_frame_to_mem(AVHWFramesContext *hwfc, AVFrame *dst,
+                                    const AVFrame *src, int flags)
+ {
+     VkResult ret;
+-    int err, mapped_mem_count = 0;
++    int err, mapped_mem_count = 0, loop = 0;
+     AVVkFrame *f = (AVVkFrame *)src->data[0];
+     AVVulkanDeviceContext *hwctx = hwfc->device_ctx->hwctx;
+     const int planes = av_pix_fmt_count_planes(hwfc->sw_format);
+@@ -2281,7 +2281,8 @@ static int vulkan_map_frame_to_mem(AVHWFramesContext *hwfc, AVFrame *dst,
+     dst->width  = src->width;
+     dst->height = src->height;
+ 
+-    for (int i = 0; i < planes; i++) {
++    loop = p->use_one_memory ? 1 : planes;
++    for (int i = 0; i < loop; i++) {
+         ret = vk->MapMemory(hwctx->act_dev, f->mem[i], 0,
+                             VK_WHOLE_SIZE, 0, (void **)&dst->data[i]);
+         if (ret != VK_SUCCESS) {
+@@ -2292,6 +2293,11 @@ static int vulkan_map_frame_to_mem(AVHWFramesContext *hwfc, AVFrame *dst,
+         }
+         mapped_mem_count++;
+     }
++    if (p->use_one_memory) {
++        for (int i = 0; i < planes; i++) {
++            dst->data[i] = dst->data[0] + f->offset[i];
++        }
++    }
+ 
+     /* Check if the memory contents matter */
+     if (((flags & AV_HWFRAME_MAP_READ) || !(flags & AV_HWFRAME_MAP_OVERWRITE)) &&
+-- 
+2.25.1
+
