@@ -792,7 +792,7 @@ index ebc15e09b3..3ec6a72606 100644
 -        child_data = (uint8_t*)(intptr_t)*(VASurfaceID*)surf->Data.MemId;
 +    {
 +        mfxHDLPair *pair = (mfxHDLPair*)surf->Data.MemId;
-+        child_data = pair->first;
++        child_data = (uint8_t*)(intptr_t)*(VASurfaceID*)pair->first;
          break;
 +    }
 +#endif
