@@ -1,0 +1,77 @@
+From 48fb7eaeebf23408ef2fa4357d03e785171bb42d Mon Sep 17 00:00:00 2001
+From: Wenbinc-Bin <wenbin.chen@intel.com>
+Date: Thu, 21 Jan 2021 14:14:37 +0800
+Subject: [PATCH 57/92] libavcodec/qsvenc: Add transform skip for hevc_qsv
+
+Add transform skip option for hevc_qsv. Command line option
+is "transform_skip". By enabling this option, the
+transform_skip_enabled_flag in PPS will be set to 1. This option
+is only supported in the platform newer than ICL.
+
+Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavcodec/qsvenc.c      | 10 ++++++++--
+ libavcodec/qsvenc.h      |  1 +
+ libavcodec/qsvenc_hevc.c |  3 +++
+ 3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 00e5bd1201..f2bf66dee9 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -311,7 +311,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+            info->FrameInfo.FrameRateExtD, info->FrameInfo.FrameRateExtN);
+ 
+     av_log(avctx, AV_LOG_VERBOSE, "DisableDeblockingIdc: %"PRIu32" \n", co2->DisableDeblockingIdc);
+-
++#if QSV_VERSION_ATLEAST(1, 26)
++    av_log(avctx, AV_LOG_VERBOSE, "TransformSkip: %s \n", print_threestate(co3->TransformSkip));
++#endif
+ }
+ 
+ static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
+@@ -823,10 +825,14 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+             av_log(avctx, AV_LOG_WARNING, "Please set max_b_frames(-bf) to 0 to enable P-pyramid\n");
+         }
+ 
++        if (avctx->codec_id == AV_CODEC_ID_HEVC) {
++#if QSV_VERSION_ATLEAST(1, 26)
++            q->extco3.TransformSkip  = q->transform_skip ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
++#endif
+ #if QSV_HAVE_GPB
+-        if (avctx->codec_id == AV_CODEC_ID_HEVC)
+             q->extco3.GPB              = q->gpb ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+ #endif
++        }
+         q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extco3;
+ #endif
+     }
+diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
+index 8ed20b0934..789a465bc6 100644
+--- a/libavcodec/qsvenc.h
++++ b/libavcodec/qsvenc.h
+@@ -199,6 +199,7 @@ typedef struct QSVEncContext {
+     int repeat_pps;
+     int low_power;
+     int gpb;
++    int transform_skip;
+ 
+     int a53_cc;
+ 
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index ced9fe026f..13b0347798 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -251,6 +251,9 @@ static const AVOption options[] = {
+     { "tile_rows",  "Number of rows for tiled encoding",      OFFSET(qsv.tile_rows),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
+     { "recovery_point_sei", "Insert recovery point SEI messages",       OFFSET(qsv.recovery_point_sei),      AV_OPT_TYPE_INT, { .i64 = -1 },               -1,          1, VE },
+     { "aud", "Insert the Access Unit Delimiter NAL", OFFSET(qsv.aud), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE},
++#if QSV_VERSION_ATLEAST(1, 26)
++    { "transform_skip", "Turn this option ON to enable transformskip",   OFFSET(qsv.transform_skip),          AV_OPT_TYPE_INT,    { .i64 = -1},   -1, 1,  VE},
++#endif
+ 
+     { NULL },
+ };
+-- 
+2.17.1
+
