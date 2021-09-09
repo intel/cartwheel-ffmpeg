@@ -1,0 +1,32 @@
+From 122736936dec65c92b2e52c3931ee2656a93931e Mon Sep 17 00:00:00 2001
+From: "Chen,Wenbin" <wenbin.chen@intel.com>
+Date: Wed, 17 Mar 2021 13:44:01 +0800
+Subject: [PATCH 66/92] libavcodec/qsvenc: add more ChromaFormat support for
+ mjpeg-qsv
+
+ChromaForamt for mjpeg-qsv is always set to yuv420, and this will be
+wrong when encode other pixel format (for example yuyv422). I change
+this assignment to be adaptive to pix_fmt.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavcodec/qsvenc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 4569286492..a2c6e4c665 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -468,7 +468,8 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+     q->param.mfx.FrameInfo.CropH          = avctx->height;
+     q->param.mfx.FrameInfo.AspectRatioW   = avctx->sample_aspect_ratio.num;
+     q->param.mfx.FrameInfo.AspectRatioH   = avctx->sample_aspect_ratio.den;
+-    q->param.mfx.FrameInfo.ChromaFormat   = MFX_CHROMAFORMAT_YUV420;
++    q->param.mfx.FrameInfo.ChromaFormat   = MFX_CHROMAFORMAT_YUV420 +
++                                            !desc->log2_chroma_w + !desc->log2_chroma_h;
+     q->param.mfx.FrameInfo.BitDepthLuma   = desc->comp[0].depth;
+     q->param.mfx.FrameInfo.BitDepthChroma = desc->comp[0].depth;
+     q->param.mfx.FrameInfo.Shift          = desc->comp[0].shift > 0;
+-- 
+2.17.1
+

@@ -1,0 +1,40 @@
+From f801a25806f79f9e25ff93755205d6c8898178f1 Mon Sep 17 00:00:00 2001
+From: "Chen,Wenbin" <wenbin.chen@intel.com>
+Date: Fri, 12 Mar 2021 13:56:52 +0800
+Subject: [PATCH 65/92] libavcodec/qsvdec: use the param from decodeHeader to
+ configure surface
+
+MSDK recognizes both yuv420p10 and yuv420p9 as MFX_FOURCC_P010, but param
+are different. When decode yuv420p9 video, ffmpeg-qsv will use
+yuv420p10le to configure surface which is different with param from
+DecoderHeader and this will lead to error. Now change it use
+param from decoderHeader to configure surface.
+
+Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavcodec/qsvdec.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index 3fb3e52013..ab0663cc2e 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -419,13 +419,13 @@ static int alloc_frame(AVCodecContext *avctx, QSVContext *q, QSVFrame *frame)
+     if (frame->frame->format == AV_PIX_FMT_QSV) {
+         frame->surface = *(mfxFrameSurface1*)frame->frame->data[3];
+     } else {
+-        frame->surface.Info = q->frame_info;
+-
+         frame->surface.Data.PitchLow = frame->frame->linesize[0];
+         frame->surface.Data.Y        = frame->frame->data[0];
+         frame->surface.Data.UV       = frame->frame->data[1];
+     }
+ 
++    frame->surface.Info = q->frame_info;
++
+     if (q->frames_ctx.mids) {
+         ret = ff_qsv_find_surface_idx(&q->frames_ctx, frame);
+         if (ret < 0)
+-- 
+2.17.1
+

@@ -1,0 +1,31 @@
+From b99e2433783632aa521a5f554be643908ee897f3 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Thu, 20 May 2021 16:26:39 -0400
+Subject: [PATCH 84/92] avcodec/av1: extend some definitions in spec section 3
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavcodec/av1.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/libavcodec/av1.h b/libavcodec/av1.h
+index 0f99ae4829..951a18ecb2 100644
+--- a/libavcodec/av1.h
++++ b/libavcodec/av1.h
+@@ -114,6 +114,13 @@ enum {
+     AV1_WARP_MODEL_TRANSLATION = 1,
+     AV1_WARP_MODEL_ROTZOOM     = 2,
+     AV1_WARP_MODEL_AFFINE      = 3,
++    AV1_WARP_PARAM_REDUCE_BITS = 6,
++
++    AV1_DIV_LUT_BITS      = 8,
++    AV1_DIV_LUT_PREC_BITS = 14,
++    AV1_DIV_LUT_NUM       = 257,
++
++    AV1_MAX_LOOP_FILTER = 63,
+ };
+ 
+ 
+-- 
+2.17.1
+
