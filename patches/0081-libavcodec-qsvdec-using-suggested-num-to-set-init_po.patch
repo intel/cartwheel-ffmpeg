@@ -1,7 +1,7 @@
-From 495bfc7e3b2b1138c31237858f8afbb0fe3e769a Mon Sep 17 00:00:00 2001
+From 11e56c850d1fa649433f10925a1c980243e212c2 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Tue, 26 Jan 2021 09:55:59 +0800
-Subject: [PATCH 82/92] libavcodec/qsvdec: using suggested num to set
+Subject: [PATCH 81/92] libavcodec/qsvdec: using suggested num to set
  init_pool_size
 
 The init_pool_size is set to be 64 and it is too many.

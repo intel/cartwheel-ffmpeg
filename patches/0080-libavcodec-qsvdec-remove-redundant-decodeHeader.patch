@@ -1,7 +1,7 @@
-From 526db70122fdc9fda21e46e9a7591587b8167a74 Mon Sep 17 00:00:00 2001
+From b2c6244f84757860a076baa2e594c8ac7616f761 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 16 Mar 2021 14:31:19 +0800
-Subject: [PATCH 81/92] libavcodec/qsvdec: remove redundant decodeHeader()
+Subject: [PATCH 80/92] libavcodec/qsvdec: remove redundant decodeHeader()
 
 Since ffmpeg-qsv uses return value to reinit decoder, it doesn't need to
 decode header each time. Move qsv_decode_header's position so that

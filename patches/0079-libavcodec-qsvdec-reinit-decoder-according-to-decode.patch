@@ -1,7 +1,7 @@
-From 96a6fa41ef81e67e15095b0455d473b00ef17cff Mon Sep 17 00:00:00 2001
+From c57e128740395d70a59fba3c15b62eb15d39a71b Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:16:33 +0800
-Subject: [PATCH 80/92] libavcodec/qsvdec: reinit decoder according to decode()
+Subject: [PATCH 79/92] libavcodec/qsvdec: reinit decoder according to decode()
  return value
 
 FFmpeg-qsv decoder reinit codec when width and height change, but there

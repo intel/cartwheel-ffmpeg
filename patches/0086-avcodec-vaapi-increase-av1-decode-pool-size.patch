@@ -1,7 +1,7 @@
-From fe6cec00c4a9344c27c3bf0469b0ff6b33592bb6 Mon Sep 17 00:00:00 2001
+From 70bdcae6c663d4f2f3e8e1e7ebdc3e835711b26e Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 3 Jun 2021 13:58:27 -0400
-Subject: [PATCH 87/92] avcodec/vaapi: increase av1 decode pool size
+Subject: [PATCH 86/92] avcodec/vaapi: increase av1 decode pool size
 
 For film grain clip, vaapi_av1 decoder will cache additional 8
 surfaces that will be used to store frames which apply film grain.
