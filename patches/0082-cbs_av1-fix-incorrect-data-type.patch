@@ -1,7 +1,7 @@
-From b2f0fd18827845c44362cc026d4f6235fdf0aafa Mon Sep 17 00:00:00 2001
+From e5857edaf46181fc30dcde93b37f96b480108f9f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 20 May 2021 16:28:16 -0400
-Subject: [PATCH 83/92] cbs_av1: fix incorrect data type
+Subject: [PATCH 82/92] cbs_av1: fix incorrect data type
 
 Since order_hint_bits_minus_1 range is 0~7, cur_frame_hint can be
 most 128. And similar return value for cbs_av1_get_relative_dist.

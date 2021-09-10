@@ -1,7 +1,7 @@
-From 3fe5e8a009a34b85f47a28e2fe82ccf518d66e8a Mon Sep 17 00:00:00 2001
+From 8b356637b2f1f0ce7693fad0b5c1c7b75dfcd2aa Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 9 Apr 2021 14:00:40 +0800
-Subject: [PATCH 79/92] libavcodec/qsvenc: add mbbrc to hevc_qsv
+Subject: [PATCH 78/92] libavcodec/qsvenc: add mbbrc to hevc_qsv
 
 Add mbbrc to hevc_qsv
 For detailed description, please see "mbbrc" part in:
@@ -13,7 +13,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index d30b495579..a20baff678 100644
+index 69ee4d6fc2..f1fd748ebb 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -739,8 +739,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)

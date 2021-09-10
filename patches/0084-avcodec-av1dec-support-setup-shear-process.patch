@@ -1,7 +1,7 @@
-From 4a2af428d42eef9c555d2226a3edee7e80f3244a Mon Sep 17 00:00:00 2001
+From 03eddbbff291f2e83271ec70123ce629da272da1 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 20 May 2021 16:45:47 -0400
-Subject: [PATCH 85/92] avcodec/av1dec: support setup shear process
+Subject: [PATCH 84/92] avcodec/av1dec: support setup shear process
 
 Defined in spec 7.11.3.6/7.11.3.7.
 

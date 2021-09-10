@@ -1,7 +1,7 @@
-From 4e91679b3defec72b382cd4779bd275f9b68328b Mon Sep 17 00:00:00 2001
+From b1484edf0aa18b8554ffd6e62c630cde8e4a66f3 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 24 Aug 2021 09:30:33 +0800
-Subject: [PATCH] avcodec/dxva2_av1: fix global motion params
+Subject: [PATCH 92/92] avcodec/dxva2_av1: fix global motion params
 
 Defined in spec 5.9.24/5.9.25. Since function void
 global_motion_params(AV1DecContext *s) already updates
@@ -27,5 +27,5 @@ index aa14e473df..08fee6f7d5 100644
          for (j = 0; j < 6; ++j) {
               pp->frame_refs[i].wmmat[j] = h->cur_frame.gm_params[AV1_REF_FRAME_LAST + i][j];
 -- 
-2.16.1.windows.4
+2.17.1
 

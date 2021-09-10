@@ -1,13 +1,16 @@
-From 8d1604763c85010a3adf782e7c297d5fe4b438d0 Mon Sep 17 00:00:00 2001
+From d9e13511a3ff644115023a0d8c85d807a069018d Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
 Subject: [PATCH 76/92] qsv: use a new method to create mfx session when using
- the oneVPL SDK
+ oneVPL
 
 In oneVPL, MFXLoad() and MFXCreateSession() are required to create a
 workable mfx session[1]
 
-Add AccelerationMode config filter for D3D9 session (galinart)
+Add AccelerationMode config filter for D3D9/D3D11 session (galinart)
+
+The default device is changed to d3d11va for oneVPL when both d3d11va
+and dxva2 are enabled on Microsoft Windows
 
 This is in preparation for oneVPL support
 
@@ -15,7 +18,7 @@ This is in preparation for oneVPL support
 
 Signed-off-by: galinart <artem.galin@intel.com>
 ---
- libavcodec/qsv.c                 | 191 +++++++++++++++++---
+ libavcodec/qsv.c                 | 191 ++++++++++++++++--
  libavcodec/qsv_internal.h        |   1 +
  libavcodec/qsvdec.c              |   4 +
  libavcodec/qsvenc.h              |   3 +
@@ -24,16 +27,16 @@ Signed-off-by: galinart <artem.galin@intel.com>
  libavcodec/qsvenc_jpeg.c         |   1 -
  libavcodec/qsvenc_mpeg2.c        |   1 -
  libavcodec/qsvenc_vp9.c          |   1 -
- libavfilter/qsvvpp.c             | 107 ++++++++++-
+ libavfilter/qsvvpp.c             | 107 +++++++++-
  libavfilter/qsvvpp.h             |   5 +
  libavfilter/vf_deinterlace_qsv.c |  14 +-
  libavfilter/vf_scale_qsv.c       |  12 +-
- libavutil/hwcontext_qsv.c        | 300 ++++++++++++++++++++++++++-----
+ libavutil/hwcontext_qsv.c        | 322 +++++++++++++++++++++++++++----
  libavutil/hwcontext_qsv.h        |  16 ++
- 15 files changed, 569 insertions(+), 89 deletions(-)
+ 15 files changed, 591 insertions(+), 89 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 8b97598a63..933a29b6b5 100644
+index 8b97598a63..4bd8bd87a9 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -436,6 +436,164 @@ static int ff_qsv_set_display_handle(AVCodecContext *avctx, QSVSession *qs)
@@ -61,7 +64,7 @@ index 8b97598a63..933a29b6b5 100644
 +    /* Don't create a new MFX loader if the input loader is valid */
 +    if (*ploader == NULL) {
 +        av_log(avctx, AV_LOG_VERBOSE,
-+               "Use the Intel oneVPL SDK to create MFX session, the required "
++               "Use Intel(R) oneVPL to create MFX session, the required "
 +               "implementation version is %d.%d\n",
 +               pver->Major, pver->Minor);
 +
@@ -105,7 +108,7 @@ index 8b97598a63..933a29b6b5 100644
 +        }
 +    } else {
 +        av_log(avctx, AV_LOG_VERBOSE,
-+               "Use the Intel oneVPL SDK to create MFX session with the specified MFX loader\n");
++               "Use Intel(R) oneVPL to create MFX session with the specified MFX loader\n");
 +
 +        loader = *ploader;
 +    }
@@ -168,7 +171,7 @@ index 8b97598a63..933a29b6b5 100644
 +    mfxStatus sts;
 +
 +    av_log(avctx, AV_LOG_VERBOSE,
-+           "Use the Intel Media SDK to create MFX session, the required "
++           "Use Intel(R) Media SDK to create MFX session, the required "
 +           "implementation version is %d.%d\n",
 +           pver->Major, pver->Minor);
 +
@@ -377,7 +380,7 @@ index 0a382eb76d..9d88b03bbf 100644
  
  typedef struct QSVVP9EncContext {
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 43d8c30c89..d3c3a1f1f2 100644
+index 43d8c30c89..c572154a95 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -23,8 +23,6 @@
@@ -426,7 +429,7 @@ index 43d8c30c89..d3c3a1f1f2 100644
 +    uint32_t impl_idx = 0;
 +
 +    av_log(ctx, AV_LOG_VERBOSE,
-+           "Use the Intel oneVPL SDK to create MFX session with the specified MFX loader\n");
++           "Use Intel(R) oneVPL to create MFX session with the specified MFX loader\n");
 +
 +    if (!loader) {
 +        av_log(ctx, AV_LOG_ERROR, "Invalid MFX Loader handle\n");
@@ -484,7 +487,7 @@ index 43d8c30c89..d3c3a1f1f2 100644
 +    mfxStatus sts;
 +
 +    av_log(ctx, AV_LOG_VERBOSE,
-+           "Use the Intel Media SDK to create MFX session, API version is "
++           "Use Intel(R) Media SDK to create MFX session, API version is "
 +           "%d.%d, the required implementation version is %d.%d\n",
 +           MFX_VERSION_MAJOR, MFX_VERSION_MINOR, pver->Major, pver->Minor);
 +
@@ -589,19 +592,10 @@ index bbdca3660f..c2aac1b980 100644
      if (handle) {
          err = MFXVideoCORE_SetHandle(s->session, handle_type, handle);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index a8bc8c8143..d3c061b739 100644
+index a8bc8c8143..c37f5d9090 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -56,6 +56,8 @@
- #define QSV_ONEVPL       QSV_VERSION_ATLEAST(2, 0)
- #define QSV_HAVE_OPAQUE  !QSV_ONEVPL
- 
-+#define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
-+
- typedef struct QSVDevicePriv {
-     AVBufferRef *child_device_ctx;
- } QSVDevicePriv;
-@@ -72,8 +74,10 @@ typedef struct QSVDeviceContext {
+@@ -72,8 +72,10 @@ typedef struct QSVDeviceContext {
  
  typedef struct QSVFramesContext {
      mfxSession session_download;
@@ -612,7 +606,7 @@ index a8bc8c8143..d3c061b739 100644
      int session_upload_init;
  #if HAVE_PTHREADS
      pthread_mutex_t session_lock;
-@@ -218,15 +222,19 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)
+@@ -218,15 +220,19 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)
      if (s->session_download) {
          MFXVideoVPP_Close(s->session_download);
          MFXClose(s->session_download);
@@ -632,7 +626,7 @@ index a8bc8c8143..d3c061b739 100644
      s->session_upload_init = 0;
  
  #if HAVE_PTHREADS
-@@ -551,8 +559,218 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
+@@ -551,8 +557,221 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
      return MFX_ERR_NONE;
  }
  
@@ -654,12 +648,13 @@ index a8bc8c8143..d3c061b739 100644
 +    uint32_t impl_idx = 0;
 +
 +    av_log(ctx, AV_LOG_VERBOSE,
-+           "Use the Intel oneVPL SDK to create MFX session, API version is "
++           "Use Intel(R) oneVPL to create MFX session, API version is "
 +           "%d.%d, the required implementation version is %d.%d\n",
 +           MFX_VERSION_MAJOR, MFX_VERSION_MINOR, pver->Major, pver->Minor);
 +
 +    if (handle_type != MFX_HANDLE_VA_DISPLAY &&
-+        handle_type != MFX_HANDLE_D3D9_DEVICE_MANAGER) {
++        handle_type != MFX_HANDLE_D3D9_DEVICE_MANAGER &&
++        handle_type != MFX_HANDLE_D3D11_DEVICE) {
 +        av_log(ctx, AV_LOG_ERROR,
 +               "Invalid MFX device handle\n");
 +        return AVERROR(EXDEV);
@@ -698,8 +693,10 @@ index a8bc8c8143..d3c061b739 100644
 +
 +    if (MFX_HANDLE_VA_DISPLAY == handle_type)
 +        impl_value.Data.U32 = MFX_ACCEL_MODE_VIA_VAAPI;
-+    else
++    else if (MFX_HANDLE_D3D9_DEVICE_MANAGER == handle_type)
 +        impl_value.Data.U32 = MFX_ACCEL_MODE_VIA_D3D9;
++    else
++        impl_value.Data.U32 = MFX_ACCEL_MODE_VIA_D3D11;
 +
 +    sts = MFXSetConfigFilterProperty(cfg,
 +                                     (const mfxU8 *)"mfxImplDescription.AccelerationMode", impl_value);
@@ -790,7 +787,7 @@ index a8bc8c8143..d3c061b739 100644
 +    mfxSession session = NULL;
 +
 +    av_log(ctx, AV_LOG_VERBOSE,
-+           "Use the Intel Media SDK to create MFX session, API version is "
++           "Use Intel(R) Media SDK to create MFX session, API version is "
 +           "%d.%d, the required implementation version is %d.%d\n",
 +           MFX_VERSION_MAJOR, MFX_VERSION_MINOR, pver->Major, pver->Minor);
 +
@@ -852,7 +849,7 @@ index a8bc8c8143..d3c061b739 100644
  {
      AVQSVFramesContext *frames_hwctx = ctx->hwctx;
      QSVDeviceContext   *device_priv  = ctx->device_ctx->internal->priv;
-@@ -569,29 +787,35 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -569,29 +788,35 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
  
      mfxVideoParam par;
      mfxStatus err;
@@ -897,7 +894,7 @@ index a8bc8c8143..d3c061b739 100644
      }
  
      memset(&par, 0, sizeof(par));
-@@ -627,11 +851,22 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -627,11 +852,22 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
      if (err != MFX_ERR_NONE) {
          av_log(ctx, AV_LOG_VERBOSE, "Error opening the internal VPP session."
                 "Surface upload/download will not be possible\n");
@@ -922,7 +919,7 @@ index a8bc8c8143..d3c061b739 100644
  }
  
  static int qsv_frames_init(AVHWFramesContext *ctx)
-@@ -696,6 +931,9 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
+@@ -696,6 +932,9 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
      s->session_download = NULL;
      s->session_upload   = NULL;
  
@@ -932,7 +929,7 @@ index a8bc8c8143..d3c061b739 100644
      s->session_download_init = 0;
      s->session_upload_init   = 0;
  
-@@ -1010,7 +1248,8 @@ static int qsv_transfer_data_from(AVHWFramesContext *ctx, AVFrame *dst,
+@@ -1010,7 +1249,8 @@ static int qsv_transfer_data_from(AVHWFramesContext *ctx, AVFrame *dst,
          if (pthread_mutex_trylock(&s->session_lock) == 0) {
  #endif
              if (!s->session_download_init) {
@@ -942,7 +939,7 @@ index a8bc8c8143..d3c061b739 100644
                  if (s->session_download)
                      s->session_download_init = 1;
              }
-@@ -1084,7 +1323,8 @@ static int qsv_transfer_data_to(AVHWFramesContext *ctx, AVFrame *dst,
+@@ -1084,7 +1324,8 @@ static int qsv_transfer_data_to(AVHWFramesContext *ctx, AVFrame *dst,
          if (pthread_mutex_trylock(&s->session_lock) == 0) {
  #endif
              if (!s->session_upload_init) {
@@ -952,7 +949,7 @@ index a8bc8c8143..d3c061b739 100644
                  if (s->session_upload)
                      s->session_upload_init = 1;
              }
-@@ -1350,6 +1590,7 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
+@@ -1350,6 +1591,7 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
      if (hwctx->session)
          MFXClose(hwctx->session);
  
@@ -960,7 +957,7 @@ index a8bc8c8143..d3c061b739 100644
      av_buffer_unref(&priv->child_device_ctx);
      av_freep(&priv);
  }
-@@ -1439,34 +1680,11 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1439,34 +1681,11 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
          goto fail;
      }
  
@@ -998,7 +995,7 @@ index a8bc8c8143..d3c061b739 100644
  
      err = MFXVideoCORE_SetHandle(hwctx->session, handle_type, handle);
      if (err != MFX_ERR_NONE) {
-@@ -1481,6 +1699,8 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1481,6 +1700,8 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
  fail:
      if (hwctx->session)
          MFXClose(hwctx->session);
@@ -1007,6 +1004,48 @@ index a8bc8c8143..d3c061b739 100644
      return ret;
  }
  
+@@ -1523,6 +1744,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+         }
+     } else if (CONFIG_VAAPI) {
+         child_device_type = AV_HWDEVICE_TYPE_VAAPI;
++#if QSV_ONEVPL
++    } else if (CONFIG_D3D11VA) {  // Use D3D11 by default if d3d11va is enabled
++        av_log(NULL, AV_LOG_WARNING,
++               "WARNING: defaulting child_device_type to AV_HWDEVICE_TYPE_D3D11VA for "
++               "oneVPL. Please explicitly set child device type via \"-init_hw_device\" "
++               "option if needed.\n");
++        child_device_type = AV_HWDEVICE_TYPE_D3D11VA;
++    } else if (CONFIG_DXVA2) {
++        child_device_type = AV_HWDEVICE_TYPE_DXVA2;
++#else
+     } else if (CONFIG_DXVA2) {
+         av_log(NULL, AV_LOG_WARNING,
+                 "WARNING: defaulting child_device_type to AV_HWDEVICE_TYPE_DXVA2 for compatibility "
+@@ -1531,6 +1762,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+         child_device_type = AV_HWDEVICE_TYPE_DXVA2;
+     } else if (CONFIG_D3D11VA) {
+         child_device_type = AV_HWDEVICE_TYPE_D3D11VA;
++#endif
+     } else {
+         av_log(ctx, AV_LOG_ERROR, "No supported child device type is enabled\n");
+         return AVERROR(ENOSYS);
+@@ -1557,6 +1789,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+ #endif
+ #if CONFIG_DXVA2
+     case AV_HWDEVICE_TYPE_DXVA2:
++#if QSV_ONEVPL
++        {
++            av_log(NULL, AV_LOG_WARNING,
++                   "WARNING: d3d11va is not available or child device type is "
++                   "set to dxva2 explicitly for oneVPL. Note dxva2 is supported "
++                   "only in compatibility mode and new oneVPL features may not "
++                   "be supported. Please stick with Intel(R) Media SDK if dxva2 "
++                   "is desired.\n"
++        }
++#endif
+         break;
+ #endif
+     default:
 diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
 index 42e34d0dda..65415d3d8c 100644
 --- a/libavutil/hwcontext_qsv.h

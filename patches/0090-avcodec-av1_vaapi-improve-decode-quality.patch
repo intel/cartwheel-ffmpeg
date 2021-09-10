@@ -1,7 +1,7 @@
-From 93bafec44824f3a1c50de992a95cc52e4f879c86 Mon Sep 17 00:00:00 2001
+From 0fa093384a58cae3e590a41f05a3f98a01024d9c Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 9 Jun 2021 15:20:08 +0800
-Subject: [PATCH 91/92] avcodec/av1_vaapi: improve decode quality
+Subject: [PATCH 90/92] avcodec/av1_vaapi: improve decode quality
 
 - quantizer delta and matrix level specific.
 - support loop filter delta.
