@@ -1,4 +1,4 @@
-From d9e13511a3ff644115023a0d8c85d807a069018d Mon Sep 17 00:00:00 2001
+From de2f6d3291b7b9b094d8a89b8c1d97e9ec00c85b Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
 Subject: [PATCH 76/92] qsv: use a new method to create mfx session when using
@@ -36,7 +36,7 @@ Signed-off-by: galinart <artem.galin@intel.com>
  15 files changed, 591 insertions(+), 89 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 8b97598a63..4bd8bd87a9 100644
+index 48e54df338..f37fe6a64a 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -436,6 +436,164 @@ static int ff_qsv_set_display_handle(AVCodecContext *avctx, QSVSession *qs)
@@ -380,7 +380,7 @@ index 0a382eb76d..9d88b03bbf 100644
  
  typedef struct QSVVP9EncContext {
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 43d8c30c89..c572154a95 100644
+index 9b1af90bb0..ca4a2cf6b2 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -23,8 +23,6 @@
@@ -530,7 +530,7 @@ index 67c351f297..d1c12be25b 100644
 +
  #endif /* AVFILTER_QSVVPP_H */
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index 84b3ec5a7c..90dac86e3a 100644
+index fe6cb69afe..205b164bf6 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -172,7 +172,7 @@ static int init_out_session(AVFilterContext *ctx)
@@ -562,7 +562,7 @@ index 84b3ec5a7c..90dac86e3a 100644
      if (handle) {
          err = MFXVideoCORE_SetHandle(s->session, handle_type, handle);
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
-index bbdca3660f..c2aac1b980 100644
+index 6cc6d192ff..76ed178831 100644
 --- a/libavfilter/vf_scale_qsv.c
 +++ b/libavfilter/vf_scale_qsv.c
 @@ -290,7 +290,7 @@ static int init_out_session(AVFilterContext *ctx)
@@ -592,7 +592,7 @@ index bbdca3660f..c2aac1b980 100644
      if (handle) {
          err = MFXVideoCORE_SetHandle(s->session, handle_type, handle);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index a8bc8c8143..c37f5d9090 100644
+index 23afab99ea..5333f73738 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -72,8 +72,10 @@ typedef struct QSVDeviceContext {
@@ -949,7 +949,7 @@ index a8bc8c8143..c37f5d9090 100644
                  if (s->session_upload)
                      s->session_upload_init = 1;
              }
-@@ -1350,6 +1591,7 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
+@@ -1353,6 +1594,7 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
      if (hwctx->session)
          MFXClose(hwctx->session);
  
@@ -957,7 +957,7 @@ index a8bc8c8143..c37f5d9090 100644
      av_buffer_unref(&priv->child_device_ctx);
      av_freep(&priv);
  }
-@@ -1439,34 +1681,11 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1442,34 +1684,11 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
          goto fail;
      }
  
@@ -995,7 +995,7 @@ index a8bc8c8143..c37f5d9090 100644
  
      err = MFXVideoCORE_SetHandle(hwctx->session, handle_type, handle);
      if (err != MFX_ERR_NONE) {
-@@ -1481,6 +1700,8 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1484,6 +1703,8 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
  fail:
      if (hwctx->session)
          MFXClose(hwctx->session);
@@ -1004,7 +1004,7 @@ index a8bc8c8143..c37f5d9090 100644
      return ret;
  }
  
-@@ -1523,6 +1744,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1526,6 +1747,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
          }
      } else if (CONFIG_VAAPI) {
          child_device_type = AV_HWDEVICE_TYPE_VAAPI;
@@ -1021,7 +1021,7 @@ index a8bc8c8143..c37f5d9090 100644
      } else if (CONFIG_DXVA2) {
          av_log(NULL, AV_LOG_WARNING,
                  "WARNING: defaulting child_device_type to AV_HWDEVICE_TYPE_DXVA2 for compatibility "
-@@ -1531,6 +1762,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1534,6 +1765,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
          child_device_type = AV_HWDEVICE_TYPE_DXVA2;
      } else if (CONFIG_D3D11VA) {
          child_device_type = AV_HWDEVICE_TYPE_D3D11VA;
@@ -1029,7 +1029,7 @@ index a8bc8c8143..c37f5d9090 100644
      } else {
          av_log(ctx, AV_LOG_ERROR, "No supported child device type is enabled\n");
          return AVERROR(ENOSYS);
-@@ -1557,6 +1789,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1560,6 +1792,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
  #endif
  #if CONFIG_DXVA2
      case AV_HWDEVICE_TYPE_DXVA2:
@@ -1040,7 +1040,7 @@ index a8bc8c8143..c37f5d9090 100644
 +                   "set to dxva2 explicitly for oneVPL. Note dxva2 is supported "
 +                   "only in compatibility mode and new oneVPL features may not "
 +                   "be supported. Please stick with Intel(R) Media SDK if dxva2 "
-+                   "is desired.\n"
++                   "is desired.\n");
 +        }
 +#endif
          break;
