@@ -1,4 +1,4 @@
-From b23922bd16926af328165ca487d2777bb7f4b532 Mon Sep 17 00:00:00 2001
+From 778bc8fda3592a2432745ea8aa8149aeb8db8726 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 14 Jan 2021 15:55:47 +0800
 Subject: [PATCH 58/92] libavcodec/qsvenc.c: add ROI support to qsv encoder
@@ -30,7 +30,7 @@ index 9053070482..870c818c94 100644
  #define QSV_PAYLOAD_SIZE 1024
  
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index de43297c43..5364eb3cef 100644
+index 5efb5c538b..c4e40591e2 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -1319,6 +1319,13 @@ static void clear_unused_frames(QSVEncContext *q)
@@ -65,9 +65,9 @@ index de43297c43..5364eb3cef 100644
  {
      AVPacket new_pkt = { 0 };
 +    AVFrameSideData *sd;
-     mfxBitstream *bs;
+     mfxBitstream *bs = NULL;
  #if QSV_VERSION_ATLEAST(1, 26)
-     mfxExtAVCEncodedFrameInfo *enc_info;
+     mfxExtAVCEncodedFrameInfo *enc_info = NULL;
 @@ -1476,6 +1490,7 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
      mfxSyncPoint *sync     = NULL;
      QSVFrame *qsv_frame = NULL;
@@ -76,7 +76,7 @@ index de43297c43..5364eb3cef 100644
      int ret;
  
      if (frame) {
-@@ -1510,6 +1525,8 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+@@ -1508,6 +1523,8 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
      bs->Data      = new_pkt.data;
      bs->MaxLength = new_pkt.size;
  
@@ -85,7 +85,7 @@ index de43297c43..5364eb3cef 100644
  #if QSV_VERSION_ATLEAST(1, 26)
      if (avctx->codec_id == AV_CODEC_ID_H264) {
          enc_info = av_mallocz(sizeof(*enc_info));
-@@ -1532,6 +1549,62 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+@@ -1530,6 +1547,62 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
          q->set_encode_ctrl_cb(avctx, frame, &qsv_frame->enc_ctrl);
      }
  
@@ -146,9 +146,9 @@ index de43297c43..5364eb3cef 100644
 +#endif
 +
      sync = av_mallocz(sizeof(*sync));
-     if (!sync) {
-         av_freep(&bs);
-@@ -1694,6 +1767,7 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+     if (!sync)
+         goto nomem;
+@@ -1665,6 +1738,7 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
          q->work_frames = cur->next;
          av_frame_free(&cur->frame);
          av_free(cur->enc_ctrl.Payload);
