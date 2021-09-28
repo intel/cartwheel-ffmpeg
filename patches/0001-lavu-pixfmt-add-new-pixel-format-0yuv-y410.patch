@@ -1,7 +1,7 @@
-From 0627aeeb1b0e60408c17a9ee5374fef122a16b0e Mon Sep 17 00:00:00 2001
+From e563ff8e75978e9173d274a78ffd02a3f7992108 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 10:58:19 +0800
-Subject: [PATCH 01/84] lavu/pixfmt: add new pixel format 0yuv/y410
+Subject: [PATCH 01/92] lavu/pixfmt: add new pixel format 0yuv/y410
 
 Previously, media driver provided planar format(like 420 8 bit),
 but for HEVC Range Extension (444 8/10 bit), the decoded image
@@ -25,10 +25,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  4 files changed, 54 insertions(+)
 
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index 751843e991..e7e0b364d2 100644
+index 69cb198646..136a4f82a2 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
-@@ -225,6 +225,41 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+@@ -224,6 +224,41 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
          },
          .flags = AV_PIX_FMT_FLAG_BE,
      },
@@ -71,7 +71,7 @@ index 751843e991..e7e0b364d2 100644
          .name = "rgb24",
          .nb_components = 3,
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index 5814f3f3da..da7b79541a 100644
+index 53bdecfcb7..184ded7e85 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
 @@ -348,6 +348,10 @@ enum AVPixelFormat {
@@ -84,20 +84,20 @@ index 5814f3f3da..da7b79541a 100644
 +
      AV_PIX_FMT_X2RGB10LE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), little-endian, X=unused/undefined
      AV_PIX_FMT_X2RGB10BE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), big-endian, X=unused/undefined
-     AV_PIX_FMT_NB         ///< number of pixel formats, DO NOT USE THIS if you want to link with shared libav* because the number of formats might differ between versions
-@@ -439,6 +443,7 @@ enum AVPixelFormat {
+     AV_PIX_FMT_X2BGR10LE, ///< packed BGR 10:10:10, 30bpp, (msb)2X 10B 10G 10R(lsb), little-endian, X=unused/undefined
+@@ -441,6 +445,7 @@ enum AVPixelFormat {
  #define AV_PIX_FMT_P016       AV_PIX_FMT_NE(P016BE,  P016LE)
  
  #define AV_PIX_FMT_Y210       AV_PIX_FMT_NE(Y210BE,  Y210LE)
 +#define AV_PIX_FMT_Y410       AV_PIX_FMT_NE(Y410BE,  Y410LE)
  #define AV_PIX_FMT_X2RGB10    AV_PIX_FMT_NE(X2RGB10BE, X2RGB10LE)
+ #define AV_PIX_FMT_X2BGR10    AV_PIX_FMT_NE(X2BGR10BE, X2BGR10LE)
  
- /**
 diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
-index f510150ea1..a44ea547a5 100644
+index 495bbd46f0..290e87c2d9 100644
 --- a/tests/ref/fate/imgutils
 +++ b/tests/ref/fate/imgutils
-@@ -234,5 +234,8 @@ nv24            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144
+@@ -234,6 +234,9 @@ nv24            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144
  nv42            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144     0     0, plane_offsets:  3072     0     0, total_size: 9216
  y210be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  y210le          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
@@ -106,11 +106,12 @@ index f510150ea1..a44ea547a5 100644
 +y410be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  x2rgb10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ x2bgr10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
 diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
-index c3cccfa492..f023430356 100644
+index a74109c3d7..7613ba7524 100644
 --- a/tests/ref/fate/sws-pixdesc-query
 +++ b/tests/ref/fate/sws-pixdesc-query
-@@ -63,6 +63,8 @@ isNBPS:
+@@ -65,6 +65,8 @@ isNBPS:
    xyz12le
    y210be
    y210le
@@ -119,7 +120,7 @@ index c3cccfa492..f023430356 100644
    yuv420p10be
    yuv420p10le
    yuv420p12be
-@@ -146,6 +148,7 @@ isBE:
+@@ -149,6 +151,7 @@ isBE:
    x2rgb10be
    xyz12be
    y210be
@@ -127,7 +128,7 @@ index c3cccfa492..f023430356 100644
    ya16be
    yuv420p10be
    yuv420p12be
-@@ -177,6 +180,7 @@ isBE:
+@@ -180,6 +183,7 @@ isBE:
    yuva444p9be
  
  isYUV:
@@ -135,7 +136,7 @@ index c3cccfa492..f023430356 100644
    ayuv64be
    ayuv64le
    nv12
-@@ -196,6 +200,8 @@ isYUV:
+@@ -199,6 +203,8 @@ isYUV:
    xyz12le
    y210be
    y210le
@@ -144,7 +145,7 @@ index c3cccfa492..f023430356 100644
    ya16be
    ya16le
    ya8
-@@ -611,6 +617,8 @@ ALPHA:
+@@ -618,6 +624,8 @@ ALPHA:
    rgb32_1
    rgba64be
    rgba64le
@@ -153,7 +154,7 @@ index c3cccfa492..f023430356 100644
    ya16be
    ya16le
    ya8
-@@ -643,6 +651,7 @@ ALPHA:
+@@ -650,6 +658,7 @@ ALPHA:
  Packed:
    0bgr
    0rgb
@@ -161,7 +162,7 @@ index c3cccfa492..f023430356 100644
    ayuv64be
    ayuv64le
    bayer_bggr16be
-@@ -702,6 +711,8 @@ Packed:
+@@ -711,6 +720,8 @@ Packed:
    xyz12le
    y210be
    y210le
