@@ -1,4 +1,4 @@
-From 49aae6f6a75b4f001c175d0e4eca3daeaa8d26a0 Mon Sep 17 00:00:00 2001
+From c94733e8207661436f1199f6ed56e2165203407f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 14 Jul 2020 10:21:55 +0800
 Subject: [PATCH 26/92] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
@@ -17,7 +17,7 @@ Subject: [PATCH 26/92] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
  10 files changed, 166 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index bbd1a687f7..afdb06a474 100644
+index bbd1a687f755..afdb06a47478 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -457,6 +457,11 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -33,7 +33,7 @@ index bbd1a687f7..afdb06a474 100644
          break;
      case AV_PIX_FMT_YUV420P12:
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index f722a9fd51..c6e3886b02 100644
+index f722a9fd5181..c6e3886b02be 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -274,6 +274,15 @@ static const struct {
@@ -75,7 +75,7 @@ index f722a9fd51..c6e3886b02 100644
                                                  source_format, 0, NULL);
          if (format == best_format)
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 10d218d370..08dac7fb87 100644
+index 10d218d370a8..08dac7fb8727 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1262,6 +1262,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
@@ -91,7 +91,7 @@ index 10d218d370..08dac7fb87 100644
  
  static const VAEntrypoint vaapi_encode_entrypoints_normal[] = {
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 3308be7d1e..5c37ed042c 100644
+index 3308be7d1ed6..5c37ed042c43 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -1155,7 +1155,11 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
@@ -107,7 +107,7 @@ index 3308be7d1e..5c37ed042c 100644
  };
  
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 027612dc99..7d68861c1e 100644
+index 027612dc99df..7d68861c1ea9 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -569,6 +569,15 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
@@ -127,7 +127,7 @@ index 027612dc99..7d68861c1e 100644
      av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
             "not supported with this VA version.\n", profile->name);
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 5aa410c6cd..8423edb68f 100644
+index 5aa410c6cd13..8423edb68f57 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -129,6 +129,15 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
@@ -147,7 +147,7 @@ index 5aa410c6cd..8423edb68f 100644
      MAP(BGRA, RGB32,   BGRA, 0),
      MAP(BGRX, RGB32,   BGR0, 0),
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index 136a4f82a2..accf8a58cf 100644
+index 136a4f82a271..accf8a58cf11 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
 @@ -224,6 +224,29 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
@@ -245,7 +245,7 @@ index 136a4f82a2..accf8a58cf 100644
          .name = "p016le",
          .nb_components = 3,
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index 184ded7e85..d359f4e752 100644
+index 184ded7e8530..d359f4e752c1 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
 @@ -287,6 +287,8 @@ enum AVPixelFormat {
@@ -289,7 +289,7 @@ index 184ded7e85..d359f4e752 100644
  #define AV_PIX_FMT_X2BGR10    AV_PIX_FMT_NE(X2BGR10BE, X2BGR10LE)
  
 diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
-index 290e87c2d9..7aff0e462e 100644
+index 290e87c2d9e8..7aff0e462e2d 100644
 --- a/tests/ref/fate/imgutils
 +++ b/tests/ref/fate/imgutils
 @@ -214,6 +214,8 @@ gray12be        planes: 1, linesizes: 128   0   0   0, plane_sizes:  6144     0
@@ -316,7 +316,7 @@ index 290e87c2d9..7aff0e462e 100644
  x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  x2bgr10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
 diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
-index 7613ba7524..68769b210c 100644
+index 7613ba75246f..68769b210c6c 100644
 --- a/tests/ref/fate/sws-pixdesc-query
 +++ b/tests/ref/fate/sws-pixdesc-query
 @@ -57,6 +57,8 @@ isNBPS:
@@ -431,5 +431,5 @@ index 7613ba7524..68769b210c 100644
    p016le
    yuv410p
 -- 
-2.25.1
+2.25.4
 

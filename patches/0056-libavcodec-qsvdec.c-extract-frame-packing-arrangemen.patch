@@ -1,4 +1,4 @@
-From 48ad49faf0f07025fbf9bfd11a0407d9f2044eec Mon Sep 17 00:00:00 2001
+From 524bd7b0c7484996b2276030e704e337171d8bdf Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
 Subject: [PATCH 56/92] libavcodec/qsvdec.c: extract frame packing arrangement
@@ -15,7 +15,7 @@ Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 157 insertions(+)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 8090b748b3..9053070482 100644
+index 8090b748b30e..90530704824a 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -52,6 +52,8 @@
@@ -28,7 +28,7 @@ index 8090b748b3..9053070482 100644
      (MFX_VERSION_MAJOR > (MAJOR) ||         \
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 8bce9f2cf0..1d1a208ef3 100644
+index 8bce9f2cf0f3..1d1a208ef3d9 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -38,12 +38,15 @@
@@ -230,5 +230,5 @@ index 8bce9f2cf0..1d1a208ef3 100644
  
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
 -- 
-2.17.1
+2.25.4
 

@@ -1,4 +1,4 @@
-From 73372b0e991f08b114b7c2e70d2d84b3e491c824 Mon Sep 17 00:00:00 2001
+From 3989a01cf93c38f3fb7047c1358f88f50bc6d209 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 25 Nov 2020 13:48:35 -0500
 Subject: [PATCH 50/92] lavc/vaapi_encode_h265: set low delay B automatically
@@ -13,7 +13,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  2 files changed, 31 insertions(+), 22 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 5db8005555..c3ff2544b2 100644
+index 347cda4c0cc2..113773e5e7f1 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1908,6 +1908,30 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
@@ -66,7 +66,7 @@ index 5db8005555..c3ff2544b2 100644
                     "B-frames (supported references: %d / %d).\n",
                     ref_l0, ref_l1);
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 4d0ce87059..b7ddcf13e7 100644
+index 4d0ce8705980..b7ddcf13e7dd 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -936,8 +936,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
@@ -130,5 +130,5 @@ index 4d0ce87059..b7ddcf13e7 100644
          { "low_delay_b", "Use low delay B-frames with forward-prediction only",
                            0, AV_OPT_TYPE_CONST, { .i64 = 1 }, INT_MIN, INT_MAX, FLAGS, "b_strategy" },
 -- 
-2.17.1
+2.25.4
 

@@ -1,4 +1,4 @@
-From 45ffc2b35dacb45564903cf23585561294874cf5 Mon Sep 17 00:00:00 2001
+From e492ff7035e922b4bb8fac6aad3033b545068e0b Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 10 Nov 2020 15:31:18 -0500
 Subject: [PATCH 49/92] lavc/vaapi_hevc: improve scc decode pass rate
@@ -14,7 +14,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 23 insertions(+), 9 deletions(-)
 
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index cb9db53539..4c46f8d892 100644
+index cb9db53539f1..4c46f8d892e5 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -128,7 +128,7 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
@@ -89,5 +89,5 @@ index cb9db53539..4c46f8d892 100644
  #if VA_CHECK_VERSION(1, 8, 0)
      else if (!strcmp(profile->name, "Screen-Extended Main 4:4:4 10"))
 -- 
-2.17.1
+2.25.4
 

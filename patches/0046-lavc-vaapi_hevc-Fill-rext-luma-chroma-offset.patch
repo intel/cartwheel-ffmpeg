@@ -1,4 +1,4 @@
-From 7978901b27a1e6a15bcce8e96a8d42554a4c7516 Mon Sep 17 00:00:00 2001
+From 36dd3abb40b3a5e6804c8ca45a8b8931c7b3cbbe Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Thu, 9 Jul 2020 15:10:54 +0800
 Subject: [PATCH 46/92] lavc/vaapi_hevc: Fill rext luma/chroma offset
@@ -13,7 +13,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 1fc26590fd..cb9db53539 100644
+index 1fc26590fdfe..cb9db53539f1 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -360,7 +360,7 @@ static void fill_pred_weight_table(const AVCodecContext *avctx,
@@ -47,5 +47,5 @@ index 1fc26590fd..cb9db53539 100644
              for (i = 0; i < 15 && i < sh->nb_refs[L1]; i++) {
                  pic->last_slice_param.rext.luma_offset_l1[i] = sh->luma_offset_l1[i];
 -- 
-2.17.1
+2.25.4
 

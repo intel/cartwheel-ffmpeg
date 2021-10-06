@@ -1,4 +1,4 @@
-From 6669ca13d60a6a9c54897e8c3900b2d70be5dade Mon Sep 17 00:00:00 2001
+From 855c8f662558a0eb700e571e30196754b4daa393 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 1 Dec 2020 10:32:58 +0800
 Subject: [PATCH 51/92] avframe: zero the frame, including padding data
@@ -8,7 +8,7 @@ Subject: [PATCH 51/92] avframe: zero the frame, including padding data
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavutil/frame.c b/libavutil/frame.c
-index b0ceaf7145..3fe6fca134 100644
+index 2617cda2b51d..5689544a9698 100644
 --- a/libavutil/frame.c
 +++ b/libavutil/frame.c
 @@ -164,7 +164,7 @@ static int get_video_buffer(AVFrame *frame, int align)
@@ -21,5 +21,5 @@ index b0ceaf7145..3fe6fca134 100644
          ret = AVERROR(ENOMEM);
          goto fail;
 -- 
-2.17.1
+2.25.4
 

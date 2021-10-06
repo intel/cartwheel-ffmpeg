@@ -1,4 +1,4 @@
-From e563ff8e75978e9173d274a78ffd02a3f7992108 Mon Sep 17 00:00:00 2001
+From 0eecf7fffd552e9e8eab3915e557bb7081b593d3 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 10:58:19 +0800
 Subject: [PATCH 01/92] lavu/pixfmt: add new pixel format 0yuv/y410
@@ -25,7 +25,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  4 files changed, 54 insertions(+)
 
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index 69cb198646..136a4f82a2 100644
+index 69cb19864677..136a4f82a271 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
 @@ -224,6 +224,41 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
@@ -71,7 +71,7 @@ index 69cb198646..136a4f82a2 100644
          .name = "rgb24",
          .nb_components = 3,
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index 53bdecfcb7..184ded7e85 100644
+index 53bdecfcb7a1..184ded7e8530 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
 @@ -348,6 +348,10 @@ enum AVPixelFormat {
@@ -94,7 +94,7 @@ index 53bdecfcb7..184ded7e85 100644
  #define AV_PIX_FMT_X2BGR10    AV_PIX_FMT_NE(X2BGR10BE, X2BGR10LE)
  
 diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
-index 495bbd46f0..290e87c2d9 100644
+index 495bbd46f00b..290e87c2d9e8 100644
 --- a/tests/ref/fate/imgutils
 +++ b/tests/ref/fate/imgutils
 @@ -234,6 +234,9 @@ nv24            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144
@@ -108,7 +108,7 @@ index 495bbd46f0..290e87c2d9 100644
  x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  x2bgr10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
 diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
-index a74109c3d7..7613ba7524 100644
+index a74109c3d751..7613ba75246f 100644
 --- a/tests/ref/fate/sws-pixdesc-query
 +++ b/tests/ref/fate/sws-pixdesc-query
 @@ -65,6 +65,8 @@ isNBPS:
@@ -172,5 +172,5 @@ index a74109c3d7..7613ba7524 100644
    ya16le
    ya8
 -- 
-2.25.1
+2.25.4
 

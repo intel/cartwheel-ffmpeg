@@ -1,4 +1,4 @@
-From 7428af8f8fd261e676b799359b9a9db4c6cabdc0 Mon Sep 17 00:00:00 2001
+From 90e6e29876a742cd1560b323ae33b7dacace6457 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 14:38:46 +0800
 Subject: [PATCH 60/92] libavcodec/qsvenc: add horizontal intra refresh and
@@ -16,7 +16,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 16 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 401ba0b280..4569286492 100644
+index d3d3bc52c06d..2de9f602a507 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -220,8 +220,10 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -47,7 +47,7 @@ index 401ba0b280..4569286492 100644
  #if QSV_VERSION_ATLEAST(1, 26)
              q->extco3.TransformSkip  = q->transform_skip ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 789a465bc6..f3f21959e7 100644
+index 789a465bc62c..f3f21959e783 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -194,6 +194,7 @@ typedef struct QSVEncContext {
@@ -59,7 +59,7 @@ index 789a465bc6..f3f21959e7 100644
  
      int repeat_pps;
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
-index 80fe3cc280..3a07b412d6 100644
+index 80fe3cc280b9..3a07b412d668 100644
 --- a/libavcodec/qsvenc_h264.c
 +++ b/libavcodec/qsvenc_h264.c
 @@ -129,10 +129,13 @@ static const AVOption options[] = {
@@ -78,5 +78,5 @@ index 80fe3cc280..3a07b412d6 100644
      { "unknown" , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_UNKNOWN      }, INT_MIN, INT_MAX,     VE, "profile" },
      { "baseline", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_AVC_BASELINE }, INT_MIN, INT_MAX,     VE, "profile" },
 -- 
-2.17.1
+2.25.4
 

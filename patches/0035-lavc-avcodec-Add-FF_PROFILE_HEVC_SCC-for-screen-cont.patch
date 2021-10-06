@@ -1,4 +1,4 @@
-From db7c689fc3e0c8af3996129a0ae84e6ac1d486f0 Mon Sep 17 00:00:00 2001
+From 102e855a19d3bf7a8f16d0780a8132474ea522c1 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:39 +0800
 Subject: [PATCH 35/92] lavc/avcodec: Add FF_PROFILE_HEVC_SCC for screen
@@ -11,7 +11,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 3 insertions(+)
 
 diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
-index 764c4849ee..3dffb51f09 100644
+index 764c4849eeab..3dffb51f096b 100644
 --- a/libavcodec/hevc_ps.c
 +++ b/libavcodec/hevc_ps.c
 @@ -281,6 +281,8 @@ static int decode_profile_tier_level(GetBitContext *gb, AVCodecContext *avctx,
@@ -24,7 +24,7 @@ index 764c4849ee..3dffb51f09 100644
          av_log(avctx, AV_LOG_WARNING, "Unknown HEVC profile: %d\n", ptl->profile_idc);
  
 diff --git a/libavcodec/profiles.c b/libavcodec/profiles.c
-index 7af7fbeb13..2230fc5415 100644
+index 7af7fbeb1302..2230fc5415d0 100644
 --- a/libavcodec/profiles.c
 +++ b/libavcodec/profiles.c
 @@ -85,6 +85,7 @@ const AVProfile ff_hevc_profiles[] = {
@@ -36,5 +36,5 @@ index 7af7fbeb13..2230fc5415 100644
  };
  
 -- 
-2.17.1
+2.25.4
 

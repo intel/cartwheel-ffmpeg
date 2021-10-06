@@ -1,4 +1,4 @@
-From b2c6244f84757860a076baa2e594c8ac7616f761 Mon Sep 17 00:00:00 2001
+From aa672a8d407ef92eb4c353473cb0202fe7569f17 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 16 Mar 2021 14:31:19 +0800
 Subject: [PATCH 80/92] libavcodec/qsvdec: remove redundant decodeHeader()
@@ -17,7 +17,7 @@ Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
  1 file changed, 12 insertions(+), 14 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 70ed425ae2..6a5e4e9abb 100644
+index 70ed425ae2c9..6a5e4e9abb3a 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -76,7 +76,6 @@ typedef struct QSVContext {
@@ -71,5 +71,5 @@ index 70ed425ae2..6a5e4e9abb 100644
          q->orig_pix_fmt = avctx->pix_fmt = pix_fmt = ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC);
  
 -- 
-2.17.1
+2.25.4
 

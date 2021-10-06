@@ -1,7 +1,7 @@
-From 6af5c293439319d6a555c0967b5138dce0fff381 Mon Sep 17 00:00:00 2001
+From 997368bd61b536cb9abf42e944a3a0e46bb43263 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 09:43:12 +0800
-Subject: [PATCH] qsv: support OPAQUE memory when MFX_VERSION < 2.0
+Subject: [PATCH 75/92] qsv: support OPAQUE memory when MFX_VERSION < 2.0
 
 OPAQUE memory isn't supported for MFX_VERSION >= 2.0[1][2]. This is in
 preparation for oneVPL support
@@ -99,7 +99,7 @@ index 9442ed0e5cc3..f18135f41785 100644
      }
  
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 5947036de078..0a93fd900853 100644
+index e9270a561198..d3d1ffc3623e 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -1095,6 +1095,7 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
@@ -165,7 +165,7 @@ index 5947036de078..0a93fd900853 100644
      }
  
      ret = MFXVideoENCODE_Init(q->session, &q->param);
-@@ -1813,8 +1832,10 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1784,8 +1803,10 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
      av_fifo_free(q->async_fifo);
      q->async_fifo = NULL;
  
@@ -329,7 +329,7 @@ index 46e90c1d2c89..67c351f2977b 100644
      int got_frame;
      int async_depth;
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
-index ab849558efbe..fe6cb69afe11 100644
+index b8ff3e8339df..50f9156d143d 100644
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ b/libavfilter/vf_deinterlace_qsv.c
 @@ -62,7 +62,9 @@ typedef struct QSVDeintContext {
@@ -342,7 +342,7 @@ index ab849558efbe..fe6cb69afe11 100644
      mfxExtVPPDeinterlacing   deint_conf;
      mfxExtBuffer            *ext_buffers[2];
      int                      num_ext_buffers;
-@@ -163,9 +165,7 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -154,9 +156,7 @@ static int init_out_session(AVFilterContext *ctx)
      AVHWFramesContext    *hw_frames_ctx = (AVHWFramesContext*)s->hw_frames_ctx->data;
      AVQSVFramesContext *hw_frames_hwctx = hw_frames_ctx->hwctx;
      AVQSVDeviceContext    *device_hwctx = hw_frames_ctx->device_ctx->hwctx;
@@ -353,7 +353,7 @@ index ab849558efbe..fe6cb69afe11 100644
      mfxHDL handle = NULL;
      mfxHandleType handle_type;
      mfxVersion ver;
-@@ -174,6 +174,9 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -165,6 +165,9 @@ static int init_out_session(AVFilterContext *ctx)
      mfxStatus err;
      int i;
  
@@ -363,7 +363,7 @@ index ab849558efbe..fe6cb69afe11 100644
      /* extract the properties of the "master" session given to us */
      err = MFXQueryIMPL(device_hwctx->session, &impl);
      if (err == MFX_ERR_NONE)
-@@ -232,28 +235,7 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -223,28 +226,7 @@ static int init_out_session(AVFilterContext *ctx)
  
      s->ext_buffers[s->num_ext_buffers++] = (mfxExtBuffer *)&s->deint_conf;
  
@@ -393,7 +393,7 @@ index ab849558efbe..fe6cb69afe11 100644
          mfxFrameAllocator frame_allocator = {
              .pthis  = ctx,
              .Alloc  = frame_alloc,
-@@ -277,6 +259,31 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -268,6 +250,31 @@ static int init_out_session(AVFilterContext *ctx)
  
          par.IOPattern = MFX_IOPATTERN_IN_VIDEO_MEMORY | MFX_IOPATTERN_OUT_VIDEO_MEMORY;
      }
@@ -426,7 +426,7 @@ index ab849558efbe..fe6cb69afe11 100644
      par.ExtParam    = s->ext_buffers;
      par.NumExtParam = s->num_ext_buffers;
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
-index 19c9bb64634a..6cc6d192ff16 100644
+index 2ba7d086b79b..30434033d105 100644
 --- a/libavfilter/vf_scale_qsv.c
 +++ b/libavfilter/vf_scale_qsv.c
 @@ -90,7 +90,9 @@ typedef struct QSVScaleContext {
@@ -439,7 +439,7 @@ index 19c9bb64634a..6cc6d192ff16 100644
  
  #if QSV_HAVE_SCALING_CONFIG
      mfxExtVPPScaling         scale_conf;
-@@ -280,7 +282,7 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -271,7 +273,7 @@ static int init_out_session(AVFilterContext *ctx)
      AVQSVFramesContext *out_frames_hwctx = out_frames_ctx->hwctx;
      AVQSVDeviceContext     *device_hwctx = in_frames_ctx->device_ctx->hwctx;
  
@@ -448,7 +448,7 @@ index 19c9bb64634a..6cc6d192ff16 100644
  
      mfxHDL handle = NULL;
      mfxHandleType handle_type;
-@@ -290,6 +292,9 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -281,6 +283,9 @@ static int init_out_session(AVFilterContext *ctx)
      mfxStatus err;
      int i;
  
@@ -458,7 +458,7 @@ index 19c9bb64634a..6cc6d192ff16 100644
      s->num_ext_buf = 0;
  
      /* extract the properties of the "master" session given to us */
-@@ -342,38 +347,7 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -333,38 +338,7 @@ static int init_out_session(AVFilterContext *ctx)
  
      memset(&par, 0, sizeof(par));
  
@@ -498,7 +498,7 @@ index 19c9bb64634a..6cc6d192ff16 100644
          mfxFrameAllocator frame_allocator = {
              .pthis  = ctx,
              .Alloc  = frame_alloc,
-@@ -405,6 +379,40 @@ static int init_out_session(AVFilterContext *ctx)
+@@ -396,6 +370,40 @@ static int init_out_session(AVFilterContext *ctx)
  
          par.IOPattern = MFX_IOPATTERN_IN_VIDEO_MEMORY | MFX_IOPATTERN_OUT_VIDEO_MEMORY;
      }
@@ -540,7 +540,7 @@ index 19c9bb64634a..6cc6d192ff16 100644
  #if QSV_HAVE_SCALING_CONFIG
      memset(&s->scale_conf, 0, sizeof(mfxExtVPPScaling));
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index e71fd16ee9d4..23afab99eaff 100644
+index e543d99cd62a..d31c2c7fa69e 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -53,6 +53,8 @@

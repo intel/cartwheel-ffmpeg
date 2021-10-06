@@ -1,4 +1,4 @@
-From 9fac33f922536f1628d2b5c3f74d9d7d854a232b Mon Sep 17 00:00:00 2001
+From aaec5088eb79794a5c580766747bf87cc093ed94 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 11 May 2020 14:26:18 +0800
 Subject: [PATCH 27/92] lavc/vaapi_vp9: support 420/444 12bit dec
@@ -13,7 +13,7 @@ ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -v debug -i colorbar_4
  1 file changed, 7 insertions(+)
 
 diff --git a/libavcodec/vp9.c b/libavcodec/vp9.c
-index 6ed16b62cd..45f1ff61af 100644
+index 619dd1bfea59..ca4e1d08ee08 100644
 --- a/libavcodec/vp9.c
 +++ b/libavcodec/vp9.c
 @@ -231,6 +231,13 @@ static int update_size(AVCodecContext *avctx, int w, int h)
@@ -31,5 +31,5 @@ index 6ed16b62cd..45f1ff61af 100644
  
          *fmtp++ = s->pix_fmt;
 -- 
-2.17.1
+2.25.4
 

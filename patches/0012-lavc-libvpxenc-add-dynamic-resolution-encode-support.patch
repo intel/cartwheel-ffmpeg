@@ -1,7 +1,7 @@
-From 3385f5cc04d1004cb62b096c79a8623fcad81669 Mon Sep 17 00:00:00 2001
+From a1e7ca66d6ae1392cdcadb897f12baf892c8049f Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Wed, 31 Jul 2019 12:18:21 +0800
-Subject: [PATCH 12/82] lavc/libvpxenc: add dynamic resolution encode support
+Subject: [PATCH 12/92] lavc/libvpxenc: add dynamic resolution encode support
  for libvpx
 
 According to spec, libvpx should support dynamic resolution changes.
@@ -21,10 +21,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 32 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/libvpxenc.c b/libavcodec/libvpxenc.c
-index 66bad444d0ed..83eab20fa93d 100644
+index 10e5a22fa92c..0a4083fc7b91 100644
 --- a/libavcodec/libvpxenc.c
 +++ b/libavcodec/libvpxenc.c
-@@ -1543,6 +1543,34 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
+@@ -1640,6 +1640,34 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
      vpx_svc_layer_id_t layer_id;
      int layer_id_valid = 0;
  
@@ -59,7 +59,7 @@ index 66bad444d0ed..83eab20fa93d 100644
      if (frame) {
          const AVFrameSideData *sd = av_frame_get_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
          rawimg                      = &ctx->rawimg;
-@@ -1552,6 +1580,8 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
+@@ -1649,6 +1677,8 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
          rawimg->stride[VPX_PLANE_Y] = frame->linesize[0];
          rawimg->stride[VPX_PLANE_U] = frame->linesize[1];
          rawimg->stride[VPX_PLANE_V] = frame->linesize[2];
@@ -68,7 +68,7 @@ index 66bad444d0ed..83eab20fa93d 100644
          if (ctx->is_alpha) {
              rawimg_alpha = &ctx->rawimg_alpha;
              res = realloc_alpha_uv(avctx, frame->width, frame->height);
-@@ -1830,7 +1860,7 @@ const AVCodec ff_libvpx_vp8_encoder = {
+@@ -1946,7 +1976,7 @@ const AVCodec ff_libvpx_vp8_encoder = {
      .type           = AVMEDIA_TYPE_VIDEO,
      .id             = AV_CODEC_ID_VP8,
      .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
@@ -77,7 +77,7 @@ index 66bad444d0ed..83eab20fa93d 100644
      .priv_data_size = sizeof(VPxContext),
      .init           = vp8_init,
      .encode2        = vpx_encode,
-@@ -1862,7 +1892,7 @@ AVCodec ff_libvpx_vp9_encoder = {
+@@ -1978,7 +2008,7 @@ AVCodec ff_libvpx_vp9_encoder = {
      .type           = AVMEDIA_TYPE_VIDEO,
      .id             = AV_CODEC_ID_VP9,
      .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |

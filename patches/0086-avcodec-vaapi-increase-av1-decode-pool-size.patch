@@ -1,4 +1,4 @@
-From 70bdcae6c663d4f2f3e8e1e7ebdc3e835711b26e Mon Sep 17 00:00:00 2001
+From 76cfa94d7a12caec6e7f5ec60a26a01f45bea8d6 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 3 Jun 2021 13:58:27 -0400
 Subject: [PATCH 86/92] avcodec/vaapi: increase av1 decode pool size
@@ -13,7 +13,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 8026e0411f..afc1012555 100644
+index 8026e0411f2f..afc10125554b 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -605,10 +605,10 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
@@ -29,5 +29,5 @@ index 8026e0411f..afc1012555 100644
              break;
          case AV_CODEC_ID_VP8:
 -- 
-2.17.1
+2.25.4
 

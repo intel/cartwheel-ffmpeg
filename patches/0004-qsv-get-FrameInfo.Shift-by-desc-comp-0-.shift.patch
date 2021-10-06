@@ -1,7 +1,7 @@
-From 6c31aad76c6973a6d3fc29838b522eaf84ab9090 Mon Sep 17 00:00:00 2001
+From bbf9e47056e52b516655ba2da8759aabc154c6bf Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:32:40 +0800
-Subject: [PATCH 04/82] qsv: get FrameInfo.Shift by desc->comp[0].shift
+Subject: [PATCH 04/92] qsv: get FrameInfo.Shift by desc->comp[0].shift
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
@@ -10,10 +10,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 0ec8e0e59728..7511c18dd58e 100644
+index 06f55604b576..2edc4adfb456 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -448,7 +448,7 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+@@ -452,7 +452,7 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
      q->param.mfx.FrameInfo.ChromaFormat   = MFX_CHROMAFORMAT_YUV420;
      q->param.mfx.FrameInfo.BitDepthLuma   = desc->comp[0].depth;
      q->param.mfx.FrameInfo.BitDepthChroma = desc->comp[0].depth;
@@ -22,7 +22,7 @@ index 0ec8e0e59728..7511c18dd58e 100644
  
      q->param.mfx.FrameInfo.Width  = FFALIGN(avctx->width, 16);
      q->param.mfx.FrameInfo.Height = FFALIGN(avctx->height, 16);
-@@ -550,7 +550,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -556,7 +556,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
                                              !desc->log2_chroma_w + !desc->log2_chroma_h;
      q->param.mfx.FrameInfo.BitDepthLuma   = desc->comp[0].depth;
      q->param.mfx.FrameInfo.BitDepthChroma = desc->comp[0].depth;
@@ -32,10 +32,10 @@ index 0ec8e0e59728..7511c18dd58e 100644
      // If the minor version is greater than or equal to 19,
      // then can use the same alignment settings as H.264 for HEVC
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 08a6e0ee1c68..a21907ef5e8f 100644
+index c18747f7eb9b..0700cba80221 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -327,7 +327,7 @@ static int qsv_init_surface(AVHWFramesContext *ctx, mfxFrameSurface1 *surf)
+@@ -404,7 +404,7 @@ static int qsv_init_surface(AVHWFramesContext *ctx, mfxFrameSurface1 *surf)
  
      surf->Info.BitDepthLuma   = desc->comp[0].depth;
      surf->Info.BitDepthChroma = desc->comp[0].depth;

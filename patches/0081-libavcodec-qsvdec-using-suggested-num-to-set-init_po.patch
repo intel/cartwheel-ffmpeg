@@ -1,4 +1,4 @@
-From 11e56c850d1fa649433f10925a1c980243e212c2 Mon Sep 17 00:00:00 2001
+From fb1de9f01f2a79008c4c2788cef2a76b9b1cf1e6 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Tue, 26 Jan 2021 09:55:59 +0800
 Subject: [PATCH 81/92] libavcodec/qsvdec: using suggested num to set
@@ -18,7 +18,7 @@ Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
  1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 6a5e4e9abb..92a816a344 100644
+index 6a5e4e9abb3a..92a816a34456 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -82,7 +82,7 @@ typedef struct QSVContext {
@@ -69,5 +69,5 @@ index 6a5e4e9abb..92a816a344 100644
          if (ret < 0)
              goto reinit_fail;
 -- 
-2.17.1
+2.25.4
 

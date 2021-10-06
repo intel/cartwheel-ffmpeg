@@ -1,4 +1,4 @@
-From 3d7a3306ea3f90f0d4150314df96b508157e7065 Mon Sep 17 00:00:00 2001
+From a5bbc68ac07b1f321a9ebf57290e9cb53bd59fd6 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:24:03 +0800
 Subject: [PATCH 67/92] libavfilter/qsvvpp: change the output frame's width and
@@ -19,7 +19,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 135d4c4e36..56b293c3d8 100644
+index d1218355c71a..a44022c90c9f 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -460,15 +460,14 @@ static QSVFrame *query_frame(QSVVPPContext *s, AVFilterLink *outlink)
@@ -41,5 +41,5 @@ index 135d4c4e36..56b293c3d8 100644
  
      return out_frame;
 -- 
-2.17.1
+2.25.4
 

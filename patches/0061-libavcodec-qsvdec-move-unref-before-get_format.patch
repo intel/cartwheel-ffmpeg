@@ -1,4 +1,4 @@
-From 6dad9cfd0c31769543f01643153aabd906eeccdb Mon Sep 17 00:00:00 2001
+From 30e395d57c9a12a1d12c667539a6c8478a6efdfe Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 17:08:39 +0800
 Subject: [PATCH 61/92] libavcodec/qsvdec: move unref before get_format
@@ -17,7 +17,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 1d1a208ef3..4c74de68b1 100644
+index 1d1a208ef3d9..4c74de68b128 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -236,6 +236,8 @@ static int qsv_decode_preinit(AVCodecContext *avctx, QSVContext *q, enum AVPixel
@@ -30,5 +30,5 @@ index 1d1a208ef3..4c74de68b1 100644
      if (ret < 0) {
          q->orig_pix_fmt = avctx->pix_fmt = AV_PIX_FMT_NONE;
 -- 
-2.17.1
+2.25.4
 

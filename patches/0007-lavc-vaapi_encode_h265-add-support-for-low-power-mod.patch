@@ -1,7 +1,7 @@
-From 927d34a87f3241775f485ca2d53187829bc3f322 Mon Sep 17 00:00:00 2001
+From 189a1e2f12d4b305b3317021897e2253ed135fe9 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 3 Dec 2019 16:07:48 +0800
-Subject: [PATCH 07/82] lavc/vaapi_encode_h265: add support for low power mode
+Subject: [PATCH 07/92] lavc/vaapi_encode_h265: add support for low power mode
  for HEVC encode
 
 Enable hevc_vaapi vdenc:

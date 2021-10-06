@@ -1,4 +1,4 @@
-From b1484edf0aa18b8554ffd6e62c630cde8e4a66f3 Mon Sep 17 00:00:00 2001
+From 39ba15ec7c172ed354056cb99d5983cff7fe6f4d Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 24 Aug 2021 09:30:33 +0800
 Subject: [PATCH 92/92] avcodec/dxva2_av1: fix global motion params
@@ -14,7 +14,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavcodec/dxva2_av1.c b/libavcodec/dxva2_av1.c
-index aa14e473df..08fee6f7d5 100644
+index c30b57799c2c..8a912bf6c192 100644
 --- a/libavcodec/dxva2_av1.c
 +++ b/libavcodec/dxva2_av1.c
 @@ -139,7 +139,7 @@ static int fill_picture_parameters(const AVCodecContext *avctx, AVDXVAContext *c
@@ -27,5 +27,5 @@ index aa14e473df..08fee6f7d5 100644
          for (j = 0; j < 6; ++j) {
               pp->frame_refs[i].wmmat[j] = h->cur_frame.gm_params[AV1_REF_FRAME_LAST + i][j];
 -- 
-2.17.1
+2.25.4
 

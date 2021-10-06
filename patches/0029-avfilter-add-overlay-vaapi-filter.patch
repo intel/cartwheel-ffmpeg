@@ -1,4 +1,4 @@
-From 6e0f319c881cfacfad48f19d75571e6f022d8480 Mon Sep 17 00:00:00 2001
+From 09eecea6824270397e029eeb4b6f6ddb034b016e Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Wed, 26 Feb 2020 13:53:34 +0800
 Subject: [PATCH 29/92] avfilter: add overlay vaapi filter
@@ -28,7 +28,7 @@ Signed-off-by: Zachary Zhou <zachary.zhou@intel.com>
  create mode 100644 libavfilter/vf_overlay_vaapi.c
 
 diff --git a/configure b/configure
-index af410a9d11..dc71dbc288 100755
+index 231d0398a87a..9a4841b8b1db 100755
 --- a/configure
 +++ b/configure
 @@ -3624,6 +3624,7 @@ openclsrc_filter_deps="opencl"
@@ -47,7 +47,7 @@ index af410a9d11..dc71dbc288 100755
  unsharp_opencl_filter_deps="opencl"
  uspp_filter_deps="gpl avcodec"
  vaguedenoiser_filter_deps="gpl"
-@@ -6757,6 +6759,7 @@ if enabled vaapi; then
+@@ -6761,6 +6763,7 @@ if enabled vaapi; then
      check_struct "va/va.h" "VADecPictureParameterBufferAV1" bit_depth_idx
      check_type   "va/va.h va/va_vpp.h" "VAProcFilterParameterBufferHDRToneMapping"
      check_struct "va/va.h va/va_vpp.h" "VAProcPipelineCaps" rotation_flags
@@ -56,10 +56,10 @@ index af410a9d11..dc71dbc288 100755
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
 diff --git a/doc/filters.texi b/doc/filters.texi
-index 9ad6031d23..b08d3a5624 100644
+index 1994467f460b..d1aebc287210 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -24114,6 +24114,57 @@ To enable compilation of these filters you need to configure FFmpeg with
+@@ -24296,6 +24296,57 @@ To enable compilation of these filters you need to configure FFmpeg with
  
  To use vaapi filters, you need to setup the vaapi device correctly. For more information, please read @url{https://trac.ffmpeg.org/wiki/Hardware/VAAPI}
  
@@ -118,10 +118,10 @@ index 9ad6031d23..b08d3a5624 100644
  
  Perform HDR(High Dynamic Range) to SDR(Standard Dynamic Range) conversion with tone-mapping.
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index af957a5ac0..2bb7c43591 100644
+index dbd86857912d..24b8eddfe2b1 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -361,6 +361,7 @@ OBJS-$(CONFIG_OVERLAY_CUDA_FILTER)           += vf_overlay_cuda.o framesync.o vf
+@@ -365,6 +365,7 @@ OBJS-$(CONFIG_OVERLAY_CUDA_FILTER)           += vf_overlay_cuda.o framesync.o vf
  OBJS-$(CONFIG_OVERLAY_OPENCL_FILTER)         += vf_overlay_opencl.o opencl.o \
                                                  opencl/overlay.o framesync.o
  OBJS-$(CONFIG_OVERLAY_QSV_FILTER)            += vf_overlay_qsv.o framesync.o
@@ -130,10 +130,10 @@ index af957a5ac0..2bb7c43591 100644
  OBJS-$(CONFIG_OWDENOISE_FILTER)              += vf_owdenoise.o
  OBJS-$(CONFIG_PAD_FILTER)                    += vf_pad.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 0c6b2347c8..6a81dbe70d 100644
+index 761c2610054a..27afdb7b8473 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -344,6 +344,7 @@ extern const AVFilter ff_vf_oscilloscope;
+@@ -348,6 +348,7 @@ extern const AVFilter ff_vf_oscilloscope;
  extern const AVFilter ff_vf_overlay;
  extern const AVFilter ff_vf_overlay_opencl;
  extern const AVFilter ff_vf_overlay_qsv;
@@ -143,7 +143,7 @@ index 0c6b2347c8..6a81dbe70d 100644
  extern const AVFilter ff_vf_owdenoise;
 diff --git a/libavfilter/vf_overlay_vaapi.c b/libavfilter/vf_overlay_vaapi.c
 new file mode 100644
-index 0000000000..e0e583525d
+index 000000000000..b369fcc41bc3
 --- /dev/null
 +++ b/libavfilter/vf_overlay_vaapi.c
 @@ -0,0 +1,424 @@
@@ -565,12 +565,12 @@ index 0000000000..e0e583525d
 +    .priv_class      = &overlay_vaapi_class,
 +    .init            = &overlay_vaapi_init,
 +    .uninit          = &overlay_vaapi_uninit,
-+    .query_formats   = &overlay_vaapi_query_formats,
 +    .activate        = &overlay_vaapi_activate,
 +    FILTER_INPUTS(overlay_vaapi_inputs),
 +    FILTER_OUTPUTS(overlay_vaapi_outputs),
++    FILTER_QUERY_FUNC(overlay_vaapi_query_formats),
 +    .flags_internal  = FF_FILTER_FLAG_HWFRAME_AWARE,
 +};
 -- 
-2.17.1
+2.25.4
 

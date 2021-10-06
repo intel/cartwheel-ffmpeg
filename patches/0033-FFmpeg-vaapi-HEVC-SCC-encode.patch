@@ -1,4 +1,4 @@
-From 161c006fcb53f798bb1df7d19711cede6e32d5d5 Mon Sep 17 00:00:00 2001
+From daa0d2dfe67881663656b125ec71c9a6fd7c2bb4 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 18 Oct 2020 16:15:37 -0400
 Subject: [PATCH 33/92] FFmpeg vaapi HEVC SCC encode.
@@ -25,10 +25,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  3 files changed, 48 insertions(+), 10 deletions(-)
 
 diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index ffd58c333f..fa21a5ed6f 100644
+index 7ee8bc2b7cc0..9346c870524c 100644
 --- a/libavcodec/avcodec.h
 +++ b/libavcodec/avcodec.h
-@@ -1610,6 +1610,7 @@ typedef struct AVCodecContext {
+@@ -1614,6 +1614,7 @@ typedef struct AVCodecContext {
  #define FF_PROFILE_HEVC_MAIN_10                     2
  #define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3
  #define FF_PROFILE_HEVC_REXT                        4
@@ -37,7 +37,7 @@ index ffd58c333f..fa21a5ed6f 100644
  #define FF_PROFILE_VVC_MAIN_10                      1
  #define FF_PROFILE_VVC_MAIN_10_444                 33
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 313d4eeb65..5db8005555 100644
+index 08dac7fb8727..347cda4c0cc2 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1256,6 +1256,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
@@ -49,7 +49,7 @@ index 313d4eeb65..5db8005555 100644
      { "YUV444",    VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
      { "YUV411",    VA_RT_FORMAT_YUV411,        8, 3, 2, 0 },
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 5c37ed042c..4d0ce87059 100644
+index 5c37ed042c43..4d0ce8705980 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -300,17 +300,13 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
@@ -191,5 +191,5 @@ index 5c37ed042c..4d0ce87059 100644
  
      { "tier", "Set tier (general_tier_flag)",
 -- 
-2.17.1
+2.25.4
 

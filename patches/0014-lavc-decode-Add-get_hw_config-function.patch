@@ -1,7 +1,7 @@
-From 4f75c4993a969dfa82b79628e0f0bb7206bc565c Mon Sep 17 00:00:00 2001
+From 308a67f70b4a55b5972f7ee6d480445f501972ef Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 2 Jan 2020 11:06:45 +0800
-Subject: [PATCH 14/82] lavc/decode: Add get_hw_config function
+Subject: [PATCH 14/92] lavc/decode: Add get_hw_config function
 
 Wrap the procedure of getting the hardware config from a pixel format
 into a function.
@@ -12,10 +12,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 21 insertions(+), 12 deletions(-)
 
 diff --git a/libavcodec/decode.c b/libavcodec/decode.c
-index cd98c98a9739..5c11780b76c4 100644
+index 294c04071636..b69cb0dfaae7 100644
 --- a/libavcodec/decode.c
 +++ b/libavcodec/decode.c
-@@ -1069,6 +1069,26 @@ static void hwaccel_uninit(AVCodecContext *avctx)
+@@ -1084,6 +1084,26 @@ static void hwaccel_uninit(AVCodecContext *avctx)
      av_buffer_unref(&avctx->hw_frames_ctx);
  }
  
@@ -42,7 +42,7 @@ index cd98c98a9739..5c11780b76c4 100644
  int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
  {
      const AVPixFmtDescriptor *desc;
-@@ -1128,18 +1148,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
+@@ -1143,18 +1163,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
              break;
          }
  

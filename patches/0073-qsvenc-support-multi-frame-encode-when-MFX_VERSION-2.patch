@@ -1,4 +1,4 @@
-From e66d8ebef1a43d0fd8ed804931e0d0a62952abc6 Mon Sep 17 00:00:00 2001
+From d86cc52557e405d7ffeffffc9dde9e11f1882516 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 12:41:16 +0800
 Subject: [PATCH 73/92] qsvenc: support multi-frame encode when MFX_VERSION <
@@ -14,7 +14,7 @@ in preparation for oneVPL support
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 8cff75c684..ebc47386bd 100644
+index 8cff75c68403..ebc47386bd22 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -65,7 +65,7 @@
@@ -27,5 +27,5 @@ index 8cff75c684..ebc47386bd 100644
  
  #if !QSV_HAVE_LA_DS
 -- 
-2.17.1
+2.25.4
 

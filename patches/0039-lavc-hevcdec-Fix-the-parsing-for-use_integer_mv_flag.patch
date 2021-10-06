@@ -1,4 +1,4 @@
-From 13f6135c446f64bf5bfbfc8e3a8f5fb834e47696 Mon Sep 17 00:00:00 2001
+From 901445cbf9f6915ca9bed7a367bc74a708794f4e Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:43 +0800
 Subject: [PATCH 39/92] lavc/hevcdec: Fix the parsing for use_integer_mv_flag
@@ -16,7 +16,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 9 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index a36af3e8a0..bc609f54ca 100644
+index 1ae24026fc50..80a679788abd 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -823,6 +823,14 @@ static int hls_slice_header(HEVCContext *s)
@@ -35,7 +35,7 @@ index a36af3e8a0..bc609f54ca 100644
  
          sh->slice_qp_delta = get_se_golomb(gb);
 diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
-index f3e311bd40..3dbf54adfa 100644
+index f3e311bd4092..3dbf54adfa60 100644
 --- a/libavcodec/hevcdec.h
 +++ b/libavcodec/hevcdec.h
 @@ -303,6 +303,7 @@ typedef struct SliceHeader {
@@ -47,5 +47,5 @@ index f3e311bd40..3dbf54adfa 100644
      unsigned *entry_point_offset;
      int * offset;
 -- 
-2.17.1
+2.25.4
 
