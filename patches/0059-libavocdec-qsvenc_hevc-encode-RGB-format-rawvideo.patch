@@ -1,4 +1,4 @@
-From a43cebc7da437b9df5d6b4e265a0d76834470e5c Mon Sep 17 00:00:00 2001
+From 20e65376bece3ea3dfd79a8d1b335154fc080a82 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 15:46:19 +0800
 Subject: [PATCH 59/92] libavocdec/qsvenc_hevc: encode RGB format rawvideo
@@ -20,7 +20,7 @@ Sigend-of-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 39 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index bbae639983..9bc01a0869 100644
+index b9deb6b1a629..ce1f4dff7d5f 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -186,6 +186,12 @@ int ff_qsv_print_warning(void *log_ctx, mfxStatus err,
@@ -54,7 +54,7 @@ index bbae639983..9bc01a0869 100644
      case AV_PIX_FMT_YUYV422:
          *fourcc = MFX_FOURCC_YUY2;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 2af6a3a6ef..401ba0b280 100644
+index c4e40591e2c2..d3d3bc52c06d 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -626,6 +626,13 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
@@ -71,7 +71,7 @@ index 2af6a3a6ef..401ba0b280 100644
      switch (q->param.mfx.RateControlMethod) {
      case MFX_RATECONTROL_CBR:
      case MFX_RATECONTROL_VBR:
-@@ -1450,8 +1457,16 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+@@ -1452,8 +1459,16 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
              qf->surface.Info.PicStruct |= MFX_PICSTRUCT_FRAME_TRIPLING;
  
          qf->surface.Data.PitchLow  = qf->frame->linesize[0];
@@ -91,7 +91,7 @@ index 2af6a3a6ef..401ba0b280 100644
  
      qf->surface.Data.TimeStamp = av_rescale_q(frame->pts, q->avctx->time_base, (AVRational){1, 90000});
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 13b0347798..1b2fc0bcc4 100644
+index 13b034779833..1b2fc0bcc430 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -291,6 +291,12 @@ const AVCodec ff_hevc_qsv_encoder = {
@@ -108,5 +108,5 @@ index 13b0347798..1b2fc0bcc4 100644
      .priv_class     = &class,
      .defaults       = qsv_enc_defaults,
 -- 
-2.17.1
+2.25.4
 

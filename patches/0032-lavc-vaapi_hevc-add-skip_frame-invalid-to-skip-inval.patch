@@ -1,4 +1,4 @@
-From 645126900783db78253503ec3ab9e7f3b2372707 Mon Sep 17 00:00:00 2001
+From 93448981cdfbe4a2be61c673fa9d0355ecf29eac Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 14:56:25 +0800
 Subject: [PATCH 32/92] lavc/vaapi_hevc: add -skip_frame invalid to skip
@@ -21,7 +21,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  4 files changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/defs.h b/libavcodec/defs.h
-index 420a042b8f..25052048b4 100644
+index 420a042b8ff4..25052048b4e0 100644
 --- a/libavcodec/defs.h
 +++ b/libavcodec/defs.h
 @@ -47,6 +47,7 @@ enum AVDiscard{
@@ -33,7 +33,7 @@ index 420a042b8f..25052048b4 100644
      AVDISCARD_BIDIR   = 16, ///< discard all bidirectional frames
      AVDISCARD_NONINTRA= 24, ///< discard all non intra frames
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index c3005876b4..fc3d0bebaa 100644
+index afdb06a47478..37c1c4de8a2e 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -568,8 +568,11 @@ static int hls_slice_header(HEVCContext *s)
@@ -58,10 +58,10 @@ index c3005876b4..fc3d0bebaa 100644
              break;
          }
 diff --git a/libavcodec/options_table.h b/libavcodec/options_table.h
-index ae42b65b7b..2fd6dcabf3 100644
+index 130341a2ec7b..e98c76a3e47a 100644
 --- a/libavcodec/options_table.h
 +++ b/libavcodec/options_table.h
-@@ -248,6 +248,7 @@ static const AVOption avcodec_options[] = {
+@@ -250,6 +250,7 @@ static const AVOption avcodec_options[] = {
  {"skip_frame"      , "skip decoding for the selected frames",               OFFSET(skip_frame),       AV_OPT_TYPE_INT, {.i64 = AVDISCARD_DEFAULT }, INT_MIN, INT_MAX, V|D, "avdiscard"},
  {"none"            , "discard no frame",                    0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_NONE    }, INT_MIN, INT_MAX, V|D, "avdiscard"},
  {"default"         , "discard useless frames",              0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_DEFAULT }, INT_MIN, INT_MAX, V|D, "avdiscard"},
@@ -70,7 +70,7 @@ index ae42b65b7b..2fd6dcabf3 100644
  {"bidir"           , "discard all bidirectional frames",    0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_BIDIR   }, INT_MIN, INT_MAX, V|D, "avdiscard"},
  {"nokey"           , "discard all frames except keyframes", 0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_NONKEY  }, INT_MIN, INT_MAX, V|D, "avdiscard"},
 diff --git a/libavcodec/pthread_frame.c b/libavcodec/pthread_frame.c
-index 9c5d66c0d4..109808224d 100644
+index 73b1b7d7d97f..b2c0f672cb56 100644
 --- a/libavcodec/pthread_frame.c
 +++ b/libavcodec/pthread_frame.c
 @@ -278,6 +278,7 @@ static int update_context_from_thread(AVCodecContext *dst, AVCodecContext *src,
@@ -82,5 +82,5 @@ index 9c5d66c0d4..109808224d 100644
          dst->bits_per_coded_sample = src->bits_per_coded_sample;
          dst->sample_aspect_ratio   = src->sample_aspect_ratio;
 -- 
-2.17.1
+2.25.4
 

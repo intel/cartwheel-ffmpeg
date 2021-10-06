@@ -1,4 +1,4 @@
-From 19428f7f0c9f9e6e1e4f14792620be4cc22c7dbe Mon Sep 17 00:00:00 2001
+From 5d2180700b3405aef4d0b1d84dcc8279df44c56e Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Fri, 19 Feb 2021 08:51:35 +0800
 Subject: [PATCH 69/92] configure: fix the check for MFX_CODEC_VP9
@@ -18,10 +18,10 @@ from oneVPL [1]
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index e2f0a18abe..ccf4bb660c 100755
+index 84a5e2321aa1..3bc07801804b 100755
 --- a/configure
 +++ b/configure
-@@ -6441,7 +6441,7 @@ enabled libmfx            && { { check_pkg_config libmfx "libmfx < 2.0" "mfx/mfx
+@@ -6442,7 +6442,7 @@ enabled libmfx            && { { check_pkg_config libmfx "libmfx < 2.0" "mfx/mfx
                                      "multi-frame encode, user plugins and LA_EXT rate control mode are enabled"; }
  
  if enabled libmfx; then
@@ -31,5 +31,5 @@ index e2f0a18abe..ccf4bb660c 100755
  
  enabled libmodplug        && require_pkg_config libmodplug libmodplug libmodplug/modplug.h ModPlug_Load
 -- 
-2.17.1
+2.25.4
 

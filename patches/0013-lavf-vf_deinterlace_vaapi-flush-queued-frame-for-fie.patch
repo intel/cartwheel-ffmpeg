@@ -1,7 +1,7 @@
-From dd223f6de119a833598591231a32908de61affa7 Mon Sep 17 00:00:00 2001
+From a1397b5552d58e7522e880522981283ebfaec65e Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Fri, 2 Aug 2019 16:11:38 +0800
-Subject: [PATCH 13/94] lavf/vf_deinterlace_vaapi: flush queued frame for field
+Subject: [PATCH 13/92] lavf/vf_deinterlace_vaapi: flush queued frame for field
  in DeinterlacingBob
 
 For DeinterlacingBob mode with rate=field, the frame number of output
@@ -31,7 +31,7 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 38 insertions(+), 6 deletions(-)
 
 diff --git a/libavfilter/vf_deinterlace_vaapi.c b/libavfilter/vf_deinterlace_vaapi.c
-index 5ec830213e..ab5c377231 100644
+index 65f319ba9aaa..68b14a9fba4c 100644
 --- a/libavfilter/vf_deinterlace_vaapi.c
 +++ b/libavfilter/vf_deinterlace_vaapi.c
 @@ -46,6 +46,9 @@ typedef struct DeintVAAPIContext {
@@ -128,5 +128,5 @@ index 5ec830213e..ab5c377231 100644
  };
  
 -- 
-2.25.1
+2.25.4
 

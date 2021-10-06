@@ -1,4 +1,4 @@
-From 46ec967e58a6133afb2dd0d35d2769ba69bf53c1 Mon Sep 17 00:00:00 2001
+From c32478f706e9483283a4b85704b2d7ea1337819c Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 4 Jan 2021 09:52:34 +0800
 Subject: [PATCH 54/92] libavcodec/qsvenc: add low latency P-pyramid support
@@ -17,7 +17,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 32 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 0884e20bfc..00e5bd1201 100644
+index 228eb0bd82cc..6633f60154b5 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -271,6 +271,14 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -65,7 +65,7 @@ index 0884e20bfc..00e5bd1201 100644
          if (avctx->codec_id == AV_CODEC_ID_HEVC)
              q->extco3.GPB              = q->gpb ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index c79fdff41f..8ed20b0934 100644
+index c79fdff41f3f..8ed20b093443 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -95,6 +95,7 @@
@@ -85,5 +85,5 @@ index c79fdff41f..8ed20b0934 100644
  
      int int_ref_type;
 -- 
-2.17.1
+2.25.4
 

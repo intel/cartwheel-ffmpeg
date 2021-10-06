@@ -1,4 +1,4 @@
-From 216ab7530d1064c1d217c0c21ac1d03acc0a170a Mon Sep 17 00:00:00 2001
+From 10fe1df1ae63382c8d03f19b66ee5f673d6a8cbd Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Tue, 23 Feb 2021 15:22:34 +0800
 Subject: [PATCH 64/92] avutils/hwcontext_qsv: set the source device in
@@ -14,10 +14,10 @@ ffmpeg -init_hw_device vaapi=intel:/dev/dri/renderD128 -init_hw_device opencl=oc
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 8acc9d62ff..2498491b58 100644
+index 16966016710d..444cdf98f24d 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -1553,7 +1553,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1560,7 +1560,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
  
      impl = choose_implementation(device, child_device_type);
  
@@ -33,5 +33,5 @@ index 8acc9d62ff..2498491b58 100644
  
  const HWContextType ff_hwcontext_type_qsv = {
 -- 
-2.17.1
+2.25.4
 

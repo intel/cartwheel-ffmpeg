@@ -1,4 +1,4 @@
-From 8b5eab292fd45c351de9055e7621a93fbd91c3dd Mon Sep 17 00:00:00 2001
+From 83e5ce80a14a375dda8581424bd5881fa829d240 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 2 Jun 2020 14:34:00 +0800
 Subject: [PATCH 43/92] lavc/vaapi_hevc: Add vaapi profile parse support for
@@ -15,7 +15,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 12 insertions(+)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index c6e3886b02..8026e0411f 100644
+index c6e3886b02be..8026e0411f2f 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -416,6 +416,8 @@ static const struct {
@@ -28,7 +28,7 @@ index c6e3886b02..8026e0411f 100644
      MAP(MJPEG,       MJPEG_HUFFMAN_BASELINE_DCT,
                                        JPEGBaseline),
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 4e3ae6cf3b..28fe76c40e 100644
+index 4e3ae6cf3b4c..28fe76c40e09 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -608,6 +608,16 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
@@ -49,5 +49,5 @@ index 4e3ae6cf3b..28fe76c40e 100644
      av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
             "not supported with this VA version.\n", profile->name);
 -- 
-2.17.1
+2.25.4
 

@@ -1,4 +1,4 @@
-From c57e128740395d70a59fba3c15b62eb15d39a71b Mon Sep 17 00:00:00 2001
+From 1cce35a4025ad5ddb813351404cab597dab783de Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 23 Mar 2021 16:16:33 +0800
 Subject: [PATCH 79/92] libavcodec/qsvdec: reinit decoder according to decode()
@@ -16,7 +16,7 @@ Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
  1 file changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index fddb9f7673..70ed425ae2 100644
+index fddb9f767334..70ed425ae2c9 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -702,6 +702,13 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
@@ -46,5 +46,5 @@ index fddb9f7673..70ed425ae2 100644
  
          if (q->buffered_count) {
 -- 
-2.17.1
+2.25.4
 

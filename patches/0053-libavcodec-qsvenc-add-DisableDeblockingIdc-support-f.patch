@@ -1,4 +1,4 @@
-From 26198d632d8f73d349884405651f955f5b253626 Mon Sep 17 00:00:00 2001
+From 37ca5b2212fe11c2cd2aa31495c88b87a36ff26e Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 4 Jan 2021 09:49:22 +0800
 Subject: [PATCH 53/92] libavcodec/qsvenc: add DisableDeblockingIdc support for
@@ -13,7 +13,7 @@ Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 9 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 29540d5f7d..0884e20bfc 100644
+index 065f69b8e87e..228eb0bd82cc 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -302,6 +302,8 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -37,7 +37,7 @@ index 29540d5f7d..0884e20bfc 100644
  #if QSV_HAVE_TRELLIS
              if (avctx->trellis >= 0)
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 31516b8e55..c79fdff41f 100644
+index 31516b8e55b4..c79fdff41f3f 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -44,6 +44,7 @@
@@ -65,5 +65,5 @@ index 31516b8e55..c79fdff41f 100644
      int tile_cols;
      int tile_rows;
 -- 
-2.17.1
+2.25.4
 

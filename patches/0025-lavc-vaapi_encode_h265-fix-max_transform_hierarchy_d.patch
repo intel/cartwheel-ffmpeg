@@ -1,7 +1,7 @@
-From 7c7f75f61c1b0cd092ba98a26edba7f3396da77a Mon Sep 17 00:00:00 2001
+From c584b639cd4d46065fd78b362437524e3b04bc68 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Fri, 27 Mar 2020 14:01:44 +0800
-Subject: [PATCH 25/82] lavc/vaapi_encode_h265: fix
+Subject: [PATCH 25/92] lavc/vaapi_encode_h265: fix
  max_transform_hierarchy_depth_inter/intra
 
 Set the max_transform_hierarchy_depth_inter/intra to 2 by default

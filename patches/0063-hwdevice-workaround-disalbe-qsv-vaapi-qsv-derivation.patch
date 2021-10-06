@@ -1,4 +1,4 @@
-From e37361b4e7f30c203e5923412aa2701bcdba8075 Mon Sep 17 00:00:00 2001
+From 3c43cbb41d01151fccb91b1705f09feea753b797 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Mon, 15 Mar 2021 14:29:41 +0800
 Subject: [PATCH 63/92] hwdevice: workaround disalbe qsv->vaapi->qsv derivation
@@ -11,7 +11,7 @@ see https://patchwork.ffmpeg.org/project/ffmpeg/patch/20210222084504.339978-1-gu
  1 file changed, 2 insertions(+)
 
 diff --git a/libavutil/tests/hwdevice.c b/libavutil/tests/hwdevice.c
-index 7eb355c988..0c168377a7 100644
+index 7eb355c98826..0c168377a72c 100644
 --- a/libavutil/tests/hwdevice.c
 +++ b/libavutil/tests/hwdevice.c
 @@ -73,10 +73,12 @@ static int test_derivation(AVBufferRef *src_ref, const char *src_name)
@@ -28,5 +28,5 @@ index 7eb355c988..0c168377a7 100644
  
          fprintf(stderr, "Successfully tested derivation %s -> %s.\n",
 -- 
-2.17.1
+2.25.4
 

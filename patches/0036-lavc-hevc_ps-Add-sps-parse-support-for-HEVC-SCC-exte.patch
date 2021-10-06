@@ -1,4 +1,4 @@
-From 1837f47dd1ab3d16a618f23746b1e921b4261939 Mon Sep 17 00:00:00 2001
+From 50678ccfc17489139e3e58754b0640ecb0ad9ecd Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:40 +0800
 Subject: [PATCH 36/92] lavc/hevc_ps: Add sps parse support for HEVC SCC
@@ -15,7 +15,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  3 files changed, 59 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/hevc.h b/libavcodec/hevc.h
-index 1804755327..6b454a75c1 100644
+index 1804755327e1..6b454a75c188 100644
 --- a/libavcodec/hevc.h
 +++ b/libavcodec/hevc.h
 @@ -154,6 +154,9 @@ enum {
@@ -29,7 +29,7 @@ index 1804755327..6b454a75c1 100644
  
  
 diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
-index 3dffb51f09..7e72acc2e9 100644
+index 3dffb51f096b..7e72acc2e950 100644
 --- a/libavcodec/hevc_ps.c
 +++ b/libavcodec/hevc_ps.c
 @@ -913,7 +913,7 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
@@ -98,7 +98,7 @@ index 3dffb51f09..7e72acc2e9 100644
      if (apply_defdispwin) {
          sps->output_window.left_offset   += sps->vui.def_disp_win.left_offset;
 diff --git a/libavcodec/hevc_ps.h b/libavcodec/hevc_ps.h
-index 2a1bbf6489..be23758008 100644
+index 2a1bbf64899f..be237580083f 100644
 --- a/libavcodec/hevc_ps.h
 +++ b/libavcodec/hevc_ps.h
 @@ -223,6 +223,21 @@ typedef struct HEVCSPS {
@@ -124,5 +124,5 @@ index 2a1bbf6489..be23758008 100644
      int width;
      int height;
 -- 
-2.17.1
+2.25.4
 

@@ -1,4 +1,4 @@
-From f801a25806f79f9e25ff93755205d6c8898178f1 Mon Sep 17 00:00:00 2001
+From d394535edbaba0d5fff1ef164dcdec400e7f08c8 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 12 Mar 2021 13:56:52 +0800
 Subject: [PATCH 65/92] libavcodec/qsvdec: use the param from decodeHeader to
@@ -16,7 +16,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 3fb3e52013..ab0663cc2e 100644
+index 3fb3e5201357..ab0663cc2e90 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -419,13 +419,13 @@ static int alloc_frame(AVCodecContext *avctx, QSVContext *q, QSVFrame *frame)
@@ -36,5 +36,5 @@ index 3fb3e52013..ab0663cc2e 100644
          ret = ff_qsv_find_surface_idx(&q->frames_ctx, frame);
          if (ret < 0)
 -- 
-2.17.1
+2.25.4
 

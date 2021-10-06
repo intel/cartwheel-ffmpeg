@@ -1,7 +1,7 @@
-From 0c8d9aeb93e280eda4ab61914f1d09246ff30620 Mon Sep 17 00:00:00 2001
+From 2460a590a542e0f666b917675c5edcc9eb804e56 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 7 Apr 2020 14:03:21 +0800
-Subject: [PATCH 24/82] lavc/vaapi_encode_h265: add private b_strategy option
+Subject: [PATCH 24/92] lavc/vaapi_encode_h265: add private b_strategy option
  for hevc_vaapi
 
 Allow user to choose between I/P/B frames:
@@ -36,10 +36,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  4 files changed, 61 insertions(+), 6 deletions(-)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 3f549d32030c..48dc98658a69 100644
+index 2c90a282a85c..1eae6b125803 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3359,6 +3359,22 @@ Some combination of the following values:
+@@ -3377,6 +3377,22 @@ Some combination of the following values:
  Include HDR metadata if the input frames have it
  (@emph{mastering_display_colour_volume} and @emph{content_light_level}
  messages).
@@ -63,7 +63,7 @@ index 3f549d32030c..48dc98658a69 100644
  
  @item tiles
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 63de9a0a3b6b..4c8aa11e9e11 100644
+index bdd6430e2a5a..10d218d370a8 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1911,15 +1911,26 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)

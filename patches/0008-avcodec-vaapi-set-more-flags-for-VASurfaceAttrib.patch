@@ -1,7 +1,7 @@
-From 2fdcf81b6121c859bc88f16258a4072aa067061b Mon Sep 17 00:00:00 2001
+From 1a9bc04afc4716ba5b3207eefc8a6d8d7ae817b8 Mon Sep 17 00:00:00 2001
 From: Wangfei <fei.w.wang@intel.com>
 Date: Tue, 19 Nov 2019 16:23:19 +0800
-Subject: [PATCH 08/82] avcodec/vaapi: set more flags for VASurfaceAttrib
+Subject: [PATCH 08/92] avcodec/vaapi: set more flags for VASurfaceAttrib
 
 flags and value.type is needed when pass VASurfaceAttrib to driver.
 Otherwise the attribute will be considered invalid in driver.

@@ -1,4 +1,4 @@
-From f34e57bd0c512df3f4d59bbd5525a7b0d26a30cd Mon Sep 17 00:00:00 2001
+From c5ba74fabe2931ce3697265e8a8760befe2bcf46 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 9 Nov 2020 10:39:08 -0500
 Subject: [PATCH 47/92] lavc/hevc_refs: refine ref picture lists construction
@@ -14,7 +14,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index e6054696a3..51f72cd35f 100644
+index e6054696a337..51f72cd35fde 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
 @@ -344,6 +344,7 @@ int ff_hevc_slice_rpl(HEVCContext *s)
@@ -41,5 +41,5 @@ index e6054696a3..51f72cd35f 100644
  
          if (sh->collocated_list == list_idx &&
 -- 
-2.17.1
+2.25.4
 

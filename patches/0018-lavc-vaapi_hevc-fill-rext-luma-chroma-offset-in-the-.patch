@@ -1,7 +1,7 @@
-From 291a71cf79867b97917676c64965e26b13659002 Mon Sep 17 00:00:00 2001
+From f9d9d55651065013e7725bcff939cf1ab7c3bdee Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Thu, 12 Mar 2020 12:04:53 -0400
-Subject: [PATCH 18/82] lavc/vaapi_hevc: fill rext luma/chroma offset in the
+Subject: [PATCH 18/92] lavc/vaapi_hevc: fill rext luma/chroma offset in the
  right way
 
 For range extension, the luma/chroma offset is larger than 8 bits, we need fill the 16 bits version

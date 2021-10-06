@@ -1,4 +1,4 @@
-From 0fa093384a58cae3e590a41f05a3f98a01024d9c Mon Sep 17 00:00:00 2001
+From ce3a70e383c365b50cd132ced5b85b920a78605f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 9 Jun 2021 15:20:08 +0800
 Subject: [PATCH 90/92] avcodec/av1_vaapi: improve decode quality
@@ -13,7 +13,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 41 insertions(+), 26 deletions(-)
 
 diff --git a/libavcodec/vaapi_av1.c b/libavcodec/vaapi_av1.c
-index 6aaabed2c1..2d0f0a76ad 100644
+index 6aaabed2c123..2d0f0a76ad4b 100644
 --- a/libavcodec/vaapi_av1.c
 +++ b/libavcodec/vaapi_av1.c
 @@ -75,26 +75,35 @@ static int vaapi_av1_start_frame(AVCodecContext *avctx,
@@ -105,5 +105,5 @@ index 6aaabed2c1..2d0f0a76ad 100644
      };
  
 -- 
-2.17.1
+2.25.4
 

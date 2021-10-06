@@ -1,7 +1,7 @@
-From 847d3b9b3df385e6518a280cea4d9ffa9b3dada5 Mon Sep 17 00:00:00 2001
+From e03299e816555655c4c4495ff16bac1afa3cbb72 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Fri, 20 Sep 2019 10:07:02 +0800
-Subject: [PATCH 06/82] lavc/vaapi_decode: Add 4:4:4 8/10 bit decode support
+Subject: [PATCH 06/92] lavc/vaapi_decode: Add 4:4:4 8/10 bit decode support
  for VP9
 
 VP9 4:4:4 8 bit and 10 bit decode are supported since Ice Lake.
@@ -27,10 +27,10 @@ index 958ddf49da84..f454254ec0c1 100644
  #if VA_CHECK_VERSION(1, 8, 0)
      MAP(AV1,         AV1_MAIN,        AV1Profile0),
 diff --git a/libavcodec/vp9.c b/libavcodec/vp9.c
-index 32776ebae764..c336686233b9 100644
+index 8317ac6bd84c..619dd1bfea59 100644
 --- a/libavcodec/vp9.c
 +++ b/libavcodec/vp9.c
-@@ -234,6 +234,12 @@ static int update_size(AVCodecContext *avctx, int w, int h)
+@@ -223,6 +223,12 @@ static int update_size(AVCodecContext *avctx, int w, int h)
  #endif
  #if CONFIG_VP9_VDPAU_HWACCEL
              *fmtp++ = AV_PIX_FMT_VDPAU;

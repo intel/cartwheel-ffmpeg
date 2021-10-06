@@ -1,4 +1,4 @@
-From 185d6a1801845b4b9a3443b968f5ab7681c530e7 Mon Sep 17 00:00:00 2001
+From 9a5a8d197c445da736a2330e365cd3594a5c8658 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 12 Mar 2021 10:33:37 +0800
 Subject: [PATCH 62/92] libavcodec/qsvdec.c: using queue count to unref frame
@@ -14,7 +14,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 4c74de68b1..3fb3e52013 100644
+index 4c74de68b128..3fb3e5201357 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -721,7 +721,7 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
@@ -36,5 +36,5 @@ index 4c74de68b1..3fb3e52013 100644
          if (avctx->pix_fmt != AV_PIX_FMT_QSV) {
              do {
 -- 
-2.17.1
+2.25.4
 

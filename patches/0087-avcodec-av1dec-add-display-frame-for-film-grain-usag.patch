@@ -1,4 +1,4 @@
-From 272347f2bf8170e808a2b711e9680041ad266c72 Mon Sep 17 00:00:00 2001
+From 36f7aad4d949253a88d7b4060d840c1269ed1bd9 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 3 Jun 2021 13:49:44 -0400
 Subject: [PATCH 87/92] avcodec/av1dec: add display frame for film grain usage
@@ -13,7 +13,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  2 files changed, 45 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/av1dec.c b/libavcodec/av1dec.c
-index db110c50c7..1fee0225cc 100644
+index db110c50c71d..1fee0225cc01 100644
 --- a/libavcodec/av1dec.c
 +++ b/libavcodec/av1dec.c
 @@ -570,6 +570,8 @@ static int get_pixel_format(AVCodecContext *avctx)
@@ -114,7 +114,7 @@ index db110c50c7..1fee0225cc 100644
      if (s->operating_point_idc &&
          av_log2(s->operating_point_idc >> 8) > s->cur_frame.spatial_id)
 diff --git a/libavcodec/av1dec.h b/libavcodec/av1dec.h
-index 4e140588b9..5af3dfc867 100644
+index 4e140588b9e2..5af3dfc86767 100644
 --- a/libavcodec/av1dec.h
 +++ b/libavcodec/av1dec.h
 @@ -33,6 +33,9 @@
@@ -128,5 +128,5 @@ index 4e140588b9..5af3dfc867 100644
      void *hwaccel_picture_private;
  
 -- 
-2.17.1
+2.25.4
 

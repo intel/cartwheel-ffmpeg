@@ -1,4 +1,4 @@
-From 5df70cf2d909e6570d2c8807abafcf540bc10cf8 Mon Sep 17 00:00:00 2001
+From 1b6e66941e4d69736af0646b41ba9b8d93251000 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:45 +0800
 Subject: [PATCH 41/92] lavc/hevc: Update reference list for SCC
@@ -17,7 +17,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 27 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index f78a690b25..e6054696a3 100644
+index f78a690b2500..e6054696a337 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
 @@ -315,7 +315,7 @@ int ff_hevc_slice_rpl(HEVCContext *s)
@@ -89,7 +89,7 @@ index f78a690b25..e6054696a3 100644
      return ret;
  }
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index bc609f54ca..e08c0c0e42 100644
+index 80a679788abd..3025fd6511b4 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -652,7 +652,8 @@ static int hls_slice_header(HEVCContext *s)
@@ -103,5 +103,5 @@ index bc609f54ca..e08c0c0e42 100644
              return AVERROR_INVALIDDATA;
          }
 -- 
-2.17.1
+2.25.4
 

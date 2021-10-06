@@ -1,7 +1,7 @@
-From 97dd4754907a701d80d7fe286e88d8d190b354f4 Mon Sep 17 00:00:00 2001
+From 3bd39a87b29e6a7a98d8d32e8fed297941867e15 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Mon, 16 Mar 2020 03:51:40 -0400
-Subject: [PATCH 20/82] lavc: hevc, do not let missing ref frames invovle in
+Subject: [PATCH 20/92] lavc: hevc, do not let missing ref frames invovle in
  dpb process
 
 We will generate a new frame for a missed reference. The frame can only be used for reference.
@@ -46,10 +46,10 @@ index 9e391b0970d4..63e34f3fb7ed 100644
  
      if (s->threads_type == FF_THREAD_FRAME)
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 2d35b0b1824a..cd686a825132 100644
+index 57a61752a3b6..9c355fbbaa71 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -550,7 +550,7 @@ static int hls_slice_header(HEVCContext *s)
+@@ -551,7 +551,7 @@ static int hls_slice_header(HEVCContext *s)
      }
  
      if ((IS_IDR(s) || IS_BLA(s)) && sh->first_slice_in_pic_flag) {
@@ -58,7 +58,7 @@ index 2d35b0b1824a..cd686a825132 100644
          s->max_ra     = INT_MAX;
          if (IS_IDR(s))
              ff_hevc_clear_refs(s);
-@@ -595,7 +595,7 @@ static int hls_slice_header(HEVCContext *s)
+@@ -596,7 +596,7 @@ static int hls_slice_header(HEVCContext *s)
              return pix_fmt;
          s->avctx->pix_fmt = pix_fmt;
  

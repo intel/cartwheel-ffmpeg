@@ -1,4 +1,4 @@
-From 03eddbbff291f2e83271ec70123ce629da272da1 Mon Sep 17 00:00:00 2001
+From 5835ccf4087da1b287004818753a2a80680cec7e Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 20 May 2021 16:45:47 -0400
 Subject: [PATCH 84/92] avcodec/av1dec: support setup shear process
@@ -12,7 +12,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  2 files changed, 99 insertions(+)
 
 diff --git a/libavcodec/av1dec.c b/libavcodec/av1dec.c
-index a69808f7b6..db110c50c7 100644
+index a69808f7b676..db110c50c71d 100644
 --- a/libavcodec/av1dec.c
 +++ b/libavcodec/av1dec.c
 @@ -28,6 +28,34 @@
@@ -142,7 +142,7 @@ index a69808f7b6..db110c50c7 100644
             src->gm_type,
             AV1_NUM_REF_FRAMES * sizeof(uint8_t));
 diff --git a/libavcodec/av1dec.h b/libavcodec/av1dec.h
-index 248a68750f..4e140588b9 100644
+index 248a68750f54..4e140588b9e2 100644
 --- a/libavcodec/av1dec.h
 +++ b/libavcodec/av1dec.h
 @@ -42,6 +42,7 @@ typedef struct AV1Frame {
@@ -154,5 +154,5 @@ index 248a68750f..4e140588b9 100644
      int32_t gm_params[AV1_NUM_REF_FRAMES][6];
  
 -- 
-2.17.1
+2.25.4
 

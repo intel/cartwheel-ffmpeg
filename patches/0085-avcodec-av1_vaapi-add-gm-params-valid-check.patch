@@ -1,4 +1,4 @@
-From e18737eddb26f66d655430670a6eff293bcbafe3 Mon Sep 17 00:00:00 2001
+From d3bf97f9dc7a50c5761405c270f8df160343882a Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Wed, 9 Jun 2021 14:36:42 +0800
 Subject: [PATCH 85/92] avcodec/av1_vaapi: add gm params valid check
@@ -9,7 +9,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/vaapi_av1.c b/libavcodec/vaapi_av1.c
-index 16b7e35747..f577447be4 100644
+index 16b7e35747cf..f577447be452 100644
 --- a/libavcodec/vaapi_av1.c
 +++ b/libavcodec/vaapi_av1.c
 @@ -213,7 +213,8 @@ static int vaapi_av1_start_frame(AVCodecContext *avctx,
@@ -23,5 +23,5 @@ index 16b7e35747..f577447be4 100644
              pic_param.wm[i - 1].wmmat[j] = s->cur_frame.gm_params[i][j];
      }
 -- 
-2.17.1
+2.25.4
 

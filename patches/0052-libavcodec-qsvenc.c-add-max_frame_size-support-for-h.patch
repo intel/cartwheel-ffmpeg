@@ -1,4 +1,4 @@
-From ea97b52897fd2fc67049e1c1c8ec505b2e3c7cbc Mon Sep 17 00:00:00 2001
+From 3b69cbcab34861654be6cf631647841ef4335149 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 30 Nov 2020 13:30:49 +0800
 Subject: [PATCH 52/92] libavcodec/qsvenc.c: add max_frame_size support for
@@ -12,7 +12,7 @@ Signed-off-by: Wenbin CHEN <wenbin.chen@intel.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 2fc11ce7a1..29540d5f7d 100644
+index 680da8a36f26..065f69b8e87e 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -707,7 +707,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
@@ -25,5 +25,5 @@ index 2fc11ce7a1..29540d5f7d 100644
                  q->extco2.IntRefType = q->int_ref_type;
              if (q->int_ref_cycle_size >= 0)
 -- 
-2.17.1
+2.25.4
 

@@ -1,4 +1,4 @@
-From 829fc667e81f61687dbd5d63a089bf37cb668104 Mon Sep 17 00:00:00 2001
+From 16d489865742562092aed0731a8510443fd635db Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Wed, 8 Jul 2020 17:27:48 +0800
 Subject: [PATCH 45/92] lavc/vaapi_hevc: Loose the restricts for SCC decoding
@@ -13,7 +13,7 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index fb9cee36bd..1fc26590fd 100644
+index fb9cee36bd4b..1fc26590fdfe 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -103,7 +103,8 @@ static void fill_vaapi_reference_frames(const HEVCContext *h, VAPictureParameter
@@ -48,5 +48,5 @@ index fb9cee36bd..1fc26590fd 100644
  
      slice_param->luma_log2_weight_denom = sh->luma_log2_weight_denom;
 -- 
-2.17.1
+2.25.4
 
