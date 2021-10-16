@@ -1,4 +1,4 @@
-From 3bd39a87b29e6a7a98d8d32e8fed297941867e15 Mon Sep 17 00:00:00 2001
+From 25dcb6e9274d8b5964466241cb9f95b0da3d88e0 Mon Sep 17 00:00:00 2001
 From: Xu Guangxin <guangxin.xu@intel.com>
 Date: Mon, 16 Mar 2020 03:51:40 -0400
 Subject: [PATCH 20/92] lavc: hevc, do not let missing ref frames invovle in
@@ -13,10 +13,10 @@ We assign an invalid decode sequence to it, so it will not involve any dpb proce
  3 files changed, 17 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index 9e391b0970d4..63e34f3fb7ed 100644
+index 07a5cef62b..24d2b6079b 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
-@@ -171,8 +171,19 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
+@@ -173,8 +173,19 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
      return 0;
  }
  
@@ -36,7 +36,7 @@ index 9e391b0970d4..63e34f3fb7ed 100644
      if (IS_IRAP(s) && s->no_rasl_output_flag == 1) {
          const static int mask = HEVC_FRAME_FLAG_BUMPING | HEVC_FRAME_FLAG_OUTPUT;
          for (int i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
-@@ -411,7 +422,7 @@ static HEVCFrame *generate_missing_ref(HEVCContext *s, int poc)
+@@ -419,7 +430,7 @@ static HEVCFrame *generate_missing_ref(HEVCContext *s, int poc)
      }
  
      frame->poc      = poc;
@@ -46,10 +46,10 @@ index 9e391b0970d4..63e34f3fb7ed 100644
  
      if (s->threads_type == FF_THREAD_FRAME)
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 57a61752a3b6..9c355fbbaa71 100644
+index 246ffd7d80..81902b177f 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -551,7 +551,7 @@ static int hls_slice_header(HEVCContext *s)
+@@ -554,7 +554,7 @@ static int hls_slice_header(HEVCContext *s)
      }
  
      if ((IS_IDR(s) || IS_BLA(s)) && sh->first_slice_in_pic_flag) {
@@ -58,7 +58,7 @@ index 57a61752a3b6..9c355fbbaa71 100644
          s->max_ra     = INT_MAX;
          if (IS_IDR(s))
              ff_hevc_clear_refs(s);
-@@ -596,7 +596,7 @@ static int hls_slice_header(HEVCContext *s)
+@@ -599,7 +599,7 @@ static int hls_slice_header(HEVCContext *s)
              return pix_fmt;
          s->avctx->pix_fmt = pix_fmt;
  
@@ -68,10 +68,10 @@ index 57a61752a3b6..9c355fbbaa71 100644
      }
  
 diff --git a/libavcodec/hevcdec.h b/libavcodec/hevcdec.h
-index 482638a8e524..e738a7b063a2 100644
+index 8963aa83ae..25701ee690 100644
 --- a/libavcodec/hevcdec.h
 +++ b/libavcodec/hevcdec.h
-@@ -393,6 +393,9 @@ typedef struct DBParams {
+@@ -394,6 +394,9 @@ typedef struct DBParams {
  #define HEVC_FRAME_FLAG_LONG_REF  (1 << 2)
  #define HEVC_FRAME_FLAG_BUMPING   (1 << 3)
  
@@ -80,7 +80,7 @@ index 482638a8e524..e738a7b063a2 100644
 +
  typedef struct HEVCFrame {
      AVFrame *frame;
-     ThreadFrame tf;
+     AVFrame *frame_grain;
 -- 
-2.25.4
+2.17.1
 
