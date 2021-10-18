@@ -1,7 +1,7 @@
-From 26b76b5b9d948c11cbe1b0f4855ddf9176a25436 Mon Sep 17 00:00:00 2001
+From 95220d87a4c51a06bedf00ede5f0a55d4fee6000 Mon Sep 17 00:00:00 2001
 From: Zhang yuankun <yuankunx.zhang@intel.com>
 Date: Mon, 12 Apr 2021 09:47:24 +0800
-Subject: [PATCH 91/92] avcodec/vaapi_encode_vp9: fix > 4k encode fail issue
+Subject: [PATCH 82/82] avcodec/vaapi_encode_vp9: fix > 4k encode fail issue
 
 This patch will fix following command:
 ffmpeg -hwaccel vaapi -hwaccel_output_format vaapi -i input.264 \
@@ -15,7 +15,7 @@ Signed-off-by: Zhang yuankun <yuankunx.zhang@intel.com>
  1 file changed, 8 insertions(+)
 
 diff --git a/libavcodec/vaapi_encode_vp9.c b/libavcodec/vaapi_encode_vp9.c
-index da706f140fcc..d705b500eb3c 100644
+index da706f140f..d705b500eb 100644
 --- a/libavcodec/vaapi_encode_vp9.c
 +++ b/libavcodec/vaapi_encode_vp9.c
 @@ -31,6 +31,7 @@
@@ -45,5 +45,5 @@ index da706f140fcc..d705b500eb3c 100644
      case PICTURE_TYPE_IDR:
          av_assert0(pic->nb_refs == 0);
 -- 
-2.25.4
+2.17.1
 
