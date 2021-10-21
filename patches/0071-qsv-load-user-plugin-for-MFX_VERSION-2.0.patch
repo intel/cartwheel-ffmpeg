@@ -1,7 +1,7 @@
-From 26d33cb4d96037d26e1d42cf1a596c5ca43a8220 Mon Sep 17 00:00:00 2001
+From 79a9510c418a49d45b469f35ca7b076164b771ff Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 18 Aug 2020 15:20:38 +0800
-Subject: [PATCH 71/92] qsv: load user plugin for MFX_VERSION < 2.0
+Subject: [PATCH 71/95] qsv: load user plugin for MFX_VERSION < 2.0
 
 User plugin isn't supported for MFX_VERSION >= 2.0[1][2]. This is in
 preparation for oneVPL Support
@@ -14,7 +14,7 @@ preparation for oneVPL Support
  2 files changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 940d2c46e655..f1a77b5099ed 100644
+index 940d2c46e6..f1a77b5099 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -19,7 +19,6 @@
@@ -59,7 +59,7 @@ index 940d2c46e655..f1a77b5099ed 100644
      return 0;
  
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index d2007cda7d9c..f34d8b789afa 100644
+index d2007cda7d..f34d8b789a 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -65,6 +65,8 @@
@@ -72,5 +72,5 @@ index d2007cda7d9c..f34d8b789afa 100644
      AVBufferRef *hw_frames_ref;
      mfxHDLPair *handle_pair;
 -- 
-2.25.4
+2.17.1
 
