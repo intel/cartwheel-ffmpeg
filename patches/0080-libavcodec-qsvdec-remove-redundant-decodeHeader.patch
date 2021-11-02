@@ -60,7 +60,7 @@ index 70ed425ae2c9..6a5e4e9abb3a 100644
 -            q->buffered_count--;
 -            return qsv_decode(avctx, q, frame, got_frame, &zero_pkt);
 -        }
-+    if (q->reinit_flag || !q->session) {
++    if (q->reinit_flag || !q->session || !q->initialized) {
          q->reinit_flag = 0;
 +        ret = qsv_decode_header(avctx, q, pkt, pix_fmt, &param);
 +        if (ret < 0) {

@@ -42,7 +42,7 @@ index 6a5e4e9abb3a..92a816a34456 100644
 @@ -865,18 +865,28 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
      }
  
-     if (q->reinit_flag || !q->session) {
+     if (q->reinit_flag || !q->session || !q->initialized) {
 +        mfxFrameAllocRequest request;
 +        memset(&request, 0, sizeof(request));
 +
