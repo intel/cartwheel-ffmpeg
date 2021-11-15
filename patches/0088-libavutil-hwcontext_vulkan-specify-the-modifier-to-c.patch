@@ -1,41 +1,38 @@
-From 2c8777f31f9d62ec59f7eeff566076ae62307862 Mon Sep 17 00:00:00 2001
+From 6006a3526c939955ac4cc67fabc5fa75b27af7ea Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Fri, 13 Aug 2021 06:33:20 +0000
-Subject: [PATCH 09/13] libavutil/hwcontext_vulkan: specify the modifier to
+Subject: [PATCH 6/6] libavutil/hwcontext_vulkan: specify the modifier to
  create VKImage
 
-On the lastset intel-vulkan-driver the VK_EXT_image_drm_format_modifier
-flags is enabled. As what driver log recommand, we need to use
-VK_IMAGE_TILING_LINEAR or VK_IMAGE_DRM_FORMAT_MODIFIER_EXT to create
-VKImage. Add code to get supported modifier for sw_format and use these
-modifier to create VKImage.
+When vulkan image exports to drm, the tilling need to be
+VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT. Now add code to create vulkan
+image using this format.
 
 Now the following command line works:
 
-ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -hwaccel_output_format
-vaapi -i input_1080p.264 -vf "hwmap=derive_device=vulkan,format=vulkan,
+ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -hwaccel_output_format \
+vaapi -i input_1080p.264 -vf "hwmap=derive_device=vulkan,format=vulkan, \
 scale_vulkan=1920:1080,hwmap=derive_device=vaapi,format=vaapi" -c:v h264_vaapi output.264
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavutil/hwcontext_vulkan.c | 77 +++++++++++++++++++++++++++++++++---
+ libavutil/hwcontext_vulkan.c | 76 +++++++++++++++++++++++++++++++++---
  libavutil/hwcontext_vulkan.h |  5 +++
- 2 files changed, 76 insertions(+), 6 deletions(-)
+ 2 files changed, 75 insertions(+), 6 deletions(-)
 
 diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
-index 3a639c997b..99b2190dc3 100644
+index b857d1a9ed..0594f07745 100644
 --- a/libavutil/hwcontext_vulkan.c
 +++ b/libavutil/hwcontext_vulkan.c
-@@ -1967,6 +1967,8 @@ static void try_export_flags(AVHWFramesContext *hwfc,
+@@ -1918,6 +1918,7 @@ static void try_export_flags(AVHWFramesContext *hwfc,
      AVVulkanDeviceContext *dev_hwctx = hwfc->device_ctx->hwctx;
      VulkanDevicePriv *p = hwfc->device_ctx->internal->priv;
-     VulkanFunctions *vk = &p->vkfn;
+     FFVulkanFunctions *vk = &p->vkfn;
 +    const int has_modifiers = hwctx->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
-+
      VkExternalImageFormatProperties eprops = {
          .sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES_KHR,
      };
-@@ -1974,9 +1976,18 @@ static void try_export_flags(AVHWFramesContext *hwfc,
+@@ -1925,9 +1926,18 @@ static void try_export_flags(AVHWFramesContext *hwfc,
          .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
          .pNext = &eprops,
      };
@@ -54,7 +51,7 @@ index 3a639c997b..99b2190dc3 100644
      };
      VkPhysicalDeviceImageFormatInfo2 pinfo = {
          .sType  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
-@@ -1988,11 +1999,15 @@ static void try_export_flags(AVHWFramesContext *hwfc,
+@@ -1939,11 +1949,15 @@ static void try_export_flags(AVHWFramesContext *hwfc,
          .flags  = VK_IMAGE_CREATE_ALIAS_BIT,
      };
  
@@ -75,7 +72,7 @@ index 3a639c997b..99b2190dc3 100644
      }
  }
  
-@@ -2055,6 +2070,7 @@ fail:
+@@ -2006,6 +2020,7 @@ fail:
  static void vulkan_frames_uninit(AVHWFramesContext *hwfc)
  {
      VulkanFramesPriv *fp = hwfc->internal->priv;
@@ -83,11 +80,11 @@ index 3a639c997b..99b2190dc3 100644
  
      free_exec_ctx(hwfc, &fp->conv_ctx);
      free_exec_ctx(hwfc, &fp->upload_ctx);
-@@ -2069,11 +2085,60 @@ static int vulkan_frames_init(AVHWFramesContext *hwfc)
+@@ -2020,11 +2035,60 @@ static int vulkan_frames_init(AVHWFramesContext *hwfc)
      VulkanFramesPriv *fp = hwfc->internal->priv;
      AVVulkanDeviceContext *dev_hwctx = hwfc->device_ctx->hwctx;
      VulkanDevicePriv *p = hwfc->device_ctx->internal->priv;
-+    const int has_modifiers = !!(p->extensions & EXT_DRM_MODIFIER_FLAGS);
++    const int has_modifiers = !!(p->extensions & FF_VK_EXT_DRM_MODIFIER_FLAGS);
  
      /* Default pool flags */
 -    hwctx->tiling = hwctx->tiling ? hwctx->tiling : p->use_linear_images ?
@@ -98,7 +95,7 @@ index 3a639c997b..99b2190dc3 100644
 +    /* get the supported modifier */
 +    if (has_modifiers) {
 +        const VkFormat *fmt = av_vkfmt_from_pixfmt(hwfc->sw_format);
-+        VulkanFunctions *vk = &p->vkfn;
++        FFVulkanFunctions *vk = &p->vkfn;
 +        VkDrmFormatModifierPropertiesEXT mod_props[MAX_VULKAN_MODIFIERS];
 +
 +        VkDrmFormatModifierPropertiesListEXT mod_props_list = {
@@ -146,7 +143,7 @@ index 3a639c997b..99b2190dc3 100644
          hwctx->usage = DEFAULT_USAGE_FLAGS;
  
 diff --git a/libavutil/hwcontext_vulkan.h b/libavutil/hwcontext_vulkan.h
-index 8fb25d1485..95fd767d1b 100644
+index efb602ef27..113448bb51 100644
 --- a/libavutil/hwcontext_vulkan.h
 +++ b/libavutil/hwcontext_vulkan.h
 @@ -32,6 +32,7 @@
@@ -157,7 +154,7 @@ index 8fb25d1485..95fd767d1b 100644
  /**
   * Main Vulkan context, allocated as AVHWDeviceContext.hwctx.
   * All of these can be set before init to change what the context uses
-@@ -142,6 +143,10 @@ typedef struct AVVulkanFramesContext {
+@@ -149,6 +150,10 @@ typedef struct AVVulkanFramesContext {
       */
      void *create_pnext;
  
