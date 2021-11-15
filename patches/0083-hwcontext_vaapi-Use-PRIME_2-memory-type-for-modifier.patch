@@ -1,7 +1,7 @@
-From b852f302406f790beaa6ec0184fb055834f73d1a Mon Sep 17 00:00:00 2001
+From 0187701f3ce5f9d4a752b09039f23056a34f2885 Mon Sep 17 00:00:00 2001
 From: Bas Nieuwenhuizen <bas@basnieuwenhuizen.nl>
 Date: Sat, 15 May 2021 15:43:33 +0800
-Subject: [PATCH 04/13] hwcontext_vaapi: Use PRIME_2 memory type for modifiers.
+Subject: [PATCH 1/6] hwcontext_vaapi: Use PRIME_2 memory type for modifiers.
 
 This way we can pass explicit modifiers in. Sometimes the
 modifier matters for the number of memory planes that
@@ -30,7 +30,7 @@ Signed-off-by: Bas Nieuwenhuizen <bas@basnieuwenhuizen.nl>
  1 file changed, 114 insertions(+), 44 deletions(-)
 
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 8423edb68f..7edc288e8e 100644
+index 83e542876d..75acc851d6 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -79,6 +79,9 @@ typedef struct VAAPIFramesContext {
@@ -43,7 +43,7 @@ index 8423edb68f..7edc288e8e 100644
  } VAAPIFramesContext;
  
  typedef struct VAAPIMapping {
-@@ -1035,32 +1038,17 @@ static void vaapi_unmap_from_drm(AVHWFramesContext *dst_fc,
+@@ -1022,32 +1025,17 @@ static void vaapi_unmap_from_drm(AVHWFramesContext *dst_fc,
  static int vaapi_map_from_drm(AVHWFramesContext *src_fc, AVFrame *dst,
                                const AVFrame *src, int flags)
  {
@@ -80,7 +80,7 @@ index 8423edb68f..7edc288e8e 100644
  
      desc = (AVDRMFrameDescriptor*)src->data[0];
  
-@@ -1096,35 +1084,117 @@ static int vaapi_map_from_drm(AVHWFramesContext *src_fc, AVFrame *dst,
+@@ -1083,35 +1071,117 @@ static int vaapi_map_from_drm(AVHWFramesContext *src_fc, AVFrame *dst,
      format_desc = vaapi_format_from_fourcc(va_fourcc);
      av_assert0(format_desc);
  

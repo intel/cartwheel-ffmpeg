@@ -1,7 +1,7 @@
-From 45b137ecdffa85a80568233a1a827509ba54cd30 Mon Sep 17 00:00:00 2001
+From fb24263952111425e62f19a64513420094f1479c Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 31 May 2021 13:49:19 +0800
-Subject: [PATCH 07/13] libavutil/hwcontext_vulkan: Allocate vkFrame in one
+Subject: [PATCH 4/6] libavutil/hwcontext_vulkan: Allocate vkFrame in one
  memory
 
 The vaapi can import external frame, but the planes of the external
@@ -17,11 +17,11 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 46 insertions(+), 1 deletion(-)
 
 diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
-index 6417f59d4a..4983518a77 100644
+index ccf3e58f49..f7878ed9c3 100644
 --- a/libavutil/hwcontext_vulkan.c
 +++ b/libavutil/hwcontext_vulkan.c
-@@ -1667,6 +1667,9 @@ static int alloc_bind_mem(AVHWFramesContext *hwfc, AVVkFrame *f,
-     VulkanFunctions *vk = &p->vkfn;
+@@ -1600,6 +1600,9 @@ static int alloc_bind_mem(AVHWFramesContext *hwfc, AVVkFrame *f,
+     FFVulkanFunctions *vk = &p->vkfn;
      const int planes = av_pix_fmt_count_planes(hwfc->sw_format);
      VkBindImageMemoryInfo bind_info[AV_NUM_DATA_POINTERS] = { { 0 } };
 +    VkMemoryRequirements memory_requirements = { 0 };
@@ -30,7 +30,7 @@ index 6417f59d4a..4983518a77 100644
  
      AVVulkanDeviceContext *hwctx = ctx->hwctx;
  
-@@ -1694,6 +1697,23 @@ static int alloc_bind_mem(AVHWFramesContext *hwfc, AVVkFrame *f,
+@@ -1627,6 +1630,23 @@ static int alloc_bind_mem(AVHWFramesContext *hwfc, AVVkFrame *f,
              req.memoryRequirements.size = FFALIGN(req.memoryRequirements.size,
                                                    p->props.properties.limits.minMemoryMapAlignment);
  
@@ -54,7 +54,7 @@ index 6417f59d4a..4983518a77 100644
          /* In case the implementation prefers/requires dedicated allocation */
          use_ded_mem = ded_req.prefersDedicatedAllocation |
                        ded_req.requiresDedicatedAllocation;
-@@ -1715,6 +1735,29 @@ static int alloc_bind_mem(AVHWFramesContext *hwfc, AVVkFrame *f,
+@@ -1648,6 +1668,29 @@ static int alloc_bind_mem(AVHWFramesContext *hwfc, AVVkFrame *f,
          bind_info[i].memory = f->mem[i];
      }
  
@@ -84,7 +84,7 @@ index 6417f59d4a..4983518a77 100644
      /* Bind the allocated memory to the images */
      ret = vk->BindImageMemory2(hwctx->act_dev, planes, bind_info);
      if (ret != VK_SUCCESS) {
-@@ -2921,7 +2964,8 @@ static int vulkan_map_to_drm(AVHWFramesContext *hwfc, AVFrame *dst,
+@@ -2924,7 +2967,8 @@ static int vulkan_map_to_drm(AVHWFramesContext *hwfc, AVFrame *dst,
              continue;
  
          vk->GetImageSubresourceLayout(hwctx->act_dev, f->img[i], &sub, &layout);
@@ -95,10 +95,10 @@ index 6417f59d4a..4983518a77 100644
      }
  
 diff --git a/libavutil/hwcontext_vulkan.h b/libavutil/hwcontext_vulkan.h
-index e4645527d7..8fb25d1485 100644
+index 9264f70dbf..efb602ef27 100644
 --- a/libavutil/hwcontext_vulkan.h
 +++ b/libavutil/hwcontext_vulkan.h
-@@ -182,6 +182,7 @@ typedef struct AVVkFrame {
+@@ -189,6 +189,7 @@ typedef struct AVVkFrame {
       */
      VkDeviceMemory mem[AV_NUM_DATA_POINTERS];
      size_t size[AV_NUM_DATA_POINTERS];

@@ -1,7 +1,7 @@
-From f01d3a861bfa72d925b2afd2ece3a077ac9a3c3c Mon Sep 17 00:00:00 2001
+From 016bfafc9b627a9873ec475aae7a862b8fdb1ed8 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 31 May 2021 13:36:35 +0800
-Subject: [PATCH 06/13] libavutil/hwcontext_vulkan: Add one_memory flag to make
+Subject: [PATCH 3/6] libavutil/hwcontext_vulkan: Add one_memory flag to make
  vulkan compatible with vaapi device.
 
 Vaapi can import external surface, but all the planes of the external
@@ -16,10 +16,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 11 insertions(+), 1 deletion(-)
 
 diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
-index 9a29267aed..6417f59d4a 100644
+index 6041580117..ccf3e58f49 100644
 --- a/libavutil/hwcontext_vulkan.c
 +++ b/libavutil/hwcontext_vulkan.c
-@@ -211,6 +211,9 @@ typedef struct VulkanDevicePriv {
+@@ -100,6 +100,9 @@ typedef struct VulkanDevicePriv {
      /* Settings */
      int use_linear_images;
  
@@ -29,7 +29,7 @@ index 9a29267aed..6417f59d4a 100644
      /* Nvidia */
      int dev_is_nvidia;
  } VulkanDevicePriv;
-@@ -1321,6 +1324,11 @@ static int vulkan_device_create_internal(AVHWDeviceContext *ctx,
+@@ -1245,6 +1248,11 @@ static int vulkan_device_create_internal(AVHWDeviceContext *ctx,
      if (opt_d)
          p->use_linear_images = strtol(opt_d->value, NULL, 10);
  
@@ -41,7 +41,7 @@ index 9a29267aed..6417f59d4a 100644
      hwctx->enabled_dev_extensions = dev_info.ppEnabledExtensionNames;
      hwctx->nb_enabled_dev_extensions = dev_info.enabledExtensionCount;
  
-@@ -1443,8 +1451,10 @@ static int vulkan_device_derive(AVHWDeviceContext *ctx,
+@@ -1365,8 +1373,10 @@ static int vulkan_device_derive(AVHWDeviceContext *ctx,
              return AVERROR_EXTERNAL;
          }
  
