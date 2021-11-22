@@ -1,7 +1,7 @@
-From 6006a3526c939955ac4cc67fabc5fa75b27af7ea Mon Sep 17 00:00:00 2001
+From d5ec89b4860b501a54271d240ac04833832129fb Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Fri, 13 Aug 2021 06:33:20 +0000
-Subject: [PATCH 6/6] libavutil/hwcontext_vulkan: specify the modifier to
+Subject: [PATCH 88/94] libavutil/hwcontext_vulkan: specify the modifier to
  create VKImage
 
 When vulkan image exports to drm, the tilling need to be
@@ -21,10 +21,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 75 insertions(+), 6 deletions(-)
 
 diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
-index b857d1a9ed..0594f07745 100644
+index 3fad53a529..f0e50dc4e4 100644
 --- a/libavutil/hwcontext_vulkan.c
 +++ b/libavutil/hwcontext_vulkan.c
-@@ -1918,6 +1918,7 @@ static void try_export_flags(AVHWFramesContext *hwfc,
+@@ -1982,6 +1982,7 @@ static void try_export_flags(AVHWFramesContext *hwfc,
      AVVulkanDeviceContext *dev_hwctx = hwfc->device_ctx->hwctx;
      VulkanDevicePriv *p = hwfc->device_ctx->internal->priv;
      FFVulkanFunctions *vk = &p->vkfn;
@@ -32,7 +32,7 @@ index b857d1a9ed..0594f07745 100644
      VkExternalImageFormatProperties eprops = {
          .sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES_KHR,
      };
-@@ -1925,9 +1926,18 @@ static void try_export_flags(AVHWFramesContext *hwfc,
+@@ -1989,9 +1990,18 @@ static void try_export_flags(AVHWFramesContext *hwfc,
          .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
          .pNext = &eprops,
      };
@@ -51,7 +51,7 @@ index b857d1a9ed..0594f07745 100644
      };
      VkPhysicalDeviceImageFormatInfo2 pinfo = {
          .sType  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
-@@ -1939,11 +1949,15 @@ static void try_export_flags(AVHWFramesContext *hwfc,
+@@ -2003,11 +2013,15 @@ static void try_export_flags(AVHWFramesContext *hwfc,
          .flags  = VK_IMAGE_CREATE_ALIAS_BIT,
      };
  
@@ -72,7 +72,7 @@ index b857d1a9ed..0594f07745 100644
      }
  }
  
-@@ -2006,6 +2020,7 @@ fail:
+@@ -2077,6 +2091,7 @@ fail:
  static void vulkan_frames_uninit(AVHWFramesContext *hwfc)
  {
      VulkanFramesPriv *fp = hwfc->internal->priv;
@@ -80,7 +80,7 @@ index b857d1a9ed..0594f07745 100644
  
      free_exec_ctx(hwfc, &fp->conv_ctx);
      free_exec_ctx(hwfc, &fp->upload_ctx);
-@@ -2020,11 +2035,60 @@ static int vulkan_frames_init(AVHWFramesContext *hwfc)
+@@ -2091,11 +2106,60 @@ static int vulkan_frames_init(AVHWFramesContext *hwfc)
      VulkanFramesPriv *fp = hwfc->internal->priv;
      AVVulkanDeviceContext *dev_hwctx = hwfc->device_ctx->hwctx;
      VulkanDevicePriv *p = hwfc->device_ctx->internal->priv;
@@ -122,7 +122,7 @@ index b857d1a9ed..0594f07745 100644
 +
 +        hwctx->modifier_count = 0;
 +        for (int i = 0; i < mod_props_list.drmFormatModifierCount; i++) {
-+            if (!(mod_props[i].drmFormatModifierTilingFeatures & DEFAULT_USAGE_FLAGS))
++            if (!(mod_props[i].drmFormatModifierTilingFeatures & FF_VK_DEFAULT_USAGE_FLAGS))
 +                continue;
 +            hwctx->modifiers[hwctx->modifier_count++] = mod_props[i].drmFormatModifier;
 +        }
@@ -140,13 +140,13 @@ index b857d1a9ed..0594f07745 100644
 +    }
 +
      if (!hwctx->usage)
-         hwctx->usage = DEFAULT_USAGE_FLAGS;
+         hwctx->usage = FF_VK_DEFAULT_USAGE_FLAGS;
  
 diff --git a/libavutil/hwcontext_vulkan.h b/libavutil/hwcontext_vulkan.h
-index efb602ef27..113448bb51 100644
+index 339b0c19a7..19f8b96579 100644
 --- a/libavutil/hwcontext_vulkan.h
 +++ b/libavutil/hwcontext_vulkan.h
-@@ -32,6 +32,7 @@
+@@ -35,6 +35,7 @@
   * with the data pointer set to an AVVkFrame.
   */
  
@@ -154,7 +154,7 @@ index efb602ef27..113448bb51 100644
  /**
   * Main Vulkan context, allocated as AVHWDeviceContext.hwctx.
   * All of these can be set before init to change what the context uses
-@@ -149,6 +150,10 @@ typedef struct AVVulkanFramesContext {
+@@ -157,6 +158,10 @@ typedef struct AVVulkanFramesContext {
       */
      void *create_pnext;
  
