@@ -1,21 +1,21 @@
-From b62a5520e18c7522560c6f9448edf06edbbae407 Mon Sep 17 00:00:00 2001
+From ba2749417760d03fc7df90d4afb4bb9306c5f8a1 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 10:12:26 +0800
-Subject: [PATCH 23/92] lavc/hevcdec: add vaapi decoding support for 444
+Subject: [PATCH 23/94] lavc/hevcdec: add vaapi decoding support for 444
 
 Also include 420P12, 444P12.
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
- libavcodec/hevcdec.c      | 8 +++++++-
+ libavcodec/hevcdec.c      | 6 ++++++
  libavcodec/vaapi_decode.c | 5 +++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ 2 files changed, 11 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index b95e930a5e0f..bbd1a687f755 100644
+index 72d67c6840..acf32e33a8 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -443,6 +443,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+@@ -446,6 +446,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
  #endif
          break;
      case AV_PIX_FMT_YUV444P:
@@ -25,16 +25,9 @@ index b95e930a5e0f..bbd1a687f755 100644
  #if CONFIG_HEVC_VDPAU_HWACCEL
          *fmt++ = AV_PIX_FMT_VDPAU;
  #endif
-@@ -453,12 +456,15 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
-     case AV_PIX_FMT_YUV422P:
-     case AV_PIX_FMT_YUV422P10LE:
- #if CONFIG_HEVC_VAAPI_HWACCEL
--       *fmt++ = AV_PIX_FMT_VAAPI;
-+        *fmt++ = AV_PIX_FMT_VAAPI;
+@@ -471,6 +474,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
  #endif
-         break;
      case AV_PIX_FMT_YUV420P12:
-     case AV_PIX_FMT_YUV444P10:
      case AV_PIX_FMT_YUV444P12:
 +#if CONFIG_HEVC_VAAPI_HWACCEL
 +        *fmt++ = AV_PIX_FMT_VAAPI;
@@ -43,7 +36,7 @@ index b95e930a5e0f..bbd1a687f755 100644
          *fmt++ = AV_PIX_FMT_VDPAU;
  #endif
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 7d90e7ef3297..f722a9fd5181 100644
+index cabc0f6a60..9b054efc0f 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -265,6 +265,11 @@ static const struct {
@@ -59,5 +52,5 @@ index 7d90e7ef3297..f722a9fd5181 100644
  #ifdef VA_FOURCC_P010
      MAP(P010, P010),
 -- 
-2.25.4
+2.17.1
 
