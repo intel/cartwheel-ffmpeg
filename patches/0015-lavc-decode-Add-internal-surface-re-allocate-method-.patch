@@ -1,7 +1,7 @@
-From ec2d03ff53f248d5f82d0f1ce4315a586d1f39f1 Mon Sep 17 00:00:00 2001
+From 991af78844630a3fd5721251282073a02c7eca8c Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 2 Jan 2020 11:12:15 +0800
-Subject: [PATCH 15/92] lavc/decode: Add internal surface re-allocate method
+Subject: [PATCH 15/94] lavc/decode: Add internal surface re-allocate method
  for hwaccel
 
 Add HWACCEL_CAP_INTERNAL_ALLOC flag to indicate hwaccels are able to
@@ -14,10 +14,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 37 insertions(+)
 
 diff --git a/libavcodec/decode.c b/libavcodec/decode.c
-index b69cb0dfaae7..93f9507f4dcb 100644
+index 5c8442a0ec..be1f51466d 100644
 --- a/libavcodec/decode.c
 +++ b/libavcodec/decode.c
-@@ -1104,6 +1104,33 @@ static const AVCodecHWConfigInternal *get_hw_config(AVCodecContext *avctx, enum
+@@ -1103,6 +1103,33 @@ static const AVCodecHWConfigInternal *get_hw_config(AVCodecContext *avctx, enum
      return hw_config;
  }
  
@@ -51,8 +51,8 @@ index b69cb0dfaae7..93f9507f4dcb 100644
  int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
  {
      const AVPixFmtDescriptor *desc;
-@@ -1132,6 +1159,15 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
-     memcpy(choices, fmt, (n + 1) * sizeof(*choices));
+@@ -1129,6 +1156,15 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
+         return AV_PIX_FMT_NONE;
  
      for (;;) {
 +        if (avctx->internal->hwaccel_priv_data &&
@@ -68,7 +68,7 @@ index b69cb0dfaae7..93f9507f4dcb 100644
          hwaccel_uninit(avctx);
  
 diff --git a/libavcodec/hwconfig.h b/libavcodec/hwconfig.h
-index f421dc909f44..6b2d0dde7a5c 100644
+index f421dc909f..6b2d0dde7a 100644
 --- a/libavcodec/hwconfig.h
 +++ b/libavcodec/hwconfig.h
 @@ -24,6 +24,7 @@
@@ -80,5 +80,5 @@ index f421dc909f44..6b2d0dde7a5c 100644
  
  typedef struct AVCodecHWConfigInternal {
 -- 
-2.25.4
+2.25.1
 
