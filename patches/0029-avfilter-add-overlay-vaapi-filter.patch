@@ -1,7 +1,7 @@
-From 8dd3ddf3250dffe559d7a5f376d18503ffe0984a Mon Sep 17 00:00:00 2001
+From 2076264d109da2725b7c37db173e8b4e0e6175a3 Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Wed, 26 Feb 2020 13:53:34 +0800
-Subject: [PATCH 29/94] avfilter: add overlay vaapi filter
+Subject: [PATCH 29/90] avfilter: add overlay vaapi filter
 
 Overlay one video on the top of another.
 
@@ -28,10 +28,10 @@ Signed-off-by: Zachary Zhou <zachary.zhou@intel.com>
  create mode 100644 libavfilter/vf_overlay_vaapi.c
 
 diff --git a/configure b/configure
-index d068b11073..0b8ec2376e 100755
+index a7593ec2db..678e5138b1 100755
 --- a/configure
 +++ b/configure
-@@ -3642,6 +3642,7 @@ overlay_opencl_filter_deps="opencl"
+@@ -3666,6 +3666,7 @@ overlay_opencl_filter_deps="opencl"
  overlay_qsv_filter_deps="libmfx"
  overlay_qsv_filter_select="qsvvpp"
  overlay_vulkan_filter_deps="vulkan spirv_compiler"
@@ -39,15 +39,15 @@ index d068b11073..0b8ec2376e 100755
  owdenoise_filter_deps="gpl"
  pad_opencl_filter_deps="opencl"
  pan_filter_deps="swresample"
-@@ -3694,6 +3695,7 @@ tonemap_vaapi_filter_deps="vaapi VAProcFilterParameterBufferHDRToneMapping"
- tonemap_opencl_filter_deps="opencl const_nan"
+@@ -3719,6 +3720,7 @@ tonemap_opencl_filter_deps="opencl const_nan"
  transpose_opencl_filter_deps="opencl"
  transpose_vaapi_filter_deps="vaapi VAProcPipelineCaps_rotation_flags"
+ transpose_vulkan_filter_deps="vulkan spirv_compiler"
 +overlay_vaapi_filter_deps="vaapi VAProcPipelineCaps_blend_flags"
  unsharp_opencl_filter_deps="opencl"
  uspp_filter_deps="gpl avcodec"
  vaguedenoiser_filter_deps="gpl"
-@@ -6801,6 +6803,7 @@ if enabled vaapi; then
+@@ -6853,6 +6855,7 @@ if enabled vaapi; then
      check_struct "va/va.h" "VADecPictureParameterBufferAV1" bit_depth_idx
      check_type   "va/va.h va/va_vpp.h" "VAProcFilterParameterBufferHDRToneMapping"
      check_struct "va/va.h va/va_vpp.h" "VAProcPipelineCaps" rotation_flags
@@ -56,10 +56,10 @@ index d068b11073..0b8ec2376e 100755
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
 diff --git a/doc/filters.texi b/doc/filters.texi
-index c3ccaf97c4..cf6ed584de 100644
+index cffec8168c..42c891f4af 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -24628,6 +24628,57 @@ To enable compilation of these filters you need to configure FFmpeg with
+@@ -24797,6 +24797,57 @@ To enable compilation of these filters you need to configure FFmpeg with
  
  To use vaapi filters, you need to setup the vaapi device correctly. For more information, please read @url{https://trac.ffmpeg.org/wiki/Hardware/VAAPI}
  
@@ -118,10 +118,10 @@ index c3ccaf97c4..cf6ed584de 100644
  
  Perform HDR(High Dynamic Range) to SDR(Standard Dynamic Range) conversion with tone-mapping.
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index 0e27aeeff6..bfbea3a7c3 100644
+index 2fe495df28..9615f62b63 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -372,6 +372,7 @@ OBJS-$(CONFIG_OVERLAY_OPENCL_FILTER)         += vf_overlay_opencl.o opencl.o \
+@@ -375,6 +375,7 @@ OBJS-$(CONFIG_OVERLAY_OPENCL_FILTER)         += vf_overlay_opencl.o opencl.o \
                                                  opencl/overlay.o framesync.o
  OBJS-$(CONFIG_OVERLAY_QSV_FILTER)            += vf_overlay_qsv.o framesync.o
  OBJS-$(CONFIG_OVERLAY_VULKAN_FILTER)         += vf_overlay_vulkan.o vulkan.o vulkan_filter.o
@@ -130,10 +130,10 @@ index 0e27aeeff6..bfbea3a7c3 100644
  OBJS-$(CONFIG_PAD_FILTER)                    += vf_pad.o
  OBJS-$(CONFIG_PAD_OPENCL_FILTER)             += vf_pad_opencl.o opencl.o opencl/pad.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 4bf17ef292..c78fbdee88 100644
+index ec57a2c49c..305ee477d3 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -354,6 +354,7 @@ extern const AVFilter ff_vf_oscilloscope;
+@@ -358,6 +358,7 @@ extern const AVFilter ff_vf_oscilloscope;
  extern const AVFilter ff_vf_overlay;
  extern const AVFilter ff_vf_overlay_opencl;
  extern const AVFilter ff_vf_overlay_qsv;
