@@ -1,0 +1,35 @@
+From 30772ffa2c1f17f4a63c14864d02053ddd5694c2 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Wed, 8 Dec 2021 12:19:17 +0800
+Subject: [PATCH 91/95] lavc/qsvenc: remove VC1 profiles
+
+The SDK doesn't support VC1 encoding. In addition, both
+MFX_PROFILE_VC1_SIMPLE and MFX_PROFILE_HEVC_MAIN are 1 in the SDK, HEVC
+main profile is recognized as simple profile in the verbose output if
+don't remove VC1 profiles.
+
+$ ffmpeg -v verbose -qsv_device /dev/dri/renderD129 -f lavfi -i
+yuvtestsrc -c:v hevc_qsv -f null -
+
+[hevc_qsv @ 0x55bdf7eb4eb0] profile: simple; level: 21
+---
+ libavcodec/qsvenc.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 6845bd1e9b..84d63bed03 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -60,9 +60,6 @@ static const struct {
+     { MFX_PROFILE_MPEG2_SIMPLE,                 "simple"                },
+     { MFX_PROFILE_MPEG2_MAIN,                   "main"                  },
+     { MFX_PROFILE_MPEG2_HIGH,                   "high"                  },
+-    { MFX_PROFILE_VC1_SIMPLE,                   "simple"                },
+-    { MFX_PROFILE_VC1_MAIN,                     "main"                  },
+-    { MFX_PROFILE_VC1_ADVANCED,                 "advanced"              },
+ #if QSV_VERSION_ATLEAST(1, 8)
+     { MFX_PROFILE_HEVC_MAIN,                    "main"                  },
+     { MFX_PROFILE_HEVC_MAIN10,                  "main10"                },
+-- 
+2.17.1
+
