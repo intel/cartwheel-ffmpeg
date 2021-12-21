@@ -1,0 +1,43 @@
+From 3681d51b2999c001e1170f73e7dd7e8ff40f3ee1 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 15 Nov 2021 16:42:19 +0800
+Subject: [PATCH 1/2] libavcodec/vaapi_decode: fix the problem that
+ init_pool_size < nb_surface
+
+For vaapi if the init_pool_size is not zero, the pool size is fixed.
+This means max surfaces is init_pool_size, but when mapping vaapi
+frame to qsv frame, the init_pool_size < nb_surface. The cause is that
+vaapi_decode_make_config() config the init_pool_size and it is called
+twice. The first time is to init frame_context and the second time is to
+init codec. On the second time the init_pool_size is changed to original
+value so the init_pool_size is lower than the reall size because
+pool_size used to initialize frame_context need to plus thread_count and
+3 (guarantee 4 base work surfaces). Now add code to make sure
+init_pool_size is only set once. Now the following commandline works:
+
+ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 \
+-hwaccel_output_format vaapi -i input.264 \
+-vf "hwmap=derive_device=qsv,format=qsv" \
+-c:v h264_qsv output.264
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavcodec/vaapi_decode.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index afc1012555..10e6fd588d 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -678,7 +678,7 @@ int ff_vaapi_decode_init(AVCodecContext *avctx)
+     ctx->hwctx  = ctx->device->hwctx;
+ 
+     err = vaapi_decode_make_config(avctx, ctx->frames->device_ref,
+-                                   &ctx->va_config, avctx->hw_frames_ctx);
++                                   &ctx->va_config, NULL);
+     if (err)
+         goto fail;
+ 
+-- 
+2.25.1
+

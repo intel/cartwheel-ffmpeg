@@ -1,0 +1,63 @@
+From 0cdab0199c728af3a98503a6a7dc3be396c4d92b Mon Sep 17 00:00:00 2001
+From: nyanmisaka <nst799610810@gmail.com>
+Date: Sun, 3 Oct 2021 16:54:38 +0800
+Subject: [PATCH 2/2] libavutil/hwcontext_opencl: fix a bug for mapping qsv
+ frame to opencl
+
+mfxHDLPair was added to qsv, so modify qsv->opencl map function as well.
+Now the following commandline works:
+
+ffmpeg -v verbose -init_hw_device vaapi=va:/dev/dri/renderD128 \
+-init_hw_device qsv=qs@va -init_hw_device opencl=ocl@va -filter_hw_device ocl \
+-hwaccel qsv -hwaccel_output_format qsv -hwaccel_device qs -c:v h264_qsv \
+-i input.264 -vf "hwmap=derive_device=opencl,format=opencl,avgblur_opencl, \
+hwmap=derive_device=qsv:reverse=1:extra_hw_frames=32,format=qsv" \
+-c:v h264_qsv output.264
+
+Signed-off-by: nyanmisaka <nst799610810@gmail.com>
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavutil/hwcontext_opencl.c | 3 ++-
+ libavutil/hwcontext_qsv.h    | 5 +++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/libavutil/hwcontext_opencl.c b/libavutil/hwcontext_opencl.c
+index 194165fba2..98007ad844 100644
+--- a/libavutil/hwcontext_opencl.c
++++ b/libavutil/hwcontext_opencl.c
+@@ -48,6 +48,7 @@
+ #if HAVE_OPENCL_VAAPI_INTEL_MEDIA
+ #if CONFIG_LIBMFX
+ #include <mfxstructures.h>
++#include "hwcontext_qsv.h"
+ #endif
+ #include <va/va.h>
+ #include <CL/cl_va_api_media_sharing_intel.h>
+@@ -2249,7 +2250,7 @@ static int opencl_map_from_qsv(AVHWFramesContext *dst_fc, AVFrame *dst,
+ #if CONFIG_LIBMFX
+     if (src->format == AV_PIX_FMT_QSV) {
+         mfxFrameSurface1 *mfx_surface = (mfxFrameSurface1*)src->data[3];
+-        va_surface = *(VASurfaceID*)mfx_surface->Data.MemId;
++        va_surface = *MFXSURFACEP_TO_VASURFACEP(mfx_surface);
+     } else
+ #endif
+         if (src->format == AV_PIX_FMT_VAAPI) {
+diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
+index 7ab19267cc..85b37c6625 100644
+--- a/libavutil/hwcontext_qsv.h
++++ b/libavutil/hwcontext_qsv.h
+@@ -29,6 +29,11 @@
+  * contain AVBufferRefs whose data pointer points to an mfxFrameSurface1 struct.
+  */
+ 
++#if CONFIG_VAAPI
++#define MFXSURFACEP_TO_VASURFACEP(surf) \
++    (VASurfaceID*)(((mfxHDLPair*)surf->Data.MemId)->first)
++#endif
++
+ /**
+  * This struct is allocated as AVHWDeviceContext.hwctx
+  */
+-- 
+2.25.1
+
