@@ -1,7 +1,7 @@
-From 3d515ba9900029f72dc670346c347b20468e970b Mon Sep 17 00:00:00 2001
+From 0985884c652c7a0a478e3b55ff7fc1de70dfa7c1 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 28 Sep 2020 14:14:42 +0800
-Subject: [PATCH 34/90] lavc/qsvenc: add support for Screen Content Coding
+Subject: [PATCH 34/89] lavc/qsvenc: add support for Screen Content Coding
  (SCC) extension
 
 This patch adds support for SCC encoding on ICL+ platform
@@ -16,12 +16,12 @@ ffmpeg -init_hw_device qsv=qsv:hw -f lavfi -i testsrc -vf \
  2 files changed, 6 insertions(+)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 4cb504aed1..6a8d245240 100644
+index ec142d919b..8ae129fc6b 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -74,6 +74,9 @@ static const struct profile_names hevc_profiles[] = {
-     { MFX_PROFILE_HEVC_MAINSP,                  "mainsp"                },
-     { MFX_PROFILE_HEVC_REXT,                    "rext"                  },
+     { MFX_PROFILE_HEVC_MAINSP,                  "hevc mainsp"                },
+     { MFX_PROFILE_HEVC_REXT,                    "hevc rext"                  },
  #endif
 +#if QSV_VERSION_ATLEAST(1, 32)
 +    { MFX_PROFILE_HEVC_SCC,                     "scc"                   },
@@ -30,10 +30,10 @@ index 4cb504aed1..6a8d245240 100644
  
  static const struct profile_names vp9_profiles[] = {
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index b7b2f5633e..ced9fe026f 100644
+index 5847ea21f7..4fcdf30e46 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -241,6 +241,9 @@ static const AVOption options[] = {
+@@ -244,6 +244,9 @@ static const AVOption options[] = {
      { "main10",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_HEVC_MAIN10  }, INT_MIN, INT_MAX,     VE, "profile" },
      { "mainsp",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_HEVC_MAINSP  }, INT_MIN, INT_MAX,     VE, "profile" },
      { "rext",    NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_HEVC_REXT    }, INT_MIN, INT_MAX,     VE, "profile" },

@@ -1,0 +1,50 @@
+From c119fc8b88e56984094ecef2d34af9fb117431ee Mon Sep 17 00:00:00 2001
+From: "Chen,Wenbin" <wenbin.chen@intel.com>
+Date: Tue, 23 Mar 2021 16:16:33 +0800
+Subject: [PATCH 78/88] libavcodec/qsvdec: reinit decoder according to decode()
+ return value
+
+FFmpeg-qsv decoder reinit codec when width and height change, but there
+are not only resolution change need to reinit codec. I change it to use
+return value from DecodeFrameAsync() to decide whether decoder need to
+be reinitialized.
+
+Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
+Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
+---
+ libavcodec/qsvdec.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index 6bf65235f4..657b1a3c55 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -708,6 +708,13 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
+ 
+     } while (ret == MFX_WRN_DEVICE_BUSY || ret == MFX_ERR_MORE_SURFACE);
+ 
++    if (ret == MFX_ERR_INCOMPATIBLE_VIDEO_PARAM) {
++        q->reinit_flag = 1;
++        av_log(avctx, AV_LOG_DEBUG, "Video parameter change\n");
++        av_freep(&sync);
++        return 0;
++    }
++
+     if (ret != MFX_ERR_NONE &&
+         ret != MFX_ERR_MORE_DATA &&
+         ret != MFX_WRN_VIDEO_PARAM_CHANGED &&
+@@ -860,9 +867,9 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+ 
+     ret = qsv_decode_header(avctx, q, pkt, pix_fmt, &param);
+ 
+-    if (ret >= 0 && (q->orig_pix_fmt != ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC) ||
++    if (q->reinit_flag || (ret >= 0 && (q->orig_pix_fmt != ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC) ||
+         avctx->coded_width  != param.mfx.FrameInfo.Width ||
+-        avctx->coded_height != param.mfx.FrameInfo.Height)) {
++        avctx->coded_height != param.mfx.FrameInfo.Height))) {
+         AVPacket zero_pkt = {0};
+ 
+         if (q->buffered_count) {
+-- 
+2.17.1
+
