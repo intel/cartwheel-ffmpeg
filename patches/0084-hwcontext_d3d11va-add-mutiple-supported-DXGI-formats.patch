@@ -1,7 +1,7 @@
-From f0134f96c38bfe100ac6f6a370a398cc32a862b2 Mon Sep 17 00:00:00 2001
+From d6d411c7dbee254d7e486887f5c72e9b860a4058 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 12 Oct 2021 16:57:35 +0800
-Subject: [PATCH 85/88] hwcontext_d3d11va: add mutiple supported DXGI formats
+Subject: [PATCH 84/87] hwcontext_d3d11va: add mutiple supported DXGI formats
 
 Add support for 0YUV, YUYV422, Y210, Y410, P012, Y212, Y412.
 

@@ -1,7 +1,7 @@
-From 87778c4ed346675114587a909e69c777cd2e65a9 Mon Sep 17 00:00:00 2001
+From f142a3e951767139ec61380817bd1521e10600ea Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Mon, 31 May 2021 14:30:15 +0800
-Subject: [PATCH 83/88] libavcodec/qsvenc: Add support to qsv to encode
+Subject: [PATCH 82/87] libavcodec/qsvenc: Add support to qsv to encode
  external surface.
 
 Qsv encoder only encode the frame that are pre-allocated, so qsv encoder

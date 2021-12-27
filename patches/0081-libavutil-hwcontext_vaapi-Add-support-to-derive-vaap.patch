@@ -1,7 +1,7 @@
-From 4b2e6c4605cf249c90be7afdf020f1fb090f8fdd Mon Sep 17 00:00:00 2001
+From 90bb9fec7091144a602f85d74e85dd1aa1adaf7c Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Mon, 31 May 2021 14:07:46 +0800
-Subject: [PATCH 82/88] libavutil/hwcontext_vaapi: Add support to derive vaapi
+Subject: [PATCH 81/87] libavutil/hwcontext_vaapi: Add support to derive vaapi
  device from qsv
 
 Add support to derive vaapi device_context from qsv device_context

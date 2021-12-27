@@ -1,7 +1,7 @@
-From f4ca5c5933affc09e800f0214b0e14c60a850325 Mon Sep 17 00:00:00 2001
+From 9abd112e1e16cb8c41955009329df76230dfa87e Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 29 Nov 2021 15:12:12 +0800
-Subject: [PATCH 88/88] qsv: remove CONFIG_VAAPI
+Subject: [PATCH 87/87] qsv: remove CONFIG_VAAPI
 
 Make 8-bit, 10-bit, 12-bit YUV 4:2:2 video sources as well as YUV 4:4:4
 video sources supported by d3d11va and dxva2 just like what VAAPI does.
