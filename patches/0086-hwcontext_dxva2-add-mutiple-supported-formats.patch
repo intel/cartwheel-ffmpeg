@@ -1,7 +1,7 @@
-From d2fe80f5c47eca6ef2e228ac085a515998f60f63 Mon Sep 17 00:00:00 2001
+From bf88d853ca4edaf4bc62fa64269957ada0230095 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 3 Dec 2021 09:43:47 +0800
-Subject: [PATCH 87/88] hwcontext_dxva2: add mutiple supported formats
+Subject: [PATCH 86/87] hwcontext_dxva2: add mutiple supported formats
 
 Add support for 0YUV, YUYV422, Y210, Y410, P012, Y212, Y412.
 The added formats work with qsv acceleration and will not have

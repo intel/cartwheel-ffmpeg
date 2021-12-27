@@ -1,7 +1,7 @@
-From 1c4f0e091e16320dc9524bda65d951fe12eaeda9 Mon Sep 17 00:00:00 2001
+From 64c324317f6403935cb708277106aedf09128804 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 26 Aug 2021 16:52:50 +0800
-Subject: [PATCH 86/88] libavcodec/qsvenc_hevc: add main10sp support to
+Subject: [PATCH 85/87] libavcodec/qsvenc_hevc: add main10sp support to
  hevc_qsv
 
 Main10sp is a combination of Main10 and one_pic_only flag.
@@ -141,7 +141,7 @@ index 6d8b7b9462..0115615f18 100644
  
  int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 3ff936d133..a7161e47e8 100644
+index bcb0a82e6a..45ad27ee4e 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -256,7 +256,9 @@ static const AVOption options[] = {
