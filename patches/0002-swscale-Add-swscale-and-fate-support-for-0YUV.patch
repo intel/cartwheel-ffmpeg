@@ -1,7 +1,7 @@
-From 1841543784303142fca1439099581f7bccbef2e8 Mon Sep 17 00:00:00 2001
+From bbcbfcb09f5ec8b5ae2348837499c19b862b23db Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 15:38:48 +0800
-Subject: [PATCH 02/89] swscale: Add swscale and fate support for 0YUV
+Subject: [PATCH 02/87] swscale: Add swscale and fate support for 0YUV
 
 Add input and output support in swscale for 0YUV.
 
@@ -82,10 +82,10 @@ index 6acc39f89f..4d697f296b 100644
          c->lumToYV12 = rgb30leToY_c;
          break;
 diff --git a/libswscale/output.c b/libswscale/output.c
-index 4b4b186be9..d56ca2198d 100644
+index 773f3ce059..42ceb784ee 100644
 --- a/libswscale/output.c
 +++ b/libswscale/output.c
-@@ -2502,6 +2502,53 @@ yuv2ya8_X_c(SwsContext *c, const int16_t *lumFilter,
+@@ -2535,6 +2535,53 @@ yuv2ya8_X_c(SwsContext *c, const int16_t *lumFilter,
      }
  }
  
@@ -139,7 +139,7 @@ index 4b4b186be9..d56ca2198d 100644
  static void
  yuv2ayuv64le_X_c(SwsContext *c, const int16_t *lumFilter,
                   const int16_t **_lumSrc, int lumFilterSize,
-@@ -3054,6 +3101,9 @@ av_cold void ff_sws_init_output_funcs(SwsContext *c,
+@@ -3083,6 +3130,9 @@ av_cold void ff_sws_init_output_funcs(SwsContext *c,
          *yuv2packed2 = yuv2ya16be_2_c;
          *yuv2packedX = yuv2ya16be_X_c;
          break;
@@ -227,7 +227,7 @@ index 0000000000..fb71b0b737
 @@ -0,0 +1 @@
 +pixdesc-0yuv        25e04681539b84434e6687583d196771
 diff --git a/tests/ref/fate/filter-pixfmts-copy b/tests/ref/fate/filter-pixfmts-copy
-index b090739bd2..c2a1f92f38 100644
+index f06fa1574e..b7b66fde48 100644
 --- a/tests/ref/fate/filter-pixfmts-copy
 +++ b/tests/ref/fate/filter-pixfmts-copy
 @@ -1,5 +1,6 @@
@@ -238,7 +238,7 @@ index b090739bd2..c2a1f92f38 100644
  argb                f003b555ef429222005d33844cca9325
  ayuv64le            07b9c969dfbe4add4c0626773b151d4f
 diff --git a/tests/ref/fate/filter-pixfmts-crop b/tests/ref/fate/filter-pixfmts-crop
-index 93353ad16a..e40eea96fa 100644
+index 8b26ab9c53..8f903b270a 100644
 --- a/tests/ref/fate/filter-pixfmts-crop
 +++ b/tests/ref/fate/filter-pixfmts-crop
 @@ -1,5 +1,6 @@
@@ -249,7 +249,7 @@ index 93353ad16a..e40eea96fa 100644
  argb                8b822972049a1e207000763f2564d6e0
  ayuv64le            ab2f7bc8f150af47c42c778e3ea28bce
 diff --git a/tests/ref/fate/filter-pixfmts-field b/tests/ref/fate/filter-pixfmts-field
-index bcd1a0a45b..4fd8f0ebb1 100644
+index c4838d1446..be31fe09b1 100644
 --- a/tests/ref/fate/filter-pixfmts-field
 +++ b/tests/ref/fate/filter-pixfmts-field
 @@ -1,5 +1,6 @@
@@ -260,7 +260,7 @@ index bcd1a0a45b..4fd8f0ebb1 100644
  argb                6dca4f2987b49b7d63f702d17bace630
  ayuv64le            d9836decca6323ba88b3b3d02257c0b6
 diff --git a/tests/ref/fate/filter-pixfmts-fieldorder b/tests/ref/fate/filter-pixfmts-fieldorder
-index 761ef422b5..04256c1254 100644
+index 32c06bae4c..3cca01f345 100644
 --- a/tests/ref/fate/filter-pixfmts-fieldorder
 +++ b/tests/ref/fate/filter-pixfmts-fieldorder
 @@ -1,5 +1,6 @@
@@ -271,7 +271,7 @@ index 761ef422b5..04256c1254 100644
  argb                80d08e68cb91bc8f2f817516e65f0bd0
  ayuv64le            84ef6260fe02427da946d4a2207fb54c
 diff --git a/tests/ref/fate/filter-pixfmts-hflip b/tests/ref/fate/filter-pixfmts-hflip
-index 1fc26b9fb5..d33ec3e4c8 100644
+index 4d3efe3cdc..8033778cb2 100644
 --- a/tests/ref/fate/filter-pixfmts-hflip
 +++ b/tests/ref/fate/filter-pixfmts-hflip
 @@ -1,5 +1,6 @@
@@ -282,7 +282,7 @@ index 1fc26b9fb5..d33ec3e4c8 100644
  argb                36cf791c52c5463bfc52a070de54337e
  ayuv64le            4cedbc38b3d4dcb26cdab170ce6d667b
 diff --git a/tests/ref/fate/filter-pixfmts-il b/tests/ref/fate/filter-pixfmts-il
-index 7e7f057afa..6aea0e5d81 100644
+index 4623f2420c..63bc4b3664 100644
 --- a/tests/ref/fate/filter-pixfmts-il
 +++ b/tests/ref/fate/filter-pixfmts-il
 @@ -1,5 +1,6 @@
@@ -293,7 +293,7 @@ index 7e7f057afa..6aea0e5d81 100644
  argb                9e50e6ef02c83f28e97865a1f46ddfcd
  ayuv64le            6f45f683e99ddf4180c7c7f47719efcc
 diff --git a/tests/ref/fate/filter-pixfmts-null b/tests/ref/fate/filter-pixfmts-null
-index b090739bd2..c2a1f92f38 100644
+index f06fa1574e..b7b66fde48 100644
 --- a/tests/ref/fate/filter-pixfmts-null
 +++ b/tests/ref/fate/filter-pixfmts-null
 @@ -1,5 +1,6 @@
@@ -304,18 +304,18 @@ index b090739bd2..c2a1f92f38 100644
  argb                f003b555ef429222005d33844cca9325
  ayuv64le            07b9c969dfbe4add4c0626773b151d4f
 diff --git a/tests/ref/fate/filter-pixfmts-pad b/tests/ref/fate/filter-pixfmts-pad
-index 1362d198b4..9666316e91 100644
+index 519473032e..44262f942a 100644
 --- a/tests/ref/fate/filter-pixfmts-pad
 +++ b/tests/ref/fate/filter-pixfmts-pad
 @@ -1,5 +1,6 @@
- 0bgr                7bc6f5a1c44cdd7506174dccf52c68d7
- 0rgb                ff12e0f1e576b47a4c962729d5c0b868
+ 0bgr                55d41bba3609383bf658169f90b30b42
+ 0rgb                8e076dd0f8a9f4652595dffe3544f0f0
 +0yuv                93fca69f640574dc7d8cce6282f72e96
  abgr                52738042432893de555e6a3833172806
  argb                2a10108ac524b422b8a2393c064b3eab
- bgr0                32207a2de1b2ac7937e940a8459b97c0
+ bgr0                025d4d5e5691801ba39bc9de70e39df0
 diff --git a/tests/ref/fate/filter-pixfmts-scale b/tests/ref/fate/filter-pixfmts-scale
-index a5a4ac4cba..b6401d117b 100644
+index 43074b84a7..a321c20a9d 100644
 --- a/tests/ref/fate/filter-pixfmts-scale
 +++ b/tests/ref/fate/filter-pixfmts-scale
 @@ -1,5 +1,6 @@
@@ -326,7 +326,7 @@ index a5a4ac4cba..b6401d117b 100644
  argb                f0e17c71a40643c33a5bcfb481f6d8f8
  ayuv64le            59fb016f9874062d0be77cb3920ffed2
 diff --git a/tests/ref/fate/filter-pixfmts-transpose b/tests/ref/fate/filter-pixfmts-transpose
-index dc3a0628ee..a74c9f25d7 100644
+index 922666cf95..7587e7bbdc 100644
 --- a/tests/ref/fate/filter-pixfmts-transpose
 +++ b/tests/ref/fate/filter-pixfmts-transpose
 @@ -1,5 +1,6 @@
@@ -337,7 +337,7 @@ index dc3a0628ee..a74c9f25d7 100644
  argb                87bbd23debb94d486ac3a6b6c0b005f9
  ayuv64le            e4c07e0d5b333b3bc9eb4f3ce6af3a2c
 diff --git a/tests/ref/fate/filter-pixfmts-vflip b/tests/ref/fate/filter-pixfmts-vflip
-index 7736e372ad..a031ba397d 100644
+index 3a53bb5837..a5dfc898e5 100644
 --- a/tests/ref/fate/filter-pixfmts-vflip
 +++ b/tests/ref/fate/filter-pixfmts-vflip
 @@ -1,5 +1,6 @@
@@ -348,5 +348,5 @@ index 7736e372ad..a031ba397d 100644
  argb                3fd6af7ef2364d8aa845d45db289a04a
  ayuv64le            558671dd31d0754cfa6344eaf441df78
 -- 
-2.17.1
+2.25.1
 
