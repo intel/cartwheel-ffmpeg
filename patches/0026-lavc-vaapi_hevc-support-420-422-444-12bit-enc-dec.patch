@@ -1,7 +1,7 @@
-From 72d28307089b5530aa8b2d413e31948df6ec0f6e Mon Sep 17 00:00:00 2001
+From d2bf373c7f7ecb74b3ce725314760a33fbd69e5a Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 14 Jul 2020 10:21:55 +0800
-Subject: [PATCH 26/94] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
+Subject: [PATCH 26/87] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
 
 ---
  libavcodec/hevcdec.c             |  5 +++
@@ -13,11 +13,11 @@ Subject: [PATCH 26/94] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
  libavutil/pixdesc.c              | 73 ++++++++++++++++++++++++++++++++
  libavutil/pixfmt.h               | 11 +++++
  tests/ref/fate/imgutils          |  6 +++
- tests/ref/fate/sws-pixdesc-query | 27 ++++++++++++
- 10 files changed, 166 insertions(+)
+ tests/ref/fate/sws-pixdesc-query | 35 +++++++++++++++
+ 10 files changed, 174 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index ccb915e069..1a42842e56 100644
+index b4307abeb9..0260285c3f 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -466,6 +466,11 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -75,7 +75,7 @@ index 9b054efc0f..ebf2aa4263 100644
                                                  source_format, 0, NULL);
          if (format == best_format)
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 10d218d370..08dac7fb87 100644
+index 5cadb76174..af7b33a047 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1262,6 +1262,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
@@ -127,10 +127,10 @@ index 027612dc99..7d68861c1e 100644
      av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
             "not supported with this VA version.\n", profile->name);
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 5aa410c6cd..8423edb68f 100644
+index 54b4e162c8..08cf8e3dd7 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
-@@ -129,6 +129,15 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
+@@ -132,6 +132,15 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
      MAP(Y800, YUV400,  GRAY8,   0),
  #ifdef VA_FOURCC_P010
      MAP(P010, YUV420_10BPP, P010, 0),
@@ -316,7 +316,7 @@ index 024a5da6b1..83e3cc4e91 100644
  x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
  x2bgr10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
 diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
-index 43b7fc7db8..3de7a0ae93 100644
+index 06301cb8aa..06bbedd447 100644
 --- a/tests/ref/fate/sws-pixdesc-query
 +++ b/tests/ref/fate/sws-pixdesc-query
 @@ -61,6 +61,8 @@ isNBPS:
@@ -430,6 +430,31 @@ index 43b7fc7db8..3de7a0ae93 100644
    p016be
    p016le
    p210be
+@@ -966,6 +993,8 @@ usePal:
+ DataInHighBits:
+   p010be
+   p010le
++  p012be
++  p012le
+   p210be
+   p210le
+   p410be
+@@ -974,9 +1003,15 @@ DataInHighBits:
+   xyz12le
+   y210be
+   y210le
++  y212be
++  y212le
++  y412be
++  y412le
+ 
+ SwappedChroma:
+   nv21
+   nv42
++  y412be
++  y412le
+   yvyu422
+ 
 -- 
-2.17.1
+2.25.1
 
