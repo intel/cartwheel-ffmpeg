@@ -1,7 +1,7 @@
-From 3f3f0b6320cfb6786ca4d8b21fe65887ac275e28 Mon Sep 17 00:00:00 2001
+From 90dcec97b348b65a03ded9a36b2d1dc5ce855aa5 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 14:14:37 +0800
-Subject: [PATCH 56/87] libavcodec/qsvenc: Add transform skip for hevc_qsv
+Subject: [PATCH 49/79] libavcodec/qsvenc: Add transform skip for hevc_qsv
 
 Add transform skip option for hevc_qsv. Command line option
 is "transform_skip". By enabling this option, the
@@ -16,7 +16,7 @@ Signed-off-by Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index b290b2ac86..818a429bf2 100644
+index dc833ef385..296e999f36 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -358,7 +358,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -59,13 +59,13 @@ index 8ed20b0934..789a465bc6 100644
      int a53_cc;
  
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 07010c698e..9b0d1d2d66 100644
+index 3309ad6a26..91a316f9c8 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -254,6 +254,9 @@ static const AVOption options[] = {
-     { "tile_rows",  "Number of rows for tiled encoding",      OFFSET(qsv.tile_rows),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
+@@ -255,6 +255,9 @@ static const AVOption options[] = {
      { "recovery_point_sei", "Insert recovery point SEI messages",       OFFSET(qsv.recovery_point_sei),      AV_OPT_TYPE_INT, { .i64 = -1 },               -1,          1, VE },
      { "aud", "Insert the Access Unit Delimiter NAL", OFFSET(qsv.aud), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE},
+     { "pic_timing_sei",    "Insert picture timing SEI with pic_struct_syntax element", OFFSET(qsv.pic_timing_sei), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, VE },
 +#if QSV_VERSION_ATLEAST(1, 26)
 +    { "transform_skip", "Turn this option ON to enable transformskip",   OFFSET(qsv.transform_skip),          AV_OPT_TYPE_INT,    { .i64 = -1},   -1, 1,  VE},
 +#endif
