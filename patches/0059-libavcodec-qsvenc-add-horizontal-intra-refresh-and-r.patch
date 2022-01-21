@@ -1,7 +1,7 @@
-From 698b7040b79bf92aadabd5684c30b119affccb83 Mon Sep 17 00:00:00 2001
+From 3e8a7b649c8942432497a682e21950823e50ff14 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 21 Jan 2021 14:38:46 +0800
-Subject: [PATCH 59/88] libavcodec/qsvenc: add horizontal intra refresh and
+Subject: [PATCH 49/76] libavcodec/qsvenc: add horizontal intra refresh and
  refresh cycle dist
 
 Add an new intra refresh type: "horizontal", and an new param
@@ -16,7 +16,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 16 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 661a9d7fa0..6428dfa109 100644
+index 08ec7fa268..c9706d2b96 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -267,8 +267,10 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -32,8 +32,8 @@ index 661a9d7fa0..6428dfa109 100644
  
      av_log(avctx, AV_LOG_VERBOSE, "MaxFrameSize: %d; ", co2->MaxFrameSize);
  #if QSV_HAVE_MAX_SLICE_SIZE
-@@ -974,6 +976,13 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
-             av_log(avctx, AV_LOG_WARNING, "Please set max_b_frames(-bf) to 0 to enable P-pyramid\n");
+@@ -982,6 +984,13 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ #endif
          }
  
 +#if QSV_VERSION_ATLEAST(1, 16)
@@ -45,12 +45,12 @@ index 661a9d7fa0..6428dfa109 100644
 +
          if (avctx->codec_id == AV_CODEC_ID_HEVC) {
  #if QSV_VERSION_ATLEAST(1, 26)
-             q->extco3.TransformSkip  = q->transform_skip ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+             if (q->transform_skip >= 0)
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 789a465bc6..f3f21959e7 100644
+index 65f035045c..5fa0b6f5ba 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
-@@ -194,6 +194,7 @@ typedef struct QSVEncContext {
+@@ -195,6 +195,7 @@ typedef struct QSVEncContext {
      int int_ref_type;
      int int_ref_cycle_size;
      int int_ref_qp_delta;
@@ -59,7 +59,7 @@ index 789a465bc6..f3f21959e7 100644
  
      int repeat_pps;
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
-index 80fe3cc280..3a07b412d6 100644
+index 9f127607b7..e95c01fbe9 100644
 --- a/libavcodec/qsvenc_h264.c
 +++ b/libavcodec/qsvenc_h264.c
 @@ -129,10 +129,13 @@ static const AVOption options[] = {
