@@ -1,7 +1,7 @@
-From c16f840b318d0ed95c93ced296d65bdc6f511c98 Mon Sep 17 00:00:00 2001
+From de8a1f5434cf02e8bd814cd658443294b797883c Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Fri, 9 Apr 2021 14:00:40 +0800
-Subject: [PATCH 66/76] libavcodec/qsvenc: add mbbrc to hevc_qsv
+Subject: [PATCH 64/75] libavcodec/qsvenc: add mbbrc to hevc_qsv
 
 Add mbbrc to hevc_qsv
 For detailed description, please see "mbbrc" part in:
@@ -13,19 +13,19 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 48413ff224..5fc5750ea7 100644
+index 5b44bb992c..c84abcbe0a 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -884,8 +884,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
- 
+@@ -879,8 +879,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+         if (avctx->codec_id == AV_CODEC_ID_H264) {
              if (q->bitrate_limit >= 0)
                  q->extco2.BitrateLimit = q->bitrate_limit ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 -            if (q->mbbrc >= 0)
 -                q->extco2.MBBRC = q->mbbrc ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
  
- #if QSV_HAVE_MAX_SLICE_SIZE
-             if (q->max_slice_size >= 0)
-@@ -935,6 +933,9 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ #if QSV_HAVE_TRELLIS
+             if (avctx->trellis >= 0)
+@@ -937,6 +935,9 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
                  q->extco2.MaxQPP = q->extco2.MaxQPB = q->extco2.MaxQPI;
              }
  #endif
