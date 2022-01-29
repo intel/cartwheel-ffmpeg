@@ -1,7 +1,7 @@
-From 9abd112e1e16cb8c41955009329df76230dfa87e Mon Sep 17 00:00:00 2001
+From f98384968bc0ab28aeac2754e2e02d76e9b7bb11 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 29 Nov 2021 15:12:12 +0800
-Subject: [PATCH 87/87] qsv: remove CONFIG_VAAPI
+Subject: [PATCH 74/74] qsv: remove CONFIG_VAAPI
 
 Make 8-bit, 10-bit, 12-bit YUV 4:2:2 video sources as well as YUV 4:4:4
 video sources supported by d3d11va and dxva2 just like what VAAPI does.
@@ -13,7 +13,7 @@ Sign-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 8 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index df990a34ab..e36396b593 100644
+index 664bf79cd3..ba515abf9e 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -214,7 +214,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
@@ -49,7 +49,7 @@ index df990a34ab..e36396b593 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 0802a9439b..418c34c97d 100644
+index ce32842e86..8029760226 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -115,7 +115,6 @@ static const struct {
@@ -67,8 +67,8 @@ index 0802a9439b..418c34c97d 100644
 -#endif
  };
  
- static uint32_t qsv_fourcc_from_pix_fmt(enum AVPixelFormat pix_fmt)
-@@ -1285,7 +1283,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+ extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
+@@ -1319,7 +1317,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.R = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;
@@ -76,7 +76,7 @@ index 0802a9439b..418c34c97d 100644
      case AV_PIX_FMT_YUYV422:
          surface->Data.Y = frame->data[0];
          surface->Data.U = frame->data[0] + 1;
-@@ -1313,7 +1310,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1347,7 +1344,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.V = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;
