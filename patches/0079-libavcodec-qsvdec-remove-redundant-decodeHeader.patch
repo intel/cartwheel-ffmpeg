@@ -1,7 +1,7 @@
-From a7a9256a2d3efdbc2863494398e249d7dd0b9a7b Mon Sep 17 00:00:00 2001
+From 4a2cb4d71c8357dc8954d4099687286750e6b314 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 16 Mar 2021 14:31:19 +0800
-Subject: [PATCH 79/88] libavcodec/qsvdec: remove redundant decodeHeader()
+Subject: [PATCH 66/74] libavcodec/qsvdec: remove redundant decodeHeader()
 
 Since ffmpeg-qsv uses return value to reinit decoder, it doesn't need to
 decode header each time. Move qsv_decode_header's position so that
@@ -17,18 +17,18 @@ Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
  1 file changed, 12 insertions(+), 14 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 657b1a3c55..6cf5ddd5c6 100644
+index 1b6d6d2717..d663e95c4c 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -82,7 +82,6 @@ typedef struct QSVContext {
+@@ -89,7 +89,6 @@ typedef struct QSVContext {
  
-     AVFifoBuffer *async_fifo;
+     AVFifo *async_fifo;
      int zero_consume_run;
 -    int buffered_count;
      int reinit_flag;
  
      enum AVPixelFormat orig_pix_fmt;
-@@ -731,8 +730,6 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
+@@ -821,8 +820,6 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
          ++q->zero_consume_run;
          if (q->zero_consume_run > 1)
              ff_qsv_print_warning(avctx, ret, "A decode call did not consume any data");
@@ -37,7 +37,7 @@ index 657b1a3c55..6cf5ddd5c6 100644
      } else {
          q->zero_consume_run = 0;
      }
-@@ -865,20 +862,21 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -961,20 +958,21 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
      if (!avctx->coded_height)
          avctx->coded_height = 720;
  
@@ -71,5 +71,5 @@ index 657b1a3c55..6cf5ddd5c6 100644
          q->orig_pix_fmt = avctx->pix_fmt = pix_fmt = ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC);
  
 -- 
-2.17.1
+2.32.0
 
