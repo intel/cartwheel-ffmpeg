@@ -9,6 +9,7 @@ packing arrangement information from SEI data and config AVStereo3D
 side data for decoded frame.
 
 Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
+Sigend-off-by: Tong Wu <tong1.wu@intel.com>
 ---
  libavcodec/qsv_internal.h |   2 +
  libavcodec/qsvdec.c       | 155 ++++++++++++++++++++++++++++++++++++++
@@ -19,9 +20,9 @@ index 58186ea7ca..2db9581d90 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -54,6 +54,8 @@
- 
+
  #define QSV_MAX_FRAME_EXT_PARAMS 4
- 
+
 +#define QSV_PAYLOAD_SIZE 1024
 +
  #define QSV_VERSION_ATLEAST(MAJOR, MINOR)   \
@@ -36,7 +37,7 @@ index f81737ab6d..e739d713e6 100644
  #include "libavutil/imgutils.h"
  #include "libavutil/film_grain_params.h"
 +#include "libavutil/stereo3d.h"
- 
+
  #include "avcodec.h"
  #include "internal.h"
  #include "decode.h"
@@ -45,12 +46,12 @@ index f81737ab6d..e739d713e6 100644
  #include "qsv.h"
 +#include "h264_sei.h"
  #include "qsv_internal.h"
- 
+
  static const AVRational mfx_tb = { 1, 90000 };
 @@ -97,8 +100,13 @@ typedef struct QSVContext {
- 
+
      char *load_plugins;
- 
+
 +    mfxPayload payload;
 +
      mfxExtBuffer **ext_buffers;
@@ -59,12 +60,12 @@ index f81737ab6d..e739d713e6 100644
 +    H264SEIContext sei;
 +    H264ParamSets ps;
  } QSVContext;
- 
+
  static const AVCodecHWConfigInternal *const qsv_hw_configs[] = {
 @@ -589,6 +597,147 @@ static int qsv_export_film_grain(AVCodecContext *avctx, mfxExtAV1FilmGrainParam
  }
  #endif
- 
+
 +static int h264_decode_fpa(H264SEIFramePacking *fpa, AVFrame *frame)
 +{
 +    if (!fpa || !frame) {
@@ -164,7 +165,7 @@ index f81737ab6d..e739d713e6 100644
 +{
 +    mfxU64 ts;
 +    mfxStatus sts;
-+    int ret;
++    int ret = 0;
 +
 +    if (q->payload.BufSize == 0) {
 +        q->payload.Data = av_mallocz(QSV_PAYLOAD_SIZE);
@@ -210,9 +211,9 @@ index f81737ab6d..e739d713e6 100644
                        AVFrame *frame, int *got_frame,
                        const AVPacket *avpkt)
 @@ -693,6 +842,10 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
- 
+
          outsurf = &aframe.frame->surface;
- 
+
 +        ret = extract_frame_side_data(avctx, q, frame);
 +        if (ret < 0)
 +            av_log(avctx, AV_LOG_WARNING, "Extracting side from packet failed\n");
@@ -227,8 +228,8 @@ index f81737ab6d..e739d713e6 100644
 +
 +    av_freep(&q->payload.Data);
  }
- 
+
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
--- 
+--
 2.32.0
 
