@@ -1,7 +1,7 @@
-From f98384968bc0ab28aeac2754e2e02d76e9b7bb11 Mon Sep 17 00:00:00 2001
+From 2beb0576a5143b401f22bea8cba12f02f9d53eef Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 29 Nov 2021 15:12:12 +0800
-Subject: [PATCH 74/74] qsv: remove CONFIG_VAAPI
+Subject: [PATCH 72/72] qsv: remove CONFIG_VAAPI
 
 Make 8-bit, 10-bit, 12-bit YUV 4:2:2 video sources as well as YUV 4:4:4
 video sources supported by d3d11va and dxva2 just like what VAAPI does.
@@ -13,13 +13,13 @@ Sign-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 8 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 664bf79cd3..ba515abf9e 100644
+index c25d9b710d..0a8f675449 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -214,7 +214,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
-     case MFX_FOURCC_NV12: return AV_PIX_FMT_NV12;
-     case MFX_FOURCC_P010: return AV_PIX_FMT_P010;
-     case MFX_FOURCC_P8:   return AV_PIX_FMT_PAL8;
+ #if QSV_VERSION_ATLEAST(1, 17)
+     case MFX_FOURCC_RGB4: return AV_PIX_FMT_BGRA;
+ #endif
 -#if CONFIG_VAAPI
      case MFX_FOURCC_YUY2: return AV_PIX_FMT_YUYV422;
  #if QSV_VERSION_ATLEAST(1, 17)
@@ -32,14 +32,14 @@ index 664bf79cd3..ba515abf9e 100644
  #endif
      }
      return AV_PIX_FMT_NONE;
-@@ -245,7 +243,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
-     case AV_PIX_FMT_P010:
-         *fourcc = MFX_FOURCC_P010;
-         return AV_PIX_FMT_P010;
--#if CONFIG_VAAPI
- #if QSV_VERSION_ATLEAST(1, 9)
-     case AV_PIX_FMT_BGRA:
+@@ -255,7 +253,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
          *fourcc = MFX_FOURCC_RGB4;
+         return AV_PIX_FMT_BGRA;
+ #endif
+-#if CONFIG_VAAPI
+     case AV_PIX_FMT_YUV422P:
+     case AV_PIX_FMT_YUYV422:
+         *fourcc = MFX_FOURCC_YUY2;
 @@ -289,7 +286,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
      case AV_PIX_FMT_Y412:
          *fourcc = MFX_FOURCC_Y416;
@@ -49,7 +49,7 @@ index 664bf79cd3..ba515abf9e 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index ce32842e86..8029760226 100644
+index 240ff33723..0acbb7e065 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -115,7 +115,6 @@ static const struct {
@@ -68,7 +68,7 @@ index ce32842e86..8029760226 100644
  };
  
  extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
-@@ -1319,7 +1317,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1317,7 +1315,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.R = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;
@@ -76,7 +76,7 @@ index ce32842e86..8029760226 100644
      case AV_PIX_FMT_YUYV422:
          surface->Data.Y = frame->data[0];
          surface->Data.U = frame->data[0] + 1;
-@@ -1347,7 +1344,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1345,7 +1342,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.V = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;

@@ -1,7 +1,7 @@
-From 650788b0b7aae606ade2ee2fd1f88da80cc69521 Mon Sep 17 00:00:00 2001
+From 0741236729b7e373d23b1535d943aff9b71042c3 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:54:57 +0800
-Subject: [PATCH 05/92] lavcu/qsv: Add decoding support for 444 8/10 bit
+Subject: [PATCH 05/72] lavcu/qsv: Add decoding support for 444 8/10 bit
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
@@ -10,11 +10,11 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 29 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 9d08485c9203..47dec181a153 100644
+index b75877e698..9f03eb8bbd 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -191,8 +191,12 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
-     case MFX_FOURCC_P8:   return AV_PIX_FMT_PAL8;
+@@ -197,8 +197,12 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+ #endif
  #if CONFIG_VAAPI
      case MFX_FOURCC_YUY2: return AV_PIX_FMT_YUYV422;
 +#if QSV_VERSION_ATLEAST(1, 17)
@@ -26,7 +26,7 @@ index 9d08485c9203..47dec181a153 100644
  #endif
  #endif
      }
-@@ -216,11 +220,21 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+@@ -232,11 +236,21 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
      case AV_PIX_FMT_YUYV422:
          *fourcc = MFX_FOURCC_YUY2;
          return AV_PIX_FMT_YUYV422;
@@ -49,10 +49,10 @@ index 9d08485c9203..47dec181a153 100644
  #endif
      default:
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 0700cba80221..362108e26aab 100644
+index d9baea667f..59bd354d17 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -103,9 +103,15 @@ static const struct {
+@@ -105,9 +105,15 @@ static const struct {
  #if CONFIG_VAAPI
      { AV_PIX_FMT_YUYV422,
                         MFX_FOURCC_YUY2 },
@@ -68,7 +68,7 @@ index 0700cba80221..362108e26aab 100644
  #endif
  #endif
  };
-@@ -931,6 +937,15 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1012,6 +1018,15 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.U16 = (mfxU16 *)frame->data[0] + 1;
          surface->Data.V16 = (mfxU16 *)frame->data[0] + 3;
          break;
@@ -85,5 +85,5 @@ index 0700cba80221..362108e26aab 100644
      default:
          return MFX_ERR_UNSUPPORTED;
 -- 
-2.25.4
+2.17.1
 
