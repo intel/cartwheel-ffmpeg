@@ -1,8 +1,8 @@
-From f142a3e951767139ec61380817bd1521e10600ea Mon Sep 17 00:00:00 2001
+From 8a189c47aa14ad33d8babfab2ee2aff4591ad229 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Mon, 31 May 2021 14:30:15 +0800
-Subject: [PATCH 82/87] libavcodec/qsvenc: Add support to qsv to encode
- external surface.
+Subject: [PATCH] libavcodec/qsvenc: Add support to qsv to encode external
+ surface.
 
 Qsv encoder only encode the frame that are pre-allocated, so qsv encoder
 cannot encode the frame mapped from vulkan. In fact, MediaSDK can encode
@@ -11,17 +11,18 @@ external frame. The resource will be allocated and released in real time
 if the encoded frame is not in the frame pool.
 
 Signed-off-by: Wenbin,Chen <wenbin.chen@intel.com>
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
  libavcodec/qsv_internal.h |  1 +
- libavcodec/qsvenc.c       | 20 +++++++--
- libavutil/hwcontext_qsv.c | 85 ++++++++++++++++++++++++++++++++++-----
- 3 files changed, 93 insertions(+), 13 deletions(-)
+ libavcodec/qsvenc.c       | 20 ++++++++---
+ libavutil/hwcontext_qsv.c | 86 ++++++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 94 insertions(+), 13 deletions(-)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index e62ca76fc7..6b7bd490d7 100644
+index 4a6fd2a851..d7ccc3d0d0 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
-@@ -89,6 +89,7 @@ typedef struct QSVFrame {
+@@ -95,6 +95,7 @@ typedef struct QSVFrame {
  
      int queued;
      int used;
@@ -30,10 +31,10 @@ index e62ca76fc7..6b7bd490d7 100644
      struct QSVFrame *next;
  } QSVFrame;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index ca8518ef2e..c9a977b93e 100644
+index 6d352b178a..e2d838e326 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -1519,6 +1519,10 @@ static void clear_unused_frames(QSVEncContext *q)
+@@ -1523,6 +1523,10 @@ static void clear_unused_frames(QSVEncContext *q)
              memset(&cur->enc_ctrl, 0, sizeof(cur->enc_ctrl));
              cur->enc_ctrl.Payload = cur->payloads;
              cur->enc_ctrl.ExtParam = cur->extparam;
@@ -44,7 +45,7 @@ index ca8518ef2e..c9a977b93e 100644
              if (cur->frame->format == AV_PIX_FMT_QSV) {
                  av_frame_unref(cur->frame);
              }
-@@ -1582,12 +1586,20 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+@@ -1586,12 +1590,20 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
  
          qf->surface = *(mfxFrameSurface1*)qf->frame->data[3];
  
@@ -70,10 +71,10 @@ index ca8518ef2e..c9a977b93e 100644
      } else {
          /* make a copy if the input is not padded as libmfx requires */
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 0d85ae7b53..5f28cb631d 100644
+index 500cf4c0bc..d9c0f761a2 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -1602,11 +1602,23 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+@@ -1617,11 +1617,23 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
      return 0;
  }
  
@@ -97,7 +98,7 @@ index 0d85ae7b53..5f28cb631d 100644
  
      for (i = 0; i < hwctx->nb_surfaces && index < 0; i++) {
          switch(src->format) {
-@@ -1644,21 +1656,76 @@ static int qsv_map_to(AVHWFramesContext *dst_ctx,
+@@ -1659,21 +1671,77 @@ static int qsv_map_to(AVHWFramesContext *dst_ctx,
          }
      }
      if (index < 0) {
@@ -175,14 +176,15 @@ index 0d85ae7b53..5f28cb631d 100644
 +qsv_map_to_err:
 +    if (new_sur)
 +        av_freep(&new_sur);
-+    if (new_hdlpair->first)
-+        av_freep(&new_hdlpair->first);
-+    if (new_hdlpair)
++    if (new_hdlpair) {
++        if (new_hdlpair->first)
++            av_freep(&new_hdlpair->first);
 +        av_freep(&new_hdlpair);
++    }
 +    return err;
  }
  
  static int qsv_frames_get_constraints(AVHWDeviceContext *ctx,
 -- 
-2.17.1
+2.16.1.windows.4
 
