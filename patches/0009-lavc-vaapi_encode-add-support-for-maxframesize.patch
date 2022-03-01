@@ -1,7 +1,7 @@
-From c69350250850b2d6ca01ae2bd611127436349b04 Mon Sep 17 00:00:00 2001
+From 424e798dac755a3be9e304cc0a80b51b38a99423 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 22 Jun 2020 09:51:24 +0800
-Subject: [PATCH 09/95] lavc/vaapi_encode: add support for maxframesize
+Subject: [PATCH 09/70] lavc/vaapi_encode: add support for maxframesize
 
 Add support for max frame size:
     - max_frame_size (bytes) to indicate the max allowed size for frame.
@@ -31,10 +31,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 84 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 3bf379b1a0..fdd127aad1 100644
+index 8c6e881702..ac0f19bc26 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -348,7 +348,16 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -362,7 +362,16 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
          if (err < 0)
              goto fail;
      }
@@ -52,7 +52,7 @@ index 3bf379b1a0..fdd127aad1 100644
      if (pic->type == PICTURE_TYPE_IDR) {
          if (ctx->va_packed_headers & VA_ENC_PACKED_HEADER_SEQUENCE &&
              ctx->codec->write_sequence_header) {
-@@ -1821,6 +1830,54 @@ rc_mode_found:
+@@ -1867,6 +1876,54 @@ rc_mode_found:
      return 0;
  }
  
@@ -107,7 +107,7 @@ index 3bf379b1a0..fdd127aad1 100644
  static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
  {
      VAAPIEncodeContext *ctx = avctx->priv_data;
-@@ -2427,6 +2484,12 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2473,6 +2530,12 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
              goto fail;
      }
  
@@ -120,7 +120,7 @@ index 3bf379b1a0..fdd127aad1 100644
      vas = vaCreateConfig(ctx->hwctx->display,
                           ctx->va_profile, ctx->va_entrypoint,
                           ctx->config_attributes, ctx->nb_config_attributes,
-@@ -2555,6 +2618,9 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
+@@ -2614,6 +2677,9 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
          ctx->va_config = VA_INVALID_ID;
      }
  
@@ -131,10 +131,10 @@ index 3bf379b1a0..fdd127aad1 100644
  
      av_freep(&ctx->codec_sequence_params);
 diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
-index b41604a883..1c40a734a5 100644
+index 1b40819c69..72f9256a8e 100644
 --- a/libavcodec/vaapi_encode.h
 +++ b/libavcodec/vaapi_encode.h
-@@ -58,6 +58,11 @@ enum {
+@@ -60,6 +60,11 @@ enum {
      PICTURE_TYPE_B   = 3,
  };
  
@@ -146,7 +146,7 @@ index b41604a883..1c40a734a5 100644
  typedef struct VAAPIEncodeSlice {
      int             index;
      int             row_start;
-@@ -189,6 +194,9 @@ typedef struct VAAPIEncodeContext {
+@@ -191,6 +196,9 @@ typedef struct VAAPIEncodeContext {
      // Desired B frame reference depth.
      int             desired_b_depth;
  
@@ -156,7 +156,7 @@ index b41604a883..1c40a734a5 100644
      // Explicitly set RC mode (otherwise attempt to pick from
      // available modes).
      int             explicit_rc_mode;
-@@ -269,7 +277,9 @@ typedef struct VAAPIEncodeContext {
+@@ -271,7 +279,9 @@ typedef struct VAAPIEncodeContext {
  #if VA_CHECK_VERSION(0, 36, 0)
      VAEncMiscParameterBufferQualityLevel quality_params;
  #endif
@@ -167,7 +167,7 @@ index b41604a883..1c40a734a5 100644
      // Per-sequence parameter structure (VAEncSequenceParameterBuffer*).
      void           *codec_sequence_params;
  
-@@ -328,6 +338,7 @@ typedef struct VAAPIEncodeContext {
+@@ -331,6 +341,7 @@ typedef struct VAAPIEncodeContext {
      int idr_counter;
      int gop_counter;
      int end_of_stream;
@@ -175,12 +175,12 @@ index b41604a883..1c40a734a5 100644
  
      // Whether the driver supports ROI at all.
      int             roi_allowed;
-@@ -455,7 +466,11 @@ int ff_vaapi_encode_close(AVCodecContext *avctx);
-     { "b_depth", \
-       "Maximum B-frame reference depth", \
-       OFFSET(common.desired_b_depth), AV_OPT_TYPE_INT, \
--      { .i64 = 1 }, 1, INT_MAX, FLAGS }
-+      { .i64 = 1 }, 1, INT_MAX, FLAGS }, \
+@@ -470,7 +481,11 @@ int ff_vaapi_encode_close(AVCodecContext *avctx);
+       "Increase this to improve single channel performance. This option " \
+       "doesn't work if driver doesn't implement vaSyncBuffer function.", \
+       OFFSET(common.async_depth), AV_OPT_TYPE_INT, \
+-      { .i64 = 2 }, 1, MAX_ASYNC_DEPTH, FLAGS }
++      { .i64 = 2 }, 1, MAX_ASYNC_DEPTH, FLAGS }, \
 +    { "max_frame_size", \
 +      "Maximum frame size (in bytes)",\
 +      OFFSET(common.max_frame_size), AV_OPT_TYPE_INT, \
@@ -189,5 +189,5 @@ index b41604a883..1c40a734a5 100644
  #define VAAPI_ENCODE_RC_MODE(name, desc) \
      { #name, desc, 0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_ ## name }, \
 -- 
-2.25.1
+2.17.1
 
