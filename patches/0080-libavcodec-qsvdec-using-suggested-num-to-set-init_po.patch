@@ -1,7 +1,7 @@
-From b2af1e192d4e4ac4e475da0b1a1ce01ec826124b Mon Sep 17 00:00:00 2001
+From a18db98a61767204e709119dff5ebc550f4d4b51 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Tue, 26 Jan 2021 09:55:59 +0800
-Subject: [PATCH 80/88] libavcodec/qsvdec: using suggested num to set
+Subject: [PATCH 63/70] libavcodec/qsvdec: using suggested num to set
  init_pool_size
 
 The init_pool_size is set to be 64 and it is too many.
@@ -18,10 +18,10 @@ Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
  1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 6cf5ddd5c6..0b8e77b4e6 100644
+index b3ddd7ffdc..98841c0268 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -88,7 +88,7 @@ typedef struct QSVContext {
+@@ -95,7 +95,7 @@ typedef struct QSVContext {
      uint32_t fourcc;
      mfxFrameInfo frame_info;
      AVBufferPool *pool;
@@ -30,7 +30,7 @@ index 6cf5ddd5c6..0b8e77b4e6 100644
      int initialized;
  
      // options set by the caller
-@@ -288,7 +288,7 @@ static int qsv_decode_preinit(AVCodecContext *avctx, QSVContext *q, enum AVPixel
+@@ -297,7 +297,7 @@ static int qsv_decode_preinit(AVCodecContext *avctx, QSVContext *q, enum AVPixel
          hwframes_ctx->height            = FFALIGN(avctx->coded_height, 32);
          hwframes_ctx->format            = AV_PIX_FMT_QSV;
          hwframes_ctx->sw_format         = avctx->sw_pix_fmt;
@@ -39,7 +39,7 @@ index 6cf5ddd5c6..0b8e77b4e6 100644
          frames_hwctx->frame_type        = MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET;
  
          ret = av_hwframe_ctx_init(avctx->hw_frames_ctx);
-@@ -871,18 +871,28 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -967,6 +967,9 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
      }
  
      if (q->reinit_flag || !q->session || !q->initialized) {
@@ -49,7 +49,8 @@ index 6cf5ddd5c6..0b8e77b4e6 100644
          q->reinit_flag = 0;
          ret = qsv_decode_header(avctx, q, pkt, pix_fmt, &param);
          if (ret < 0) {
-             av_log(avctx, AV_LOG_ERROR, "Error decoding header\n");
+@@ -976,12 +979,19 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+                 av_log(avctx, AV_LOG_ERROR, "Error decoding header\n");
              goto reinit_fail;
          }
 +        param.IOPattern = q->iopattern;

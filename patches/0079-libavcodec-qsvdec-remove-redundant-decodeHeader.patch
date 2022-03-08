@@ -1,7 +1,7 @@
-From 4a2cb4d71c8357dc8954d4099687286750e6b314 Mon Sep 17 00:00:00 2001
+From 215bf93fe4fe1c855517c629137d13e0e3e5790f Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Tue, 16 Mar 2021 14:31:19 +0800
-Subject: [PATCH 66/74] libavcodec/qsvdec: remove redundant decodeHeader()
+Subject: [PATCH 62/70] libavcodec/qsvdec: remove redundant decodeHeader()
 
 Since ffmpeg-qsv uses return value to reinit decoder, it doesn't need to
 decode header each time. Move qsv_decode_header's position so that
@@ -13,11 +13,11 @@ decoder is drain.
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 Signed-off-by Guangxin Xu <guangxin.xu@intel.com>
 ---
- libavcodec/qsvdec.c | 26 ++++++++++++--------------
- 1 file changed, 12 insertions(+), 14 deletions(-)
+ libavcodec/qsvdec.c | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 1b6d6d2717..d663e95c4c 100644
+index 8ed4609edb..b3ddd7ffdc 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -89,7 +89,6 @@ typedef struct QSVContext {
@@ -37,7 +37,7 @@ index 1b6d6d2717..d663e95c4c 100644
      } else {
          q->zero_consume_run = 0;
      }
-@@ -961,20 +958,21 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
+@@ -961,20 +958,24 @@ static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
      if (!avctx->coded_height)
          avctx->coded_height = 720;
  
@@ -64,12 +64,15 @@ index 1b6d6d2717..d663e95c4c 100644
          q->reinit_flag = 0;
 +        ret = qsv_decode_header(avctx, q, pkt, pix_fmt, &param);
 +        if (ret < 0) {
-+            av_log(avctx, AV_LOG_ERROR, "Error decoding header\n");
++            if (ret == AVERROR(EAGAIN))
++                av_log(avctx, AV_LOG_INFO, "More data is required to decode header\n");
++            else
++                av_log(avctx, AV_LOG_ERROR, "Error decoding header\n");
 +            goto reinit_fail;
 +        }
  
          q->orig_pix_fmt = avctx->pix_fmt = pix_fmt = ff_qsv_map_fourcc(param.mfx.FrameInfo.FourCC);
  
 -- 
-2.32.0
+2.17.1
 
