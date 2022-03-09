@@ -1,4 +1,4 @@
-From dae008e5e4d7023b1dd6ab890eae64ff1cf610e2 Mon Sep 17 00:00:00 2001
+From 7e177e60a3da54b2ac7ddc307e3521f93a0c99eb Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 8 Apr 2021 13:09:47 +0800
 Subject: [PATCH 71/71] libavcodec/qsvenc_av1: add av1_qsv encoder
@@ -68,7 +68,7 @@ index 1be67e3ec3..99d23dbc62 100644
  extern const AVCodec ff_libopenh264_decoder;
  extern const AVCodec ff_h264_amf_encoder;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 8a2c40faae..e263527e26 100644
+index 8a2c40faae..73a2eebeb8 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -88,6 +88,14 @@ static const struct profile_names vp9_profiles[] = {
@@ -222,9 +222,9 @@ index 8a2c40faae..e263527e26 100644
 -        q->param.mfx.QPP = av_clip(quant, 0, 51);
 -        q->param.mfx.QPB = av_clip(quant * fabs(avctx->b_quant_factor) + avctx->b_quant_offset, 0, 51);
 +        if (avctx->codec_id == AV_CODEC_ID_AV1) {
-+            q->param.mfx.QPI = av_clip(quant * fabs(avctx->i_quant_factor) + avctx->i_quant_offset, 0, 255);
-+            q->param.mfx.QPP = av_clip(quant, 0, 255);
-+            q->param.mfx.QPB = av_clip(quant * fabs(avctx->b_quant_factor) + avctx->b_quant_offset, 0, 255);
++            q->param.mfx.QPI = av_clip_uintp2(quant * fabs(avctx->i_quant_factor) + avctx->i_quant_offset, 8);
++            q->param.mfx.QPP = av_clip_uintp2(quant, 8);
++            q->param.mfx.QPB = av_clip_uintp2(quant * fabs(avctx->b_quant_factor) + avctx->b_quant_offset, 8);
 +        } else {
 +            q->param.mfx.QPI = av_clip(quant * fabs(avctx->i_quant_factor) + avctx->i_quant_offset, 0, 51);
 +            q->param.mfx.QPP = av_clip(quant, 0, 51);
@@ -347,7 +347,7 @@ index 8a2c40faae..e263527e26 100644
          ret = qsv_retrieve_enc_params(avctx, q);
          break;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index c9ba792d4a..215a0b65b3 100644
+index c9ba792d4a..bd4818898b 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -46,6 +46,7 @@
@@ -374,7 +374,7 @@ index c9ba792d4a..215a0b65b3 100644
  
      mfxExtBuffer  *extparam_internal[3 + QSV_HAVE_CO2 + QSV_HAVE_CO3 + (QSV_HAVE_MF * 2) +
 -                                     QSV_HAVE_EXT_HEVC_PARAM];
-+                                     QSV_HAVE_EXT_HEVC_PARAM + QSV_HAVE_EXT_AV1_PARAM*2];
++                                     QSV_HAVE_EXT_HEVC_PARAM + QSV_HAVE_EXT_AV1_PARAM * 2];
      int         nb_extparam_internal;
  
      mfxExtBuffer **extparam;
