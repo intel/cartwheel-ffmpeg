@@ -1,7 +1,7 @@
-From 308a67f70b4a55b5972f7ee6d480445f501972ef Mon Sep 17 00:00:00 2001
+From 9db8354613e032c0defd06d651cb2ebb3b64faae Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 2 Jan 2020 11:06:45 +0800
-Subject: [PATCH 14/92] lavc/decode: Add get_hw_config function
+Subject: [PATCH 11/72] lavc/decode: Add get_hw_config function
 
 Wrap the procedure of getting the hardware config from a pixel format
 into a function.
@@ -12,10 +12,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  1 file changed, 21 insertions(+), 12 deletions(-)
 
 diff --git a/libavcodec/decode.c b/libavcodec/decode.c
-index 294c04071636..b69cb0dfaae7 100644
+index f9fdb935f6..40993a4e50 100644
 --- a/libavcodec/decode.c
 +++ b/libavcodec/decode.c
-@@ -1084,6 +1084,26 @@ static void hwaccel_uninit(AVCodecContext *avctx)
+@@ -1115,6 +1115,26 @@ static void hwaccel_uninit(AVCodecContext *avctx)
      av_buffer_unref(&avctx->hw_frames_ctx);
  }
  
@@ -24,9 +24,9 @@ index 294c04071636..b69cb0dfaae7 100644
 +    const AVCodecHWConfigInternal *hw_config;
 +    int i;
 +
-+    if (avctx->codec->hw_configs) {
++    if (ffcodec(avctx->codec)->hw_configs) {
 +        for (i = 0;; i++) {
-+            hw_config = avctx->codec->hw_configs[i];
++            hw_config = ffcodec(avctx->codec)->hw_configs[i];
 +            if (!hw_config)
 +                break;
 +            if (hw_config->public.pix_fmt == fmt)
@@ -42,13 +42,13 @@ index 294c04071636..b69cb0dfaae7 100644
  int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
  {
      const AVPixFmtDescriptor *desc;
-@@ -1143,18 +1163,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
+@@ -1172,18 +1192,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
              break;
          }
  
--        if (avctx->codec->hw_configs) {
+-        if (ffcodec(avctx->codec)->hw_configs) {
 -            for (i = 0;; i++) {
--                hw_config = avctx->codec->hw_configs[i];
+-                hw_config = ffcodec(avctx->codec)->hw_configs[i];
 -                if (!hw_config)
 -                    break;
 -                if (hw_config->public.pix_fmt == user_choice)
@@ -63,5 +63,5 @@ index 294c04071636..b69cb0dfaae7 100644
              // No config available, so no extra setup required.
              ret = user_choice;
 -- 
-2.25.4
+2.32.0
 
