@@ -1,0 +1,831 @@
+From f18ce07655dbb51320a3ff0ce78b19d8e497f06c Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Tue, 25 Jan 2022 14:20:41 +0800
+Subject: [PATCH] support vaapi hevc decode with SFC.
+
+example cmd:
+$ make examples
+$ ffmpeg/doc/examples/hw_decode vaapi /root/media/sfc/sample.h265 out.yuv 640 480 bgra sfc.yuv
+---
+ doc/examples/hw_decode.c             |  70 ++++++++++++++++-
+ libavcodec/avcodec.h                 |  11 +++
+ libavcodec/hevc_refs.c               |   9 +++
+ libavcodec/options_table.h           |   4 +
+ libavcodec/vaapi_decode.c            |  27 ++++++-
+ libavcodec/vaapi_decode.h            |   5 ++
+ libavcodec/vaapi_hevc.c              |  34 ++++++++-
+ libavutil/Makefile                   |   2 +
+ libavutil/frame.c                    |   1 +
+ libavutil/frame.h                    |   6 ++
+ libavutil/hwcontext.c                |  23 +++++-
+ libavutil/hwcontext.h                |   5 ++
+ libavutil/hwcontext_vaapi.c          | 109 ++++++++++++++++++++++++++-
+ libavutil/hwcontext_vaapi.h          |   3 +
+ libavutil/video_sub_frame_metadata.c |  70 +++++++++++++++++
+ libavutil/video_sub_frame_metadata.h |  28 +++++++
+ 16 files changed, 397 insertions(+), 10 deletions(-)
+ create mode 100644 libavutil/video_sub_frame_metadata.c
+ create mode 100644 libavutil/video_sub_frame_metadata.h
+
+diff --git a/doc/examples/hw_decode.c b/doc/examples/hw_decode.c
+index 0d23f451e6..8286f675a5 100644
+--- a/doc/examples/hw_decode.c
++++ b/doc/examples/hw_decode.c
+@@ -45,6 +45,7 @@
+ static AVBufferRef *hw_device_ctx = NULL;
+ static enum AVPixelFormat hw_pix_fmt;
+ static FILE *output_file = NULL;
++static FILE *sub_frame_output = NULL;
+ 
+ static int hw_decoder_init(AVCodecContext *ctx, const enum AVHWDeviceType type)
+ {
+@@ -77,9 +78,12 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
+ static int decode_write(AVCodecContext *avctx, AVPacket *packet)
+ {
+     AVFrame *frame = NULL, *sw_frame = NULL;
++    AVFrame *sub_frame = NULL, *sw_sub_frame = NULL;
+     AVFrame *tmp_frame = NULL;
+     uint8_t *buffer = NULL;
+-    int size;
++    uint8_t *sub_frame_buffer = NULL;
++    int size, sub_frame_size;
++    AVFrameSideData *sd = NULL;
+     int ret = 0;
+ 
+     ret = avcodec_send_packet(avctx, packet);
+@@ -137,10 +141,60 @@ static int decode_write(AVCodecContext *avctx, AVPacket *packet)
+             goto fail;
+         }
+ 
++        sd = av_frame_get_side_data(frame, AV_FRAME_DATA_VIDEO_SUB_FRAME);
++        if (sd) {
++            if (!(sw_sub_frame = av_frame_alloc())) {
++                fprintf(stderr, "Can not alloc sub frame\n");
++                ret = AVERROR(ENOMEM);
++                goto fail;
++            }
++
++            sub_frame = (AVFrame *)sd->data;
++
++            if (frame->format == hw_pix_fmt) {
++                sw_sub_frame->format = avctx->sub_frame_fmt;
++                /* retrieve data from GPU to CPU */
++                if ((ret = av_hwframe_transfer_data(sw_sub_frame, sub_frame, 0)) < 0) {
++                    fprintf(stderr, "Error transferring the data to system memory\n");
++                    goto fail;
++                }
++                tmp_frame = sw_sub_frame;
++            } else
++                tmp_frame = sub_frame;
++
++            sub_frame_size = av_image_get_buffer_size(tmp_frame->format, tmp_frame->width,
++                                                      tmp_frame->height, 1);
++
++            sub_frame_buffer = av_malloc(sub_frame_size);
++            if (!sub_frame_buffer) {
++                fprintf(stderr, "Can not alloc buffer\n");
++                ret = AVERROR(ENOMEM);
++                goto fail;
++            }
++
++            ret = av_image_copy_to_buffer(sub_frame_buffer, sub_frame_size,
++                                         (const uint8_t * const *)tmp_frame->data,
++                                         (const int *)tmp_frame->linesize, tmp_frame->format,
++                                         tmp_frame->width, tmp_frame->height, 1);
++            if (ret < 0) {
++                fprintf(stderr, "Can not copy image to buffer\n");
++                goto fail;
++            }
++
++            if ((ret = fwrite(sub_frame_buffer, 1, sub_frame_size, sub_frame_output)) < 0) {
++                fprintf(stderr, "Failed to dump raw data.\n");
++                goto fail;
++            }
++
++            av_frame_remove_side_data(sub_frame, AV_FRAME_DATA_VIDEO_SUB_FRAME);
++            sd = NULL;
++        }
++
+     fail:
+         av_frame_free(&frame);
+         av_frame_free(&sw_frame);
+         av_freep(&buffer);
++        av_freep(&sub_frame_buffer);
+         if (ret < 0)
+             return ret;
+     }
+@@ -157,11 +211,13 @@ int main(int argc, char *argv[])
+     enum AVHWDeviceType type;
+     int i;
+ 
+-    if (argc < 4) {
+-        fprintf(stderr, "Usage: %s <device type> <input file> <output file>\n", argv[0]);
++    if (argc < 8) {
++        fprintf(stderr, "Usage: %s <device type> <input file> <output file> <sfc width> <sfc_height> <sfc_format> <SFC output file>\n", argv[0]);
+         return -1;
+     }
+ 
++    av_log_set_level(AV_LOG_DEBUG);
++
+     type = av_hwdevice_find_type_by_name(argv[1]);
+     if (type == AV_HWDEVICE_TYPE_NONE) {
+         fprintf(stderr, "Device type %s is not supported.\n", argv[1]);
+@@ -218,6 +274,11 @@ int main(int argc, char *argv[])
+     if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
+         return -1;
+ 
++    decoder_ctx->export_side_data =  decoder_ctx->export_side_data | AV_CODEC_EXPORT_DATA_SUB_FRAME;
++    decoder_ctx->sub_frame_width = atoi(argv[4]);
++    decoder_ctx->sub_frame_height = atoi(argv[5]);
++    decoder_ctx->sub_frame_fmt = av_get_pix_fmt(argv[6]);
++
+     decoder_ctx->get_format  = get_hw_format;
+ 
+     if (hw_decoder_init(decoder_ctx, type) < 0)
+@@ -230,6 +291,7 @@ int main(int argc, char *argv[])
+ 
+     /* open the file to dump raw data */
+     output_file = fopen(argv[3], "w+b");
++    sub_frame_output = fopen(argv[7], "w+b");
+ 
+     /* actual decoding and dump the raw data */
+     while (ret >= 0) {
+@@ -247,6 +309,8 @@ int main(int argc, char *argv[])
+ 
+     if (output_file)
+         fclose(output_file);
++    if (sub_frame_output)
++        fclose(sub_frame_output);
+     av_packet_free(&packet);
+     avcodec_free_context(&decoder_ctx);
+     avformat_close_input(&input_ctx);
+diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
+index f5a4016951..f6378b11bd 100644
+--- a/libavcodec/avcodec.h
++++ b/libavcodec/avcodec.h
+@@ -361,6 +361,13 @@ typedef struct RcOverride{
+  */
+ #define AV_CODEC_EXPORT_DATA_FILM_GRAIN (1 << 3)
+ 
++/**
++ * Decoding only.
++ * export sub frame through frame side data.
++ */
++#define AV_CODEC_EXPORT_DATA_SUB_FRAME (1 << 3)
++
++
+ /**
+  * The decoder will keep a reference to the frame and may reuse it later.
+  */
+@@ -2007,6 +2014,10 @@ typedef struct AVCodecContext {
+      */
+     int export_side_data;
+ 
++    int sub_frame_width, sub_frame_height;
++
++    enum AVPixelFormat sub_frame_fmt;
++
+     /**
+      * This callback is called at the beginning of each packet to get a data
+      * buffer for it.
+diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
+index c49bdd64e1..af60738211 100644
+--- a/libavcodec/hevc_refs.c
++++ b/libavcodec/hevc_refs.c
+@@ -22,6 +22,8 @@
+  */
+ 
+ #include "libavutil/avassert.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/video_sub_frame_metadata.h"
+ 
+ #include "thread.h"
+ #include "hevc.h"
+@@ -83,11 +85,18 @@ void ff_hevc_flush_dpb(HEVCContext *s)
+ static HEVCFrame *alloc_frame(HEVCContext *s)
+ {
+     int i, j, ret;
++    AVFrame *sub_frame;
+     for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+         HEVCFrame *frame = &s->DPB[i];
+         if (frame->frame->buf[0])
+             continue;
+ 
++        if (s->avctx->export_side_data & AV_CODEC_EXPORT_DATA_SUB_FRAME) {
++            sub_frame = av_video_sub_frame_create_side_data(frame->tf.f);
++            if (!sub_frame)
++                goto fail;
++        }
++
+         ret = ff_thread_get_ext_buffer(s->avctx, &frame->tf,
+                                        AV_GET_BUFFER_FLAG_REF);
+         if (ret < 0)
+diff --git a/libavcodec/options_table.h b/libavcodec/options_table.h
+index 6db0c6ad4e..d12f95219c 100644
+--- a/libavcodec/options_table.h
++++ b/libavcodec/options_table.h
+@@ -88,6 +88,10 @@ static const AVOption avcodec_options[] = {
+ {"prft", "export Producer Reference Time through packet side data", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_EXPORT_DATA_PRFT}, INT_MIN, INT_MAX, A|V|S|E, "export_side_data"},
+ {"venc_params", "export video encoding parameters through frame side data", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_EXPORT_DATA_VIDEO_ENC_PARAMS}, INT_MIN, INT_MAX, V|D, "export_side_data"},
+ {"film_grain", "export film grain parameters through frame side data", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_EXPORT_DATA_FILM_GRAIN}, INT_MIN, INT_MAX, V|D, "export_side_data"},
++{"sub_frame", "export sub frame through frame side data", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_EXPORT_DATA_SUB_FRAME}, INT_MIN, INT_MAX, V|D, "export_side_data"},
++{"sub_frame_format", "set sub frame pixel format", OFFSET(sub_frame_fmt), AV_OPT_TYPE_PIXEL_FMT, {.i64 = AV_PIX_FMT_NV12}, -1, INT_MAX, V|D},
++{"sub_frame_width", "set sub frame width", OFFSET(sub_frame_width), AV_OPT_TYPE_INT, {.i64 = 320 }, INT_MIN, INT_MAX, V|D},
++{"sub_frame_height", "set sub frame height", OFFSET(sub_frame_height), AV_OPT_TYPE_INT, {.i64 = 240 }, INT_MIN, INT_MAX, V|D},
+ {"time_base", NULL, OFFSET(time_base), AV_OPT_TYPE_RATIONAL, {.dbl = 0}, 0, INT_MAX},
+ {"g", "set the group of picture (GOP) size", OFFSET(gop_size), AV_OPT_TYPE_INT, {.i64 = 12 }, INT_MIN, INT_MAX, V|E},
+ {"ar", "set audio sampling rate (in Hz)", OFFSET(sample_rate), AV_OPT_TYPE_INT, {.i64 = DEFAULT }, 0, INT_MAX, A|D|E},
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index 252c3f9f3a..d27ed4f4f6 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -467,6 +467,10 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+ 
+     AVHWDeviceContext    *device = (AVHWDeviceContext*)device_ref->data;
+     AVVAAPIDeviceContext *hwctx = device->hwctx;
++    VAAPIDecodeContext *ctx = avctx->internal->hwaccel_priv_data;
++
++    VAConfigAttrib attr;
++    int attr_num = 0;
+ 
+     codec_desc = avcodec_descriptor_get(avctx->codec_id);
+     if (!codec_desc) {
+@@ -546,8 +550,24 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+         }
+     }
+ 
++    ctx->va_profile = matched_va_profile;
++
++    if (avctx->export_side_data & AV_CODEC_EXPORT_DATA_SUB_FRAME) {
++        attr.type = VAConfigAttribDecProcessing;
++        vas = vaGetConfigAttributes(hwctx->display, matched_va_profile,
++                                    VAEntrypointVLD, &attr, 1);
++        if (vas != VA_STATUS_SUCCESS) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to query decode process "
++                   "attributes: %d (%s).\n", vas, vaErrorStr(vas));
++            return AVERROR_EXTERNAL;
++        } else if (attr.value | VA_DEC_PROCESSING) {
++            attr_num++;
++        } else
++            av_log(avctx, AV_LOG_WARNING, "Hw doesn't support SFC.\n");
++    }
++
+     vas = vaCreateConfig(hwctx->display, matched_va_profile,
+-                         VAEntrypointVLD, NULL, 0,
++                         VAEntrypointVLD, &attr, attr_num,
+                          va_config);
+     if (vas != VA_STATUS_SUCCESS) {
+         av_log(avctx, AV_LOG_ERROR, "Failed to create decode "
+@@ -597,6 +617,11 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+         frames->width = avctx->coded_width;
+         frames->height = avctx->coded_height;
+ 
++        frames->sfc_format = avctx->sub_frame_fmt;
++        frames->sfc_w = avctx->sub_frame_width;
++        frames->sfc_h = avctx->sub_frame_height;
++        frames->enable_sfc = avctx->export_side_data & AV_CODEC_EXPORT_DATA_SUB_FRAME ? 1 : 0;
++
+         err = vaapi_decode_find_best_format(avctx, device,
+                                             *va_config, frames);
+         if (err < 0)
+diff --git a/libavcodec/vaapi_decode.h b/libavcodec/vaapi_decode.h
+index 6beda14e52..2bd0558514 100644
+--- a/libavcodec/vaapi_decode.h
++++ b/libavcodec/vaapi_decode.h
+@@ -45,11 +45,16 @@ typedef struct VAAPIDecodePicture {
+     int                nb_slices;
+     VABufferID           *slice_buffers;
+     int                   slices_allocated;
++
++    VASurfaceID           sfc_surface;
++    VARectangle           src;
++    VARectangle           sfc;
+ } VAAPIDecodePicture;
+ 
+ typedef struct VAAPIDecodeContext {
+     VAConfigID            va_config;
+     VAContextID           va_context;
++    VAProfile             va_profile;
+ 
+     AVHWDeviceContext    *device;
+     AVVAAPIDeviceContext *hwctx;
+diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
+index 4c46f8d892..48a3a68e83 100644
+--- a/libavcodec/vaapi_hevc.c
++++ b/libavcodec/vaapi_hevc.c
+@@ -24,6 +24,7 @@
+ #include <va/va_dec_hevc.h>
+ 
+ #include "avcodec.h"
++#include "internal.h"
+ #include "hevcdec.h"
+ #include "hwconfig.h"
+ #include "vaapi_decode.h"
+@@ -38,6 +39,7 @@ typedef struct VAAPIDecodePictureHEVC {
+     VAPictureParameterBufferHEVC pic_param;
+     VASliceParameterBufferHEVC last_slice_param;
+ #endif
++    VAProcPipelineParameterBuffer proc_param;
+     const uint8_t *last_buffer;
+     size_t         last_size;
+ 
+@@ -126,8 +128,9 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+     VAAPIDecodePictureHEVC *pic = h->ref->hwaccel_picture_private;
+     const HEVCSPS          *sps = h->ps.sps;
+     const HEVCPPS          *pps = h->ps.pps;
+-
++    const AVHWFramesContext *hwctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
+     const ScalingList *scaling_list = NULL;
++    AVFrameSideData *sd;
+     int pic_param_size, num_comps, pre_palette_size, err, i;
+ 
+     VAPictureParameterBufferHEVC *pic_param = (VAPictureParameterBufferHEVC *)&pic->pic_param;
+@@ -328,6 +331,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+             goto fail;
+     }
+ 
++    sd = av_frame_get_side_data(h->ref->frame, AV_FRAME_DATA_VIDEO_SUB_FRAME);
++    if (sd) {
++        VAProcPipelineParameterBuffer *proc_param = &pic->proc_param;
++        AVFrame *sub_frame = (AVFrame *)sd->data;
++
++        memset(proc_param, 0, sizeof(VAProcPipelineParameterBuffer));
++
++        pic->pic.src.x = pic->pic.src.y = 0;
++        pic->pic.src.width = sps->width;
++        pic->pic.src.height = sps->height;
++
++        pic->pic.sfc.x = pic->pic.sfc.y = 0;
++        pic->pic.sfc.width = hwctx->sfc_w;
++        pic->pic.sfc.height = hwctx->sfc_h;
++
++        pic->pic.sfc_surface = ff_vaapi_get_surface_id(sub_frame);
++        proc_param->surface = pic->pic.output_surface;
++        proc_param->surface_region = &pic->pic.src;
++        proc_param->output_region = &pic->pic.sfc;
++        proc_param->additional_outputs = &pic->pic.sfc_surface;
++        proc_param->num_additional_outputs = 1;
++
++        err = ff_vaapi_decode_make_param_buffer(avctx, &pic->pic,
++                                                VAProcPipelineParameterBufferType,
++                                                &pic->proc_param, sizeof(VAProcPipelineParameterBuffer));
++        if (err < 0)
++            goto fail;
++    }
++
+     return 0;
+ 
+ fail:
+diff --git a/libavutil/Makefile b/libavutil/Makefile
+index 81df3b0640..e22493f176 100644
+--- a/libavutil/Makefile
++++ b/libavutil/Makefile
+@@ -88,6 +88,7 @@ HEADERS = adler32.h                                                     \
+           tea.h                                                         \
+           tx.h                                                          \
+           film_grain_params.h                                           \
++          video_sub_frame_metadata.h                                    \
+ 
+ ARCH_HEADERS = bswap.h                                                  \
+                intmath.h                                                \
+@@ -176,6 +177,7 @@ OBJS = adler32.o                                                        \
+        tx_int32.o                                                       \
+        video_enc_params.o                                               \
+        film_grain_params.o                                              \
++       video_sub_frame_metadata.o                                       \
+ 
+ 
+ OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
+diff --git a/libavutil/frame.c b/libavutil/frame.c
+index fbb869fffa..c25f296810 100644
+--- a/libavutil/frame.c
++++ b/libavutil/frame.c
+@@ -815,6 +815,7 @@ const char *av_frame_side_data_name(enum AVFrameSideDataType type)
+     case AV_FRAME_DATA_DETECTION_BBOXES:            return "Bounding boxes for object detection and classification";
+     case AV_FRAME_DATA_DOVI_RPU_BUFFER:             return "Dolby Vision RPU Data";
+     case AV_FRAME_DATA_DOVI_METADATA:               return "Dolby Vision Metadata";
++    case AV_FRAME_DATA_VIDEO_SUB_FRAME:               return "Video Sub frame";
+     }
+     return NULL;
+ }
+diff --git a/libavutil/frame.h b/libavutil/frame.h
+index 33fac2054c..12c31ee6a0 100644
+--- a/libavutil/frame.h
++++ b/libavutil/frame.h
+@@ -209,6 +209,8 @@ enum AVFrameSideDataType {
+      * volume transform - CUVA 005.1-2021.
+      */
+     AV_FRAME_DATA_DYNAMIC_HDR_VIVID,
++
++    AV_FRAME_DATA_VIDEO_SUB_FRAME,
+ };
+ 
+ enum AVActiveFormatDescription {
+@@ -561,6 +563,10 @@ typedef struct AVFrame {
+  * A flag to mark the frames which need to be decoded, but shouldn't be output.
+  */
+ #define AV_FRAME_FLAG_DISCARD   (1 << 2)
++/**
++ * A flag to indicate the frame is sub frame.
++ */
++#define AV_FRAME_FLAG_SUB_FRAME   (1 << 3)
+ /**
+  * @}
+  */
+diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
+index ab9ad3703e..62d25b118c 100644
+--- a/libavutil/hwcontext.c
++++ b/libavutil/hwcontext.c
+@@ -28,6 +28,7 @@
+ #include "mem.h"
+ #include "pixdesc.h"
+ #include "pixfmt.h"
++#include "video_sub_frame_metadata.h"
+ 
+ static const HWContextType * const hw_table[] = {
+ #if CONFIG_CUDA
+@@ -229,6 +230,9 @@ static void hwframe_ctx_free(void *opaque, uint8_t *data)
+     if (ctx->internal->pool_internal)
+         av_buffer_pool_uninit(&ctx->internal->pool_internal);
+ 
++    if (ctx->sfc_pool)
++        av_buffer_pool_uninit(&ctx->sfc_pool);
++
+     if (ctx->internal->hw_type->frames_uninit)
+         ctx->internal->hw_type->frames_uninit(ctx);
+ 
+@@ -307,6 +311,7 @@ static int hwframe_pool_prealloc(AVBufferRef *ref)
+ {
+     AVHWFramesContext *ctx = (AVHWFramesContext*)ref->data;
+     AVFrame **frames;
++    AVFrame *sub_frame;
+     int i, ret = 0;
+ 
+     frames = av_calloc(ctx->initial_pool_size, sizeof(*frames));
+@@ -317,6 +322,11 @@ static int hwframe_pool_prealloc(AVBufferRef *ref)
+         frames[i] = av_frame_alloc();
+         if (!frames[i])
+             goto fail;
++        if (ctx->enable_sfc) {
++            sub_frame = av_video_sub_frame_create_side_data(frames[i]);
++            if (!sub_frame)
++                goto fail;
++        }
+ 
+         ret = av_hwframe_get_buffer(ref, frames[i], 0);
+         if (ret < 0)
+@@ -324,8 +334,10 @@ static int hwframe_pool_prealloc(AVBufferRef *ref)
+     }
+ 
+ fail:
+-    for (i = 0; i < ctx->initial_pool_size; i++)
++    for (i = 0; i < ctx->initial_pool_size; i++) {
++        av_frame_remove_side_data(frames[i], AV_FRAME_DATA_VIDEO_SUB_FRAME);
+         av_frame_free(&frames[i]);
++    }
+     av_freep(&frames);
+ 
+     return ret;
+@@ -420,9 +432,14 @@ static int transfer_data_alloc(AVFrame *dst, const AVFrame *src, int flags)
+         frame_tmp->format = formats[0];
+         av_freep(&formats);
+     }
+-    frame_tmp->width  = ctx->width;
+-    frame_tmp->height = ctx->height;
+ 
++    if (src->flags & AV_FRAME_FLAG_SUB_FRAME) {
++        frame_tmp->width  = ctx->sfc_w;
++        frame_tmp->height = ctx->sfc_h;
++    } else {
++        frame_tmp->width  = ctx->width;
++        frame_tmp->height = ctx->height;
++    }
+     ret = av_frame_get_buffer(frame_tmp, 0);
+     if (ret < 0)
+         goto fail;
+diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
+index c18b7e1e8b..36e8eaa4ff 100644
+--- a/libavutil/hwcontext.h
++++ b/libavutil/hwcontext.h
+@@ -189,6 +189,7 @@ typedef struct AVHWFramesContext {
+      */
+     AVBufferPool *pool;
+ 
++    AVBufferPool *sfc_pool;
+     /**
+      * Initial size of the frame pool. If a device type does not support
+      * dynamically resizing the pool, then this is also the maximum pool size.
+@@ -227,6 +228,10 @@ typedef struct AVHWFramesContext {
+      * Must be set by the user before calling av_hwframe_ctx_init().
+      */
+     int width, height;
++
++    int enable_sfc;
++    int sfc_w, sfc_h;
++    enum AVPixelFormat sfc_format;
+ } AVHWFramesContext;
+ 
+ /**
+diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
+index f5e80057fa..3a149b6df7 100644
+--- a/libavutil/hwcontext_vaapi.c
++++ b/libavutil/hwcontext_vaapi.c
+@@ -85,6 +85,7 @@ typedef struct VAAPIFramesContext {
+     // Caches whether VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2 is unsupported for
+     // surface imports.
+     int prime_2_import_unsupported;
++    unsigned int sfc_rt_format;
+ } VAAPIFramesContext;
+ 
+ typedef struct VAAPIMapping {
+@@ -481,6 +482,24 @@ static void vaapi_buffer_free(void *opaque, uint8_t *data)
+         av_log(hwfc, AV_LOG_ERROR, "Failed to destroy surface %#x: "
+                "%d (%s).\n", surface_id, vas, vaErrorStr(vas));
+     }
++    av_log(hwfc, AV_LOG_DEBUG, "Destroy surface %#x.\n", surface_id);
++}
++
++static void vaapi_sfc_buffer_free(void *opaque, uint8_t *data)
++{
++    AVHWFramesContext     *hwfc = opaque;
++    AVVAAPIDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    VASurfaceID surface_id;
++    VAStatus vas;
++
++    surface_id = (VASurfaceID)(uintptr_t)data;
++
++    vas = vaDestroySurfaces(hwctx->display, &surface_id, 1);
++    if (vas != VA_STATUS_SUCCESS) {
++        av_log(hwfc, AV_LOG_ERROR, "Failed to destroy sfc surface %#x: "
++               "%d (%s).\n", surface_id, vas, vaErrorStr(vas));
++    }
++    av_log(hwfc, AV_LOG_DEBUG, "Destroy sfc surface %#x.\n", surface_id);
+ }
+ 
+ static AVBufferRef *vaapi_pool_alloc(void *opaque, size_t size)
+@@ -527,6 +546,41 @@ static AVBufferRef *vaapi_pool_alloc(void *opaque, size_t size)
+     return ref;
+ }
+ 
++static AVBufferRef *vaapi_sfc_pool_alloc(void *opaque, size_t size)
++{
++    AVHWFramesContext     *hwfc = opaque;
++    VAAPIFramesContext     *ctx = hwfc->internal->priv;
++    AVVAAPIDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    AVVAAPIFramesContext  *avfc = hwfc->hwctx;
++    VASurfaceID surface_id;
++    VAStatus vas;
++    AVBufferRef *ref;
++
++    if (hwfc->initial_pool_size > 0 &&
++        avfc->sfc_nb_surfaces >= hwfc->initial_pool_size)
++        return NULL;
++
++    vas = vaCreateSurfaces(hwctx->display, ctx->sfc_rt_format,
++                           hwfc->sfc_w, hwfc->sfc_h,
++                           &surface_id, 1,
++                           ctx->attributes, ctx->nb_attributes);
++    if (vas != VA_STATUS_SUCCESS) {
++        av_log(hwfc, AV_LOG_ERROR, "Failed to create sfc surface: "
++               "%d (%s).\n", vas, vaErrorStr(vas));
++        return NULL;
++    }
++    av_log(hwfc, AV_LOG_DEBUG, "Created sfc surface %#x.\n", surface_id);
++
++    ref = av_buffer_create((uint8_t*)(uintptr_t)surface_id,
++                           sizeof(surface_id), &vaapi_sfc_buffer_free,
++                           hwfc, AV_BUFFER_FLAG_READONLY);
++    if (!ref) {
++        vaDestroySurfaces(hwctx->display, &surface_id, 1);
++        return NULL;
++    }
++
++    return ref;
++}
+ static int vaapi_frames_init(AVHWFramesContext *hwfc)
+ {
+     AVVAAPIFramesContext  *avfc = hwfc->hwctx;
+@@ -621,6 +675,24 @@ static int vaapi_frames_init(AVHWFramesContext *hwfc)
+         }
+     }
+ 
++        desc = vaapi_format_from_pix_fmt(hwfc->sfc_format);
++        if (!desc) {
++            av_log(hwfc, AV_LOG_ERROR, "Unsupported format sfc: %s.\n",
++                   av_get_pix_fmt_name(hwfc->sfc_format));
++            return AVERROR(EINVAL);
++        }
++
++        ctx->sfc_rt_format = desc->rt_format;
++
++        hwfc->sfc_pool=
++            av_buffer_pool_init2(sizeof(VASurfaceID), hwfc,
++                                 &vaapi_sfc_pool_alloc, NULL);
++        if (!hwfc->sfc_pool) {
++            av_log(hwfc, AV_LOG_ERROR, "Failed to create VAAPI sfc surface pool.\n");
++            err = AVERROR(ENOMEM);
++            goto fail;
++        }
++
+     // Allocate a single surface to test whether vaDeriveImage() is going
+     // to work for the specific configuration.
+     if (hwfc->pool) {
+@@ -690,6 +762,10 @@ static void vaapi_frames_uninit(AVHWFramesContext *hwfc)
+ 
+ static int vaapi_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame)
+ {
++    AVFrameSideData *sd;
++    AVFrame *sub_frame;
++    VASurfaceID surface, sfc_surface;
++
+     frame->buf[0] = av_buffer_pool_get(hwfc->pool);
+     if (!frame->buf[0])
+         return AVERROR(ENOMEM);
+@@ -698,6 +774,26 @@ static int vaapi_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame)
+     frame->format  = AV_PIX_FMT_VAAPI;
+     frame->width   = hwfc->width;
+     frame->height  = hwfc->height;
++    surface = (VASurfaceID)(uintptr_t)frame->data[3];
++    av_log(hwfc, AV_LOG_DEBUG, "Get surface %#x.\n", surface);
++
++    sd = av_frame_get_side_data(frame, AV_FRAME_DATA_VIDEO_SUB_FRAME);
++    if (sd) {
++        sub_frame = (AVFrame *)sd->data;
++        sub_frame->buf[0] = av_buffer_pool_get(hwfc->sfc_pool);
++        if (!sub_frame->buf[0])
++            return AVERROR(ENOMEM);
++        sub_frame->data[3] = sub_frame->buf[0]->data;
++        sub_frame->format  = AV_PIX_FMT_VAAPI;
++        sub_frame->width   = hwfc->sfc_w;
++        sub_frame->height  = hwfc->sfc_h;
++        sub_frame->hw_frames_ctx = av_buffer_ref(frame->hw_frames_ctx); /* Mark: to check how to unref. */
++        sub_frame->flags |= AV_FRAME_FLAG_SUB_FRAME;
++        sfc_surface = (VASurfaceID)(uintptr_t)sub_frame->data[3];
++
++        av_log(hwfc, AV_LOG_DEBUG, "Get sfc surface %#x.\n", sfc_surface);
++
++    }
+ 
+     return 0;
+ }
+@@ -787,6 +883,15 @@ static int vaapi_map_frame(AVHWFramesContext *hwfc,
+     VAStatus vas;
+     void *address = NULL;
+     int err, i;
++    int w, h;
++
++    if (src->flags & AV_FRAME_FLAG_SUB_FRAME) {
++        w = hwfc->sfc_w;
++        h = hwfc->sfc_h;
++    } else {
++        w = hwfc->width;
++        h = hwfc->height;
++    }
+ 
+     surface_id = (VASurfaceID)(uintptr_t)src->data[3];
+     av_log(hwfc, AV_LOG_DEBUG, "Map surface %#x.\n", surface_id);
+@@ -849,7 +954,7 @@ static int vaapi_map_frame(AVHWFramesContext *hwfc,
+         map->flags |= AV_HWFRAME_MAP_DIRECT;
+     } else {
+         vas = vaCreateImage(hwctx->display, image_format,
+-                            hwfc->width, hwfc->height, &map->image);
++                            w, h, &map->image);
+         if (vas != VA_STATUS_SUCCESS) {
+             av_log(hwfc, AV_LOG_ERROR, "Failed to create image for "
+                    "surface %#x: %d (%s).\n",
+@@ -859,7 +964,7 @@ static int vaapi_map_frame(AVHWFramesContext *hwfc,
+         }
+         if (!(flags & AV_HWFRAME_MAP_OVERWRITE)) {
+             vas = vaGetImage(hwctx->display, surface_id, 0, 0,
+-                             hwfc->width, hwfc->height, map->image.image_id);
++                             w, h, map->image.image_id);
+             if (vas != VA_STATUS_SUCCESS) {
+                 av_log(hwfc, AV_LOG_ERROR, "Failed to read image from "
+                        "surface %#x: %d (%s).\n",
+diff --git a/libavutil/hwcontext_vaapi.h b/libavutil/hwcontext_vaapi.h
+index 3e0b54f5e9..87d662ce07 100644
+--- a/libavutil/hwcontext_vaapi.h
++++ b/libavutil/hwcontext_vaapi.h
+@@ -104,6 +104,9 @@ typedef struct AVVAAPIFramesContext {
+      */
+     VASurfaceID     *surface_ids;
+     int           nb_surfaces;
++
++    VASurfaceID     *sfc_surface_ids;
++    int           sfc_nb_surfaces;
+ } AVVAAPIFramesContext;
+ 
+ /**
+diff --git a/libavutil/video_sub_frame_metadata.c b/libavutil/video_sub_frame_metadata.c
+new file mode 100644
+index 0000000000..edcc9a9a9a
+--- /dev/null
++++ b/libavutil/video_sub_frame_metadata.c
+@@ -0,0 +1,70 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include <limits.h>
++#include <stddef.h>
++#include <stdint.h>
++
++#include "buffer.h"
++#include "common.h"
++#include "frame.h"
++#include "mem.h"
++
++#include "video_sub_frame_metadata.h"
++
++static void av_video_sub_frame_free(void *opaque, uint8_t *data)
++{
++    AVFrame *frame = (AVFrame*)data;
++
++    av_frame_free(&frame);
++}
++
++AVFrame *av_video_sub_frame_alloc(size_t *out_size)
++{
++
++    AVFrame *sub_frame = av_frame_alloc();
++    if (!sub_frame)
++        return NULL;
++
++    *out_size = sizeof(*sub_frame);
++
++    return sub_frame;
++}
++
++AVFrame *av_video_sub_frame_create_side_data(AVFrame *frame)
++{
++    AVBufferRef      *buf;
++    AVFrame          *sub_frame;
++    size_t size;
++
++    sub_frame = av_video_sub_frame_alloc(&size);
++    if (!sub_frame)
++        return NULL;
++    buf = av_buffer_create((uint8_t *)sub_frame, size, &av_video_sub_frame_free, NULL, 0);
++    if (!buf) {
++        av_freep(&sub_frame);
++        return NULL;
++    }
++
++    if (!av_frame_new_side_data_from_buf(frame, AV_FRAME_DATA_VIDEO_SUB_FRAME, buf)) {
++        av_buffer_unref(&buf);
++        return NULL;
++    }
++
++    return sub_frame;
++}
+diff --git a/libavutil/video_sub_frame_metadata.h b/libavutil/video_sub_frame_metadata.h
+new file mode 100644
+index 0000000000..c6d6e96d4f
+--- /dev/null
++++ b/libavutil/video_sub_frame_metadata.h
+@@ -0,0 +1,28 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#ifndef AVUTIL_VIDEO_SUB_FRAME_METADATA_H
++#define AVUTIL_VIDEO_SUB_FRAME_METADATA_H
++
++#include "frame.h"
++
++AVFrame *av_video_sub_frame_alloc(size_t *out_size);
++
++AVFrame *av_video_sub_frame_create_side_data(AVFrame *frame);
++
++#endif /* AVUTIL_VIDEO_SUB_FRAME_METADATA_H */
+-- 
+2.25.1
+
