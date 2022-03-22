@@ -58,3 +58,4 @@ $ git commit -sam "$(git diff --submodule | head -1 | sed 's/:$//')"
 ## additional information
 
 For more information and examples about Git Submodules, see https://git-scm.com/book/en/v2/Git-Tools-Submodules
+
