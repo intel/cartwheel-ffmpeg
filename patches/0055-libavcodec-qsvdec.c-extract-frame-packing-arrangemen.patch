@@ -1,7 +1,7 @@
-From a0deb32700fb522f1df4a557223636171f6fc08e Mon Sep 17 00:00:00 2001
+From ddb60bc678aad15a91fe676b23d935429323775f Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
-Subject: [PATCH 45/74] libavcodec/qsvdec.c: extract frame packing arrangement
+Subject: [PATCH 45/72] libavcodec/qsvdec.c: extract frame packing arrangement
  data
 
 Use h264_sei to parse SEI data got from MediaSDK. Extract frame
@@ -20,25 +20,26 @@ index 58186ea7ca..2db9581d90 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -54,6 +54,8 @@
-
+ 
  #define QSV_MAX_FRAME_EXT_PARAMS 4
-
+ 
 +#define QSV_PAYLOAD_SIZE 1024
 +
  #define QSV_VERSION_ATLEAST(MAJOR, MINOR)   \
      (MFX_VERSION_MAJOR > (MAJOR) ||         \
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index f81737ab6d..e739d713e6 100644
+index 661f15bc75..5b3348d62d 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -39,12 +39,15 @@
+@@ -41,13 +41,16 @@
  #include "libavutil/time.h"
  #include "libavutil/imgutils.h"
  #include "libavutil/film_grain_params.h"
 +#include "libavutil/stereo3d.h"
-
+ 
  #include "avcodec.h"
+ #include "codec_internal.h"
  #include "internal.h"
  #include "decode.h"
  #include "hwconfig.h"
@@ -46,12 +47,12 @@ index f81737ab6d..e739d713e6 100644
  #include "qsv.h"
 +#include "h264_sei.h"
  #include "qsv_internal.h"
-
+ 
  static const AVRational mfx_tb = { 1, 90000 };
-@@ -97,8 +100,13 @@ typedef struct QSVContext {
-
+@@ -100,8 +103,13 @@ typedef struct QSVContext {
+ 
      char *load_plugins;
-
+ 
 +    mfxPayload payload;
 +
      mfxExtBuffer **ext_buffers;
@@ -60,12 +61,12 @@ index f81737ab6d..e739d713e6 100644
 +    H264SEIContext sei;
 +    H264ParamSets ps;
  } QSVContext;
-
+ 
  static const AVCodecHWConfigInternal *const qsv_hw_configs[] = {
-@@ -589,6 +597,147 @@ static int qsv_export_film_grain(AVCodecContext *avctx, mfxExtAV1FilmGrainParam
+@@ -592,6 +600,147 @@ static int qsv_export_film_grain(AVCodecContext *avctx, mfxExtAV1FilmGrainParam
  }
  #endif
-
+ 
 +static int h264_decode_fpa(H264SEIFramePacking *fpa, AVFrame *frame)
 +{
 +    if (!fpa || !frame) {
@@ -210,10 +211,10 @@ index f81737ab6d..e739d713e6 100644
  static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
                        AVFrame *frame, int *got_frame,
                        const AVPacket *avpkt)
-@@ -693,6 +842,10 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
-
+@@ -696,6 +845,10 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
+ 
          outsurf = &aframe.frame->surface;
-
+ 
 +        ret = extract_frame_side_data(avctx, q, frame);
 +        if (ret < 0)
 +            av_log(avctx, AV_LOG_WARNING, "Extracting side from packet failed\n");
@@ -221,15 +222,15 @@ index f81737ab6d..e739d713e6 100644
          frame->pts = MFX_PTS_TO_PTS(outsurf->Data.TimeStamp, avctx->pkt_timebase);
  #if QSV_VERSION_ATLEAST(1, 34)
          if ((avctx->export_side_data & AV_CODEC_EXPORT_DATA_FILM_GRAIN) &&
-@@ -754,6 +907,8 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
+@@ -757,6 +910,8 @@ static void qsv_decode_close_qsvcontext(QSVContext *q)
      av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
      av_buffer_unref(&q->frames_ctx.mids_buf);
      av_buffer_pool_uninit(&q->pool);
 +
 +    av_freep(&q->payload.Data);
  }
-
+ 
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
---
+-- 
 2.32.0
 

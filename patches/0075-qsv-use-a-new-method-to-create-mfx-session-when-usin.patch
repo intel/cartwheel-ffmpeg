@@ -1,7 +1,7 @@
-From ee48cc5088abc651d70e59deeb988ca621d16ee8 Mon Sep 17 00:00:00 2001
+From af5ff2fbe142289ee0daf0382d6cb183b464dd1e Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
-Subject: [PATCH 62/74] qsv: use a new method to create mfx session when using
+Subject: [PATCH 59/72] qsv: use a new method to create mfx session when using
  oneVPL
 
 In oneVPL, MFXLoad() and MFXCreateSession() are required to create a
@@ -42,7 +42,7 @@ Signed-off-by: galinart <artem.galin@intel.com>
  21 files changed, 682 insertions(+), 88 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index c6ca093152..2f929bcfab 100644
+index c98de4c38f..f984b43986 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -47,6 +47,12 @@
@@ -248,7 +248,7 @@ index c6ca093152..2f929bcfab 100644
  
  #ifdef AVCODEC_QSV_LINUX_SESSION_HANDLE
      ret = ff_qsv_set_display_handle(avctx, qs);
-@@ -759,7 +916,7 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
+@@ -762,7 +919,7 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
      AVHWDeviceContext    *device_ctx = (AVHWDeviceContext*)device_ref->data;
      AVQSVDeviceContext *device_hwctx = device_ctx->hwctx;
      mfxSession        parent_session = device_hwctx->session;
@@ -257,7 +257,7 @@ index c6ca093152..2f929bcfab 100644
      mfxHDL                    handle = NULL;
      int          hw_handle_supported = 0;
  
-@@ -800,15 +957,11 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
+@@ -803,15 +960,11 @@ int ff_qsv_init_session_device(AVCodecContext *avctx, mfxSession *psession,
                 "from the session\n");
      }
  
@@ -278,7 +278,7 @@ index c6ca093152..2f929bcfab 100644
  
      if (handle) {
          err = MFXVideoCORE_SetHandle(session, handle_type, handle);
-@@ -885,7 +1038,9 @@ int ff_qsv_close_internal_session(QSVSession *qs)
+@@ -888,7 +1041,9 @@ int ff_qsv_close_internal_session(QSVSession *qs)
  {
      if (qs->session) {
          MFXClose(qs->session);
@@ -301,10 +301,10 @@ index b3ab00db72..4a6fd2a851 100644
  
  typedef struct QSVFramesContext {
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index b52990a79c..6b2257078a 100644
+index 5fda79b5ca..d3b2609769 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -50,6 +50,12 @@
+@@ -53,6 +53,12 @@
  #include "h264_sei.h"
  #include "qsv_internal.h"
  
@@ -317,7 +317,7 @@ index b52990a79c..6b2257078a 100644
  static const AVRational mfx_tb = { 1, 90000 };
  
  #define PTS_TO_MFX_PTS(pts, pts_tb) ((pts) == AV_NOPTS_VALUE ? \
-@@ -176,7 +182,9 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
+@@ -179,7 +185,9 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
      } else if (hw_frames_ref) {
          if (q->internal_qs.session) {
              MFXClose(q->internal_qs.session);
@@ -327,7 +327,7 @@ index b52990a79c..6b2257078a 100644
          }
          av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
  
-@@ -201,7 +209,9 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
+@@ -204,7 +212,9 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
      } else if (hw_device_ref) {
          if (q->internal_qs.session) {
              MFXClose(q->internal_qs.session);
@@ -352,60 +352,60 @@ index 8be00d43f7..7fec3ca322 100644
  #include "libavutil/fifo.h"
  
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
-index 7c6f3a530c..fed6cf420e 100644
+index 8205788560..62565cb2d9 100644
 --- a/libavcodec/qsvenc_h264.c
 +++ b/libavcodec/qsvenc_h264.c
 @@ -32,7 +32,6 @@
  #include "avcodec.h"
- #include "internal.h"
+ #include "codec_internal.h"
  #include "qsv.h"
 -#include "qsv_internal.h"
  #include "qsvenc.h"
  #include "atsc_a53.h"
  
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 5f27163c28..098ff27eaa 100644
+index 5b2a38b288..cd1a9c8c01 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -35,7 +35,6 @@
+ #include "hevcdec.h"
  #include "h2645_parse.h"
- #include "internal.h"
  #include "qsv.h"
 -#include "qsv_internal.h"
  #include "qsvenc.h"
  
  enum LoadPlugin {
 diff --git a/libavcodec/qsvenc_jpeg.c b/libavcodec/qsvenc_jpeg.c
-index ad8f09befe..f473b1ddbc 100644
+index 00f4f36e7d..adc44fb568 100644
 --- a/libavcodec/qsvenc_jpeg.c
 +++ b/libavcodec/qsvenc_jpeg.c
 @@ -30,7 +30,6 @@
  #include "avcodec.h"
- #include "internal.h"
+ #include "codec_internal.h"
  #include "qsv.h"
 -#include "qsv_internal.h"
  #include "qsvenc.h"
  
  typedef struct QSVMJPEGEncContext {
 diff --git a/libavcodec/qsvenc_mpeg2.c b/libavcodec/qsvenc_mpeg2.c
-index 610bbf79c1..0e2a51811c 100644
+index 292d603506..1169c6358b 100644
 --- a/libavcodec/qsvenc_mpeg2.c
 +++ b/libavcodec/qsvenc_mpeg2.c
 @@ -30,7 +30,6 @@
  #include "avcodec.h"
- #include "internal.h"
+ #include "codec_internal.h"
  #include "qsv.h"
 -#include "qsv_internal.h"
  #include "qsvenc.h"
  
  typedef struct QSVMpeg2EncContext {
 diff --git a/libavcodec/qsvenc_vp9.c b/libavcodec/qsvenc_vp9.c
-index 5a0c04481d..aa58ea9540 100644
+index 75d6530e39..371ca8b256 100644
 --- a/libavcodec/qsvenc_vp9.c
 +++ b/libavcodec/qsvenc_vp9.c
 @@ -30,7 +30,6 @@
  #include "avcodec.h"
- #include "internal.h"
+ #include "codec_internal.h"
  #include "qsv.h"
 -#include "qsv_internal.h"
  #include "qsvenc.h"
