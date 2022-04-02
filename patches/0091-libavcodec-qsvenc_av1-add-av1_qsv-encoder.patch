@@ -1,7 +1,7 @@
-From 6e74009e8dbe7755f9733a6fa94bc4682dd8736a Mon Sep 17 00:00:00 2001
+From 5ffee6f7ff8cafb001c03fd512d8b96bfea210b9 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 8 Apr 2021 13:09:47 +0800
-Subject: [PATCH 71/72] libavcodec/qsvenc_av1: add av1_qsv encoder
+Subject: [PATCH] libavcodec/qsvenc_av1: add av1_qsv encoder
 
 It is available when libvpl is enabled
 
@@ -15,14 +15,14 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  configure               |   4 +
  libavcodec/Makefile     |   1 +
  libavcodec/allcodecs.c  |   1 +
- libavcodec/qsvenc.c     | 219 +++++++++++++++++++++++++++++++++-
+ libavcodec/qsvenc.c     | 219 ++++++++++++++++++++++++++++++++-
  libavcodec/qsvenc.h     |   7 +-
- libavcodec/qsvenc_av1.c | 253 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 481 insertions(+), 4 deletions(-)
+ libavcodec/qsvenc_av1.c | 259 ++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 487 insertions(+), 4 deletions(-)
  create mode 100644 libavcodec/qsvenc_av1.c
 
 diff --git a/configure b/configure
-index 492fc65b2b..eb4a34e80d 100755
+index a96c854e9d..77facac8c9 100755
 --- a/configure
 +++ b/configure
 @@ -3242,6 +3242,8 @@ vp9_qsv_encoder_select="qsvenc"
@@ -380,10 +380,10 @@ index c9ba792d4a..bd4818898b 100644
      mfxExtBuffer **extparam;
 diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
 new file mode 100644
-index 0000000000..88f7702ccf
+index 0000000000..32b4467f94
 --- /dev/null
 +++ b/libavcodec/qsvenc_av1.c
-@@ -0,0 +1,253 @@
+@@ -0,0 +1,259 @@
 +/*
 + * Intel MediaSDK QSV based AV1 encoder
 + *
@@ -429,6 +429,7 @@ index 0000000000..88f7702ccf
 +    int64_t parsed_packet_offset;
 +    AVPacket output_pkt;
 +    int load_plugin;
++    int64_t last_pts;
 +} QSVAV1EncContext;
 +
 +static av_cold int qsv_enc_init(AVCodecContext *avctx)
@@ -530,6 +531,11 @@ index 0000000000..88f7702ccf
 +            if (ret < 0)
 +                return ret;
 +            av_packet_move_ref(pkt, output_pkt);
++            // Timestamp need to be calculated because pkt is reorded.
++            if (pkt->pts <= q->last_pts)
++                q->last_pts = pkt->dts = pkt->pts = q->last_pts + 1;
++            else
++                q->last_pts = pkt->dts = pkt->pts;
 +            *got_packet = 1;
 +        }
 +        q->parsed_packet_offset += offset;
@@ -638,5 +644,5 @@ index 0000000000..88f7702ccf
 +    .hw_configs     = ff_qsv_enc_hw_configs,
 +};
 -- 
-2.32.0
+2.25.1
 
