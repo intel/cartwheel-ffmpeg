@@ -1,7 +1,7 @@
-From 93fd08f3f7432a375ed0c0079bcc48e0be74a43f Mon Sep 17 00:00:00 2001
+From adff8c6187452afcee4930a7213b1e02bd9ed5f6 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 26 Aug 2021 16:52:50 +0800
-Subject: [PATCH 72/74] libavcodec/qsvenc_hevc: add main10sp support to
+Subject: [PATCH 62/67] libavcodec/qsvenc_hevc: add main10sp support to
  hevc_qsv
 
 Main10sp is a combination of Main10 and one_pic_only flag.
@@ -19,10 +19,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 51 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 2572bc1b6c..c992afe617 100644
+index e215587e62..16f472720b 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -188,6 +188,12 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -196,6 +196,12 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
  #endif
  #if QSV_HAVE_EXT_HEVC_TILES
      mfxExtHEVCTiles *exthevctiles = (mfxExtHEVCTiles *)coding_opts[3 + QSV_HAVE_CO_VPS];
@@ -35,7 +35,7 @@ index 2572bc1b6c..c992afe617 100644
  #endif
  
      av_log(avctx, AV_LOG_VERBOSE, "profile: %s; level: %"PRIu16"\n",
-@@ -265,6 +271,14 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -273,6 +279,14 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
                 exthevctiles->NumTileColumns, exthevctiles->NumTileRows);
  #endif
  
@@ -50,7 +50,7 @@ index 2572bc1b6c..c992afe617 100644
  #if QSV_HAVE_CO2
      av_log(avctx, AV_LOG_VERBOSE,
             "RecoveryPointSEI: %s IntRefType: %"PRIu16"; IntRefCycleSize: %"PRIu16"; IntRefQPDelta: %"PRId16"\n",
-@@ -1031,6 +1045,20 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1049,6 +1063,20 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
      }
  #endif
  
@@ -71,7 +71,7 @@ index 2572bc1b6c..c992afe617 100644
      q->extvsi.VideoFullRange = (avctx->color_range == AVCOL_RANGE_JPEG);
      q->extvsi.ColourDescriptionPresent = 0;
  
-@@ -1177,8 +1205,15 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1195,8 +1223,15 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
           .Header.BufferSz = sizeof(hevc_tile_buf),
      };
  #endif
@@ -88,7 +88,7 @@ index 2572bc1b6c..c992afe617 100644
  
      int need_pps = avctx->codec_id != AV_CODEC_ID_MPEG2VIDEO;
      int ret, ext_buf_num = 0, extradata_offset = 0;
-@@ -1200,6 +1235,10 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1218,6 +1253,10 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
      if (avctx->codec_id == AV_CODEC_ID_HEVC)
          ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&hevc_tile_buf;
  #endif
@@ -100,7 +100,7 @@ index 2572bc1b6c..c992afe617 100644
      q->param.ExtParam    = ext_buffers;
      q->param.NumExtParam = ext_buf_num;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 4b03f2e288..a8ee8ec2b8 100644
+index ca3f7fee90..91908f0d5d 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -43,6 +43,7 @@
@@ -111,7 +111,7 @@ index 4b03f2e288..a8ee8ec2b8 100644
  #define QSV_HAVE_EXT_VP9_PARAM QSV_VERSION_ATLEAST(1, 26)
  #define QSV_HAVE_EXT_VP9_TILES QSV_VERSION_ATLEAST(1, 29)
  
-@@ -139,6 +140,9 @@ typedef struct QSVEncContext {
+@@ -142,6 +143,9 @@ typedef struct QSVEncContext {
  #if QSV_HAVE_EXT_HEVC_TILES
      mfxExtHEVCTiles exthevctiles;
  #endif
@@ -121,7 +121,7 @@ index 4b03f2e288..a8ee8ec2b8 100644
  #if QSV_HAVE_EXT_VP9_PARAM
      mfxExtVP9Param  extvp9param;
  #endif
-@@ -151,7 +155,8 @@ typedef struct QSVEncContext {
+@@ -154,7 +158,8 @@ typedef struct QSVEncContext {
  
      mfxExtVideoSignalInfo extvsi;
  
@@ -131,17 +131,17 @@ index 4b03f2e288..a8ee8ec2b8 100644
      int         nb_extparam_internal;
  
      mfxExtBuffer **extparam;
-@@ -217,6 +222,8 @@ typedef struct QSVEncContext {
-     char *load_plugins;
+@@ -223,6 +228,8 @@ typedef struct QSVEncContext {
      SetEncodeCtrlCB *set_encode_ctrl_cb;
      int forced_idr;
+     int low_delay_brc;
 +
 +    int main10sp;
  } QSVEncContext;
  
  int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 098ff27eaa..557acf6d5f 100644
+index e269ff3a7b..0486b68c9b 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -267,6 +267,9 @@ static const AVOption options[] = {
