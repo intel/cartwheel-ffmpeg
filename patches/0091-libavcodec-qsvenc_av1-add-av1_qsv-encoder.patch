@@ -1,7 +1,7 @@
-From 6e74009e8dbe7755f9733a6fa94bc4682dd8736a Mon Sep 17 00:00:00 2001
+From 911904f4f0f178c27d198c5da04258007bbf1134 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 8 Apr 2021 13:09:47 +0800
-Subject: [PATCH 71/72] libavcodec/qsvenc_av1: add av1_qsv encoder
+Subject: [PATCH 68/70] libavcodec/qsvenc_av1: add av1_qsv encoder
 
 It is available when libvpl is enabled
 
@@ -22,7 +22,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  create mode 100644 libavcodec/qsvenc_av1.c
 
 diff --git a/configure b/configure
-index 492fc65b2b..eb4a34e80d 100755
+index a96c854e9d..77facac8c9 100755
 --- a/configure
 +++ b/configure
 @@ -3242,6 +3242,8 @@ vp9_qsv_encoder_select="qsvenc"
@@ -380,7 +380,7 @@ index c9ba792d4a..bd4818898b 100644
      mfxExtBuffer **extparam;
 diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
 new file mode 100644
-index 0000000000..88f7702ccf
+index 0000000000..be2a482947
 --- /dev/null
 +++ b/libavcodec/qsvenc_av1.c
 @@ -0,0 +1,253 @@
@@ -624,7 +624,7 @@ index 0000000000..88f7702ccf
 +    .p.type           = AVMEDIA_TYPE_VIDEO,
 +    .p.id             = AV_CODEC_ID_AV1,
 +    .init           = qsv_enc_init,
-+    .encode2        = qsv_enc_frame,
++    FF_CODEC_ENCODE_CB(qsv_enc_frame),
 +    .close          = qsv_enc_close,
 +    .p.capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HYBRID,
 +    .p.pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
@@ -638,5 +638,5 @@ index 0000000000..88f7702ccf
 +    .hw_configs     = ff_qsv_enc_hw_configs,
 +};
 -- 
-2.32.0
+2.17.1
 
