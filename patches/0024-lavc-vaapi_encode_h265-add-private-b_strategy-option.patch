@@ -1,7 +1,7 @@
-From 2460a590a542e0f666b917675c5edcc9eb804e56 Mon Sep 17 00:00:00 2001
+From 458e8608cabdc4f596704895e0db0583970a9fa7 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 7 Apr 2020 14:03:21 +0800
-Subject: [PATCH 24/92] lavc/vaapi_encode_h265: add private b_strategy option
+Subject: [PATCH 20/68] lavc/vaapi_encode_h265: add private b_strategy option
  for hevc_vaapi
 
 Allow user to choose between I/P/B frames:
@@ -30,16 +30,16 @@ Rebased a bit for this internal branch.
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
  doc/encoders.texi              | 16 ++++++++++++++++
- libavcodec/vaapi_encode.c      | 21 ++++++++++++++++-----
+ libavcodec/vaapi_encode.c      | 14 +++++++++++---
  libavcodec/vaapi_encode.h      |  1 +
- libavcodec/vaapi_encode_h265.c | 29 ++++++++++++++++++++++++++++-
- 4 files changed, 61 insertions(+), 6 deletions(-)
+ libavcodec/vaapi_encode_h265.c | 30 ++++++++++++++++++++++++++++--
+ 4 files changed, 56 insertions(+), 5 deletions(-)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 2c90a282a85c..1eae6b125803 100644
+index d265dd5a81..a5173a17f5 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3377,6 +3377,22 @@ Some combination of the following values:
+@@ -3721,6 +3721,22 @@ Some combination of the following values:
  Include HDR metadata if the input frames have it
  (@emph{mastering_display_colour_volume} and @emph{content_light_level}
  messages).
@@ -63,58 +63,54 @@ index 2c90a282a85c..1eae6b125803 100644
  
  @item tiles
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index bdd6430e2a5a..10d218d370a8 100644
+index 0b84f07043..f744cd47ad 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1911,15 +1911,26 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
-                "reference frames.\n");
+@@ -2006,8 +2006,12 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
          return AVERROR(EINVAL);
      } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
--               ref_l1 < 1 || avctx->max_b_frames < 1) {
--        av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
--               "(supported references: %d / %d).\n", ref_l0, ref_l1);
-+               ref_l1 < 1 || avctx->max_b_frames < 1 ||
-+               ctx->b_frame_strategy == 1) {
+                ref_l1 < 1 || avctx->max_b_frames < 1 ||
+-               prediction_pre_only) {
+-        if (ctx->p_to_gpb)
++               prediction_pre_only || ctx->b_frame_strategy == 1) {
 +        if (ctx->b_frame_strategy == 1)
 +            av_log(avctx, AV_LOG_VERBOSE, "Using intra and low delay "
 +                   "B-frames (supported references: %d / %d).\n",
 +                   ref_l0, ref_l1);
-+        else
-+            av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
-+                   "(supported references: %d / %d).\n", ref_l0, ref_l1);
-         ctx->gop_size = avctx->gop_size;
++        else if (ctx->p_to_gpb)
+            av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
+                   "(supported references: %d / %d).\n",
+                   ref_l0, ref_l1);
+@@ -2018,7 +2022,11 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
          ctx->p_per_i  = INT_MAX;
          ctx->b_per_p  = 0;
      } else {
--        av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
--               "(supported references: %d / %d).\n", ref_l0, ref_l1);
-+        if (ctx->b_frame_strategy == 2)
-+            av_log(avctx, AV_LOG_VERBOSE, "Using intra, reference B- and "
+-       if (ctx->p_to_gpb)
++       if (ctx->b_frame_strategy == 2)
++           av_log(avctx, AV_LOG_VERBOSE, "Using intra, reference B- and "
 +                   "B-frames (supported references: %d / %d).\n",
 +                   ref_l0, ref_l1);
-+        else
-+            av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
-+                   "(supported references: %d / %d).\n", ref_l0, ref_l1);
-         ctx->gop_size = avctx->gop_size;
-         ctx->p_per_i  = INT_MAX;
-         ctx->b_per_p  = avctx->max_b_frames;
++       else if (ctx->p_to_gpb)
+            av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
+                   "(supported references: %d / %d).\n",
+                   ref_l0, ref_l1);
 diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
-index 1c40a734a532..508b9909b43d 100644
+index 28f82a72a2..7e199af291 100644
 --- a/libavcodec/vaapi_encode.h
 +++ b/libavcodec/vaapi_encode.h
-@@ -338,6 +338,7 @@ typedef struct VAAPIEncodeContext {
-     int idr_counter;
+@@ -342,6 +342,7 @@ typedef struct VAAPIEncodeContext {
      int gop_counter;
      int end_of_stream;
+     int p_to_gpb;
 +    int b_frame_strategy;
      uint8_t *delta_qp;
  
      // Whether the driver supports ROI at all.
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index a185f5de7f8c..23cf558693ad 100644
+index 399a10760a..b6213585c0 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
-@@ -62,6 +62,7 @@ typedef struct VAAPIEncodeH265Context {
+@@ -69,6 +69,7 @@ typedef struct VAAPIEncodeH265Context {
      int tier;
      int level;
      int sei;
@@ -122,26 +118,27 @@ index a185f5de7f8c..23cf558693ad 100644
  
      // Derived settings.
      int fixed_qp_idr;
-@@ -914,7 +915,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
- 
+@@ -982,7 +983,8 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
      sh->slice_type = hpic->slice_type;
+ 
      // driver requires low delay B frame in low power mode
--    if (sh->slice_type == HEVC_SLICE_P && ctx->low_power)
-+    if (sh->slice_type == HEVC_SLICE_P && priv->b_frame_strategy)
+-    if (sh->slice_type == HEVC_SLICE_P && (ctx->p_to_gpb || ctx->low_power))
++    if (sh->slice_type == HEVC_SLICE_P &&
++        (ctx->p_to_gpb || priv->b_frame_strategy))
          sh->slice_type = HEVC_SLICE_B;
  
      sh->slice_pic_order_cnt_lsb = hpic->pic_order_cnt &
-@@ -1075,6 +1076,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1146,7 +1148,8 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
          av_assert0(pic->type == PICTURE_TYPE_P ||
                     pic->type == PICTURE_TYPE_B);
          vslice->ref_pic_list0[0] = vpic->reference_frames[0];
-+        if (priv->b_frame_strategy && pic->type == PICTURE_TYPE_P)
-+            // Reference for low delay B-frame, L0 == L1
-+            vslice->ref_pic_list1[0] = vpic->reference_frames[0];
+-        if (ctx->p_to_gpb && pic->type == PICTURE_TYPE_P)
++        if ((ctx->p_to_gpb || priv->b_frame_strategy) &&
++            pic->type == PICTURE_TYPE_P)
+             // Reference for GPB B-frame, L0 == L1
+             vslice->ref_pic_list1[0] = vpic->reference_frames[0];
      }
-     if (pic->nb_refs >= 2) {
-         // Forward reference for B-frame.
-@@ -1221,6 +1225,21 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
+@@ -1349,6 +1352,21 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
      if (priv->qp > 0)
          ctx->explicit_qp = priv->qp;
  
@@ -163,7 +160,7 @@ index a185f5de7f8c..23cf558693ad 100644
      return ff_vaapi_encode_init(avctx);
  }
  
-@@ -1296,6 +1315,14 @@ static const AVOption vaapi_encode_h265_options[] = {
+@@ -1424,6 +1442,14 @@ static const AVOption vaapi_encode_h265_options[] = {
        0, AV_OPT_TYPE_CONST,
        { .i64 = SEI_MASTERING_DISPLAY | SEI_CONTENT_LIGHT_LEVEL },
        INT_MIN, INT_MAX, FLAGS, "sei" },
@@ -179,5 +176,5 @@ index a185f5de7f8c..23cf558693ad 100644
      { "tiles", "Tile columns x rows",
        OFFSET(common.tile_cols), AV_OPT_TYPE_IMAGE_SIZE,
 -- 
-2.25.4
+2.32.0
 
