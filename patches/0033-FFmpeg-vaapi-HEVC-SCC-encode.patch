@@ -1,7 +1,7 @@
-From daa0d2dfe67881663656b125ec71c9a6fd7c2bb4 Mon Sep 17 00:00:00 2001
+From 771069e11e5d2d93b84d9a1272ec6d34dd4cc00e Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 18 Oct 2020 16:15:37 -0400
-Subject: [PATCH 33/92] FFmpeg vaapi HEVC SCC encode.
+Subject: [PATCH 25/65] FFmpeg vaapi HEVC SCC encode.
 
 Depend on 0008 hevc low power enable patch.
 
@@ -21,14 +21,14 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
  libavcodec/avcodec.h           |  1 +
  libavcodec/vaapi_encode.c      |  1 +
- libavcodec/vaapi_encode_h265.c | 56 ++++++++++++++++++++++++++++------
- 3 files changed, 48 insertions(+), 10 deletions(-)
+ libavcodec/vaapi_encode_h265.c | 47 +++++++++++++++++++++++++++++++---
+ 3 files changed, 45 insertions(+), 4 deletions(-)
 
 diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index 7ee8bc2b7cc0..9346c870524c 100644
+index 4dae23d06e..f5a4016951 100644
 --- a/libavcodec/avcodec.h
 +++ b/libavcodec/avcodec.h
-@@ -1614,6 +1614,7 @@ typedef struct AVCodecContext {
+@@ -1637,6 +1637,7 @@ typedef struct AVCodecContext {
  #define FF_PROFILE_HEVC_MAIN_10                     2
  #define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3
  #define FF_PROFILE_HEVC_REXT                        4
@@ -37,10 +37,10 @@ index 7ee8bc2b7cc0..9346c870524c 100644
  #define FF_PROFILE_VVC_MAIN_10                      1
  #define FF_PROFILE_VVC_MAIN_10_444                 33
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 08dac7fb8727..347cda4c0cc2 100644
+index ca63591bef..4eb8cfffdd 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1256,6 +1256,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
+@@ -1304,6 +1304,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
      { "YUV422",    VA_RT_FORMAT_YUV422,        8, 3, 1, 0 },
  #if VA_CHECK_VERSION(1, 2, 0)
      { "YUV422_10", VA_RT_FORMAT_YUV422_10,    10, 3, 1, 0 },
@@ -49,40 +49,21 @@ index 08dac7fb8727..347cda4c0cc2 100644
      { "YUV444",    VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
      { "YUV411",    VA_RT_FORMAT_YUV411,        8, 3, 2, 0 },
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 5c37ed042c43..4d0ce8705980 100644
+index f8ed9f4a34..a01f3e99b7 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
-@@ -300,17 +300,13 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
-     ptl->general_profile_idc   = avctx->profile;
-     ptl->general_tier_flag     = priv->tier;
- 
--    if (chroma_format == 1) {
--        ptl->general_profile_compatibility_flag[1] = bit_depth ==  8;
--        ptl->general_profile_compatibility_flag[2] = bit_depth <= 10;
--    }
--    ptl->general_profile_compatibility_flag[4] = 1;
--
-+    ptl->general_profile_compatibility_flag[ptl->general_profile_idc] = 1;
-     ptl->general_progressive_source_flag    = 1;
-     ptl->general_interlaced_source_flag     = 0;
-     ptl->general_non_packed_constraint_flag = 1;
-     ptl->general_frame_only_constraint_flag = 1;
- 
-+    ptl->general_max_14bit_constraint_flag = bit_depth <= 14;
-     ptl->general_max_12bit_constraint_flag = bit_depth <= 12;
-     ptl->general_max_10bit_constraint_flag = bit_depth <= 10;
-     ptl->general_max_8bit_constraint_flag  = bit_depth ==  8;
-@@ -319,7 +315,8 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -329,8 +329,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
      ptl->general_max_420chroma_constraint_flag  = chroma_format <= 1;
      ptl->general_max_monochrome_constraint_flag = chroma_format == 0;
  
 -    ptl->general_intra_constraint_flag = ctx->gop_size == 1;
+     ptl->general_one_picture_only_constraint_flag = 0;
 +    ptl->general_intra_constraint_flag =
 +        (avctx->profile == FF_PROFILE_HEVC_SCC) ? 0 : ctx->gop_size == 1;
  
      ptl->general_lower_bit_rate_constraint_flag = 1;
  
-@@ -515,6 +512,14 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -559,6 +560,14 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
      vui->log2_max_mv_length_horizontal = 15;
      vui->log2_max_mv_length_vertical   = 15;
  
@@ -97,7 +78,7 @@ index 5c37ed042c43..4d0ce8705980 100644
  
      // PPS
  
-@@ -573,6 +578,12 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -632,6 +641,12 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
  
      pps->pps_loop_filter_across_slices_enabled_flag = 1;
  
@@ -110,7 +91,7 @@ index 5c37ed042c43..4d0ce8705980 100644
      // Fill VAAPI parameter buffers.
  
      *vseq = (VAEncSequenceParameterBufferHEVC) {
-@@ -628,6 +639,11 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -687,6 +702,11 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
              sps->log2_diff_max_min_pcm_luma_coding_block_size,
  
          .vui_parameters_present_flag = 0,
@@ -122,7 +103,7 @@ index 5c37ed042c43..4d0ce8705980 100644
      };
  
      *vpic = (VAEncPictureParameterBufferHEVC) {
-@@ -678,6 +694,10 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -739,6 +759,10 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
              .enable_gpu_weighted_prediction = 0,
              .no_output_of_prior_pics_flag   = 0,
          },
@@ -133,15 +114,7 @@ index 5c37ed042c43..4d0ce8705980 100644
      };
  
      if (pps->tiles_enabled_flag) {
-@@ -915,6 +935,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
-     sh->slice_segment_address           = slice->block_start;
- 
-     sh->slice_type = hpic->slice_type;
-+
-     // driver requires low delay B frame in low power mode
-     if (sh->slice_type == HEVC_SLICE_P && priv->b_frame_strategy)
-         sh->slice_type = HEVC_SLICE_B;
-@@ -1006,8 +1027,14 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1070,8 +1094,14 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
              sh->collocated_ref_idx      = 0;
          }
  
@@ -158,7 +131,7 @@ index 5c37ed042c43..4d0ce8705980 100644
          sh->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
      }
  
-@@ -1029,7 +1056,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1093,7 +1123,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
          .slice_type                 = sh->slice_type,
          .slice_pic_parameter_set_id = sh->slice_pic_parameter_set_id,
  
@@ -169,7 +142,7 @@ index 5c37ed042c43..4d0ce8705980 100644
          .num_ref_idx_l1_active_minus1 = sh->num_ref_idx_l1_active_minus1,
  
          .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
-@@ -1158,6 +1187,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+@@ -1282,6 +1314,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
      { FF_PROFILE_HEVC_REXT,    12, 3, 1, 1, VAProfileHEVCMain12     },
      { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
      { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
@@ -182,7 +155,7 @@ index 5c37ed042c43..4d0ce8705980 100644
  #endif
  
      { FF_PROFILE_UNKNOWN }
-@@ -1279,6 +1314,7 @@ static const AVOption vaapi_encode_h265_options[] = {
+@@ -1380,6 +1418,7 @@ static const AVOption vaapi_encode_h265_options[] = {
      { PROFILE("main",               FF_PROFILE_HEVC_MAIN) },
      { PROFILE("main10",             FF_PROFILE_HEVC_MAIN_10) },
      { PROFILE("rext",               FF_PROFILE_HEVC_REXT) },
@@ -191,5 +164,5 @@ index 5c37ed042c43..4d0ce8705980 100644
  
      { "tier", "Set tier (general_tier_flag)",
 -- 
-2.25.4
+2.17.1
 
