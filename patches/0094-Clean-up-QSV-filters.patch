@@ -1,4 +1,4 @@
-From 14718cf875418e534294f00c7f1506bbba331a80 Mon Sep 17 00:00:00 2001
+From b0afc8c7845e28003d4677da06e8e98dfcf68622 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 28 Apr 2021 09:25:11 +0800
 Subject: [PATCH] Clean-up QSV filters
@@ -7,13 +7,13 @@ This is the combination of
 https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=4467
 ---
  libavfilter/Makefile             |   4 +-
- libavfilter/qsvvpp.c             |  66 ++-
+ libavfilter/qsvvpp.c             |  65 ++-
  libavfilter/qsvvpp.h             |  11 +-
  libavfilter/vf_deinterlace_qsv.c | 606 ---------------------------
  libavfilter/vf_overlay_qsv.c     |  11 +-
  libavfilter/vf_scale_qsv.c       | 683 -------------------------------
  libavfilter/vf_vpp_qsv.c         | 492 ++++++++++++++--------
- 7 files changed, 371 insertions(+), 1502 deletions(-)
+ 7 files changed, 370 insertions(+), 1502 deletions(-)
  delete mode 100644 libavfilter/vf_deinterlace_qsv.c
  delete mode 100644 libavfilter/vf_scale_qsv.c
 
@@ -40,7 +40,7 @@ index c4c946a988..ad1b4b66a6 100644
  OBJS-$(CONFIG_SCALE_VULKAN_FILTER)           += vf_scale_vulkan.o vulkan.o vulkan_filter.o
  OBJS-$(CONFIG_SCALE2REF_FILTER)              += vf_scale.o scale_eval.o
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 92310063d0..0e5a361ee8 100644
+index 92310063d0..a5e037f6ef 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -318,6 +318,14 @@ static int fill_frameinfo_by_link(mfxFrameInfo *frameinfo, AVFilterLink *link)
@@ -78,14 +78,13 @@ index 92310063d0..0e5a361ee8 100644
      s->filter_frame  = param->filter_frame;
      if (!s->filter_frame)
          s->filter_frame = ff_filter_frame;
-@@ -747,14 +752,14 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
+@@ -747,14 +752,13 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
      s->got_frame = 0;
  
      /** keep fifo size at least 1. Even when async_depth is 0, fifo is used. */
 -    s->async_fifo  = av_fifo_alloc2(param->async_depth + 1, sizeof(QSVAsyncFrame), 0);
 -    s->async_depth = param->async_depth;
 +    s->async_fifo  = av_fifo_alloc2(s->async_depth + 1, sizeof(QSVAsyncFrame), 0);
-+    s->async_depth = s->async_depth;
      if (!s->async_fifo) {
          ret = AVERROR(ENOMEM);
          goto failed;
@@ -96,7 +95,7 @@ index 92310063d0..0e5a361ee8 100644
  
      if (IS_SYSTEM_MEMORY(s->in_mem_mode))
          s->vpp_param.IOPattern |= MFX_IOPATTERN_IN_SYSTEM_MEMORY;
-@@ -785,27 +790,26 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
+@@ -785,27 +789,26 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
      } else if (ret > 0)
          ff_qsvvpp_print_warning(avctx, ret, "Warning When creating qsvvpp");
  
@@ -130,7 +129,7 @@ index 92310063d0..0e5a361ee8 100644
      /* release all the resources */
      clear_frame_list(&s->in_frame_list);
      clear_frame_list(&s->out_frame_list);
-@@ -816,7 +820,6 @@ int ff_qsvvpp_free(QSVVPPContext **vpp)
+@@ -816,7 +819,6 @@ int ff_qsvvpp_free(QSVVPPContext **vpp)
  #endif
      av_freep(&s->frame_infos);
      av_fifo_freep2(&s->async_fifo);
@@ -138,7 +137,7 @@ index 92310063d0..0e5a361ee8 100644
  
      return 0;
  }
-@@ -828,7 +831,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -828,7 +830,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
      QSVAsyncFrame     aframe;
      mfxSyncPoint      sync;
      QSVFrame         *in_frame, *out_frame;
@@ -148,7 +147,7 @@ index 92310063d0..0e5a361ee8 100644
  
      while (s->eof && av_fifo_read(s->async_fifo, &aframe, 1) >= 0) {
          if (MFXVideoCORE_SyncOperation(s->session, aframe.sync, 1000) < 0)
-@@ -874,8 +878,19 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -874,8 +877,19 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
                  return AVERROR(EAGAIN);
              break;
          }
@@ -170,7 +169,7 @@ index 92310063d0..0e5a361ee8 100644
  
          out_frame->queued++;
          aframe = (QSVAsyncFrame){ sync, out_frame };
-@@ -885,8 +900,13 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -885,8 +899,13 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
              av_fifo_read(s->async_fifo, &aframe, 1);
  
              do {
@@ -186,7 +185,7 @@ index 92310063d0..0e5a361ee8 100644
  
              filter_ret = s->filter_frame(outlink, aframe.frame->frame);
              if (filter_ret < 0) {
-@@ -900,6 +920,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -900,6 +919,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
          }
      } while(ret == MFX_ERR_MORE_SURFACE);
  
