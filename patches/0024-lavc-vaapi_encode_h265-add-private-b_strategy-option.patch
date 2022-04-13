@@ -1,8 +1,8 @@
-From e655ce3ae2a795ba9d200d5335ecec639c9cc17e Mon Sep 17 00:00:00 2001
+From 465f0d7137a9511436bb7a48ce5cd1c66d38b48b Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 7 Apr 2020 14:03:21 +0800
-Subject: [PATCH] lavc/vaapi_encode_h265: add private b_strategy option for
- hevc_vaapi
+Subject: [PATCH 19/65] lavc/vaapi_encode_h265: add private b_strategy option
+ for hevc_vaapi
 
 Allow user to choose between I/P/B frames:
 
@@ -33,16 +33,16 @@ https://github.com/intel/media-driver/pull/1382 is merged.
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
  doc/encoders.texi              | 16 ++++++++++++++++
- libavcodec/vaapi_encode.c      |  2 ++
+ libavcodec/vaapi_encode.c      |  3 +++
  libavcodec/vaapi_encode.h      |  1 +
  libavcodec/vaapi_encode_h265.c | 11 +++++++++++
- 4 files changed, 30 insertions(+)
+ 4 files changed, 31 insertions(+)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 042af465bc..648559b582 100644
+index d265dd5a81..a5173a17f5 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3737,6 +3737,22 @@ Some combination of the following values:
+@@ -3721,6 +3721,22 @@ Some combination of the following values:
  Include HDR metadata if the input frames have it
  (@emph{mastering_display_colour_volume} and @emph{content_light_level}
  messages).
@@ -66,15 +66,16 @@ index 042af465bc..648559b582 100644
  
  @item tiles
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 4eb8cfffdd..366c442b6f 100644
+index 0b84f07043..9275c5e305 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1999,6 +1999,8 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1993,6 +1993,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
                  }
              }
          }
 +
-+        prediction_pre_only = ctx->low_power && (ctx->b_frame_strategy == 1);
++        if (ctx->low_power && (ctx->b_frame_strategy == 1))
++            prediction_pre_only = 1;
      }
  #endif
  
@@ -91,7 +92,7 @@ index 28f82a72a2..7e199af291 100644
  
      // Whether the driver supports ROI at all.
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index f9b0946ae3..12671159bd 100644
+index 456307d570..de9561a6af 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -69,6 +69,7 @@ typedef struct VAAPIEncodeH265Context {
@@ -102,7 +103,7 @@ index f9b0946ae3..12671159bd 100644
  
      // Derived settings.
      int fixed_qp_idr;
-@@ -1385,6 +1386,8 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
+@@ -1341,6 +1342,8 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
      if (priv->qp > 0)
          ctx->explicit_qp = priv->qp;
  
@@ -111,7 +112,7 @@ index f9b0946ae3..12671159bd 100644
      return ff_vaapi_encode_init(avctx);
  }
  
-@@ -1461,6 +1464,14 @@ static const AVOption vaapi_encode_h265_options[] = {
+@@ -1416,6 +1419,14 @@ static const AVOption vaapi_encode_h265_options[] = {
        0, AV_OPT_TYPE_CONST,
        { .i64 = SEI_MASTERING_DISPLAY | SEI_CONTENT_LIGHT_LEVEL },
        INT_MIN, INT_MAX, FLAGS, "sei" },
