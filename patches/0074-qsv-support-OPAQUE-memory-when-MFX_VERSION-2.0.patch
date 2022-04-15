@@ -1,7 +1,7 @@
-From f5cfe9c97e746d867cd478b44de3a61de68e8d3d Mon Sep 17 00:00:00 2001
+From b77db63c8f62cb6d66b2c6d62b0811d399ab4c3d Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 09:43:12 +0800
-Subject: [PATCH 61/74] qsv: support OPAQUE memory when MFX_VERSION < 2.0
+Subject: [PATCH 53/65] qsv: support OPAQUE memory when MFX_VERSION < 2.0
 
 OPAQUE memory isn't supported for MFX_VERSION >= 2.0[1][2]. This is in
 preparation for oneVPL support
@@ -23,7 +23,7 @@ preparation for oneVPL support
  11 files changed, 181 insertions(+), 74 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index c0fb28ceff..c6ca093152 100644
+index 7aab05bde8..42cf7727c4 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -89,10 +89,14 @@ static const struct {
@@ -55,7 +55,7 @@ index 04ae0d6f34..c156b08d07 100644
      int opaque_alloc;
  
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 9b5e0391c5..b3ab00db72 100644
+index abe04d92dc..0153da29cf 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -68,6 +68,7 @@
@@ -67,10 +67,10 @@ index 9b5e0391c5..b3ab00db72 100644
  typedef struct QSVMid {
      AVBufferRef *hw_frames_ref;
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 5c8d67a8d9..b52990a79c 100644
+index b9ca07ad8d..d92a74eefb 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -186,7 +186,11 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
+@@ -195,7 +195,11 @@ static int qsv_init_session(AVCodecContext *avctx, QSVContext *q, mfxSession ses
  
          ret = ff_qsv_init_session_frames(avctx, &q->internal_qs.session,
                                           &q->frames_ctx, q->load_plugins,
@@ -82,7 +82,7 @@ index 5c8d67a8d9..b52990a79c 100644
                                           q->gpu_copy);
          if (ret < 0) {
              av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
-@@ -301,10 +305,15 @@ static int qsv_decode_preinit(AVCodecContext *avctx, QSVContext *q, enum AVPixel
+@@ -310,10 +314,15 @@ static int qsv_decode_preinit(AVCodecContext *avctx, QSVContext *q, enum AVPixel
          AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
  
          if (!iopattern) {
@@ -99,10 +99,10 @@ index 5c8d67a8d9..b52990a79c 100644
      }
  
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index c70e178886..4be72c279d 100644
+index 2857dd21a7..ac5039da8f 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -1262,6 +1262,7 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1275,6 +1275,7 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
      return 0;
  }
  
@@ -110,7 +110,7 @@ index c70e178886..4be72c279d 100644
  static int qsv_init_opaque_alloc(AVCodecContext *avctx, QSVEncContext *q)
  {
      AVQSVContext *qsv = avctx->hwaccel_context;
-@@ -1298,6 +1299,7 @@ static int qsv_init_opaque_alloc(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1311,6 +1312,7 @@ static int qsv_init_opaque_alloc(AVCodecContext *avctx, QSVEncContext *q)
  
      return 0;
  }
@@ -118,7 +118,7 @@ index c70e178886..4be72c279d 100644
  
  static int qsvenc_init_session(AVCodecContext *avctx, QSVEncContext *q)
  {
-@@ -1313,7 +1315,11 @@ static int qsvenc_init_session(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1326,7 +1328,11 @@ static int qsvenc_init_session(AVCodecContext *avctx, QSVEncContext *q)
  
          ret = ff_qsv_init_session_frames(avctx, &q->internal_qs.session,
                                           &q->frames_ctx, q->load_plugins,
@@ -130,7 +130,7 @@ index c70e178886..4be72c279d 100644
                                           MFX_GPUCOPY_OFF);
          if (ret < 0) {
              av_buffer_unref(&q->frames_ctx.hw_frames_ctx);
-@@ -1365,11 +1371,17 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1378,11 +1384,17 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
          AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
  
          if (!iopattern) {
@@ -148,7 +148,7 @@ index c70e178886..4be72c279d 100644
          }
      }
  
-@@ -1443,9 +1455,16 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1456,9 +1468,16 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
                                    "Error querying (IOSurf) the encoding parameters");
  
      if (opaque_alloc) {
@@ -165,7 +165,7 @@ index c70e178886..4be72c279d 100644
      }
  
      ret = MFXVideoENCODE_Init(q->session, &q->param);
-@@ -1949,8 +1968,10 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1940,8 +1959,10 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
          av_fifo_freep2(&q->async_fifo);
      }
  
@@ -177,10 +177,10 @@ index c70e178886..4be72c279d 100644
      av_freep(&q->extparam);
  
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 43437c6992..8be00d43f7 100644
+index 8aa1e251b3..807633b473 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
-@@ -140,9 +140,11 @@ typedef struct QSVEncContext {
+@@ -143,9 +143,11 @@ typedef struct QSVEncContext {
      mfxExtVP9Param  extvp9param;
  #endif
  
@@ -193,7 +193,7 @@ index 43437c6992..8be00d43f7 100644
      mfxExtVideoSignalInfo extvsi;
  
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 790bc9662d..e52d3b439d 100644
+index 1296204c1f..8983a2d698 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -34,7 +34,9 @@
@@ -540,10 +540,10 @@ index 2ba7d086b7..30434033d1 100644
  #if QSV_HAVE_SCALING_CONFIG
      memset(&s->scale_conf, 0, sizeof(mfxExtVPPScaling));
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 629dc576d2..1fc054c733 100644
+index e9ddfb18a2..f37a1f9615 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -54,6 +54,8 @@
+@@ -55,6 +55,8 @@
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
  
  #define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
@@ -563,9 +563,9 @@ index 629dc576d2..1fc054c733 100644
      mfxExtOpaqueSurfaceAlloc opaque_alloc;
      mfxExtBuffer *ext_buffers[1];
 +#endif
-     AVFrame realigned_tmp_frame;
+     AVFrame realigned_upload_frame;
+     AVFrame realigned_download_frame;
  } QSVFramesContext;
- 
 @@ -315,7 +319,9 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)
  #endif
  
@@ -575,8 +575,8 @@ index 629dc576d2..1fc054c733 100644
 +#endif
      av_freep(&s->surfaces_internal);
      av_freep(&s->handle_pairs_internal);
-     av_frame_unref(&s->realigned_tmp_frame);
-@@ -550,11 +556,17 @@ static int qsv_init_pool(AVHWFramesContext *ctx, uint32_t fourcc)
+     av_frame_unref(&s->realigned_upload_frame);
+@@ -551,11 +557,17 @@ static int qsv_init_pool(AVHWFramesContext *ctx, uint32_t fourcc)
              return ret;
      }
  
@@ -594,7 +594,7 @@ index 629dc576d2..1fc054c733 100644
  
      ctx->internal->pool_internal = av_buffer_pool_init2(sizeof(mfxFrameSurface1),
                                                          ctx, qsv_pool_alloc, NULL);
-@@ -625,10 +637,9 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
+@@ -626,10 +638,9 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
  static int qsv_init_internal_session(AVHWFramesContext *ctx,
                                       mfxSession *session, int upload)
  {
@@ -606,7 +606,7 @@ index 629dc576d2..1fc054c733 100644
  
      mfxFrameAllocator frame_allocator = {
          .pthis  = ctx,
-@@ -642,6 +653,11 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -643,6 +654,11 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
      mfxVideoParam par;
      mfxStatus err;
  
@@ -618,7 +618,7 @@ index 629dc576d2..1fc054c733 100644
      err = MFXInit(device_priv->impl, &device_priv->ver, session);
      if (err != MFX_ERR_NONE) {
          av_log(ctx, AV_LOG_ERROR, "Error initializing an internal session\n");
-@@ -663,15 +679,18 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -664,15 +680,18 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
  
      memset(&par, 0, sizeof(par));
  
@@ -641,7 +641,7 @@ index 629dc576d2..1fc054c733 100644
  
      par.IOPattern |= upload ? MFX_IOPATTERN_IN_SYSTEM_MEMORY :
                                MFX_IOPATTERN_OUT_SYSTEM_MEMORY;
-@@ -703,11 +722,15 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
+@@ -704,11 +723,15 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
      QSVFramesContext              *s = ctx->internal->priv;
      AVQSVFramesContext *frames_hwctx = ctx->hwctx;
  
@@ -658,7 +658,7 @@ index 629dc576d2..1fc054c733 100644
      fourcc = qsv_fourcc_from_pix_fmt(ctx->sw_format);
      if (!fourcc) {
          av_log(ctx, AV_LOG_ERROR, "Unsupported pixel format\n");
-@@ -722,7 +745,16 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
+@@ -723,7 +746,16 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
          }
      }
  
@@ -676,7 +676,7 @@ index 629dc576d2..1fc054c733 100644
          s->surface_ptrs = av_calloc(frames_hwctx->nb_surfaces,
                                      sizeof(*s->surface_ptrs));
          if (!s->surface_ptrs)
-@@ -741,14 +773,8 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
+@@ -742,14 +774,8 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
          s->opaque_alloc.Header.BufferSz = sizeof(s->opaque_alloc);
  
          s->ext_buffers[0] = (mfxExtBuffer*)&s->opaque_alloc;
@@ -693,5 +693,5 @@ index 629dc576d2..1fc054c733 100644
      s->session_download = NULL;
      s->session_upload   = NULL;
 -- 
-2.32.0
+2.17.1
 
