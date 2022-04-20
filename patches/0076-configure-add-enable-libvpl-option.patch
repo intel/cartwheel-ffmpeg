@@ -1,7 +1,7 @@
-From 21bc0222d5df31bdb94e35b37511c46505186f6f Mon Sep 17 00:00:00 2001
+From 9c5cabf9803ac023acb6743688b65ee870a039a5 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 14:49:46 +0800
-Subject: [PATCH 61/72] configure: add --enable-libvpl option
+Subject: [PATCH 55/65] configure: add --enable-libvpl option
 
 This allows user to build FFmpeg against Intel oneVPL. oneVPL 2.6
 is the required minimum version when building Intel oneVPL code.
@@ -14,24 +14,23 @@ hardwares [1]
 
 Note the preferred child device type is d3d11va for libvpl on Windows.
 The commands below will use d3d11va if d3d11va is available on Windows.
-$> ffmpeg -hwaccel qsv -c:v h264_qsv ...
-$> ffmpeg -qsv_device 0 -hwaccel qsv -c:v h264_qsv ...
-$> ffmpeg -init_hw_device qsv=qsv:hw_any -hwaccel qsv -c:v h264_qsv ...
-$> ffmpeg -init_hw_device qsv=qsv:hw_any,child_device=0 -hwaccel qsv -c:v h264_qsv ...
+$ ffmpeg -hwaccel qsv -c:v h264_qsv ...
+$ ffmpeg -qsv_device 0 -hwaccel qsv -c:v h264_qsv ...
+$ ffmpeg -init_hw_device qsv=qsv:hw_any -hwaccel qsv -c:v h264_qsv ...
+$ ffmpeg -init_hw_device qsv=qsv:hw_any,child_device=0 -hwaccel qsv -c:v h264_qsv ...
 
 User may use child_device_type option to specify child device type to
 dxva2 or derive a qsv device from a dxva2 device
-$> ffmpeg -init_hw_device qsv=qsv:hw_any,child_device=0,child_device_type=dxva2 -hwaccel qsv -c:v h264_qsv ...
-$> ffmpeg -init_hw_device dxva2=d3d9:0 -init_hw_device qsv=qsv@d3d9 -hwaccel qsv -c:v h264_qsv ...
+$ ffmpeg -init_hw_device qsv=qsv:hw_any,child_device=0,child_device_type=dxva2 -hwaccel qsv -c:v h264_qsv ...
+$ ffmpeg -init_hw_device dxva2=d3d9:0 -init_hw_device qsv=qsv@d3d9 -hwaccel qsv -c:v h264_qsv ...
 
-[1] https://software.intel.com/content/www/us/en/develop/articles/upgrading-from-msdk-to-onevpl.html
+[1] https://www.intel.com/content/www/us/en/develop/documentation/upgrading-from-msdk-to-onevpl/top.html
 ---
- configure                 | 27 +++++++++++++++-----
- libavutil/hwcontext_qsv.c | 52 ++++++++++++++++++++++++++++-----------
- 2 files changed, 59 insertions(+), 20 deletions(-)
+ configure | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)
 
 diff --git a/configure b/configure
-index 1534e9f093..2997e663e4 100755
+index ef2b7f7437..7006019955 100755
 --- a/configure
 +++ b/configure
 @@ -339,6 +339,7 @@ External library support:
@@ -42,7 +41,7 @@ index 1534e9f093..2997e663e4 100755
    --enable-libnpp          enable Nvidia Performance Primitives-based code [no]
    --enable-mmal            enable Broadcom Multi-Media Abstraction Layer (Raspberry Pi) via MMAL [no]
    --disable-nvdec          disable Nvidia video decoding acceleration (via hwaccel) [autodetect]
-@@ -1916,6 +1917,7 @@ HWACCEL_LIBRARY_NONFREE_LIST="
+@@ -1917,6 +1918,7 @@ HWACCEL_LIBRARY_NONFREE_LIST="
  HWACCEL_LIBRARY_LIST="
      $HWACCEL_LIBRARY_NONFREE_LIST
      libmfx
@@ -50,7 +49,7 @@ index 1534e9f093..2997e663e4 100755
      mmal
      omx
      opencl
-@@ -6537,22 +6539,35 @@ enabled libilbc           && require libilbc ilbc.h WebRtcIlbcfix_InitDecode -li
+@@ -6548,22 +6550,35 @@ enabled libilbc           && require libilbc ilbc.h WebRtcIlbcfix_InitDecode -li
  enabled libklvanc         && require libklvanc libklvanc/vanc.h klvanc_context_create -lklvanc
  enabled libkvazaar        && require_pkg_config libkvazaar "kvazaar >= 0.8.1" kvazaar.h kvz_api_get
  enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_db_new
@@ -92,69 +91,6 @@ index 1534e9f093..2997e663e4 100755
  if enabled libmfx; then
     check_cc MFX_CODEC_VP9 "mfxdefs.h mfxstructures.h" "MFX_CODEC_VP9"
  fi
-diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 500cf4c0bc..6d97efd020 100644
---- a/libavutil/hwcontext_qsv.c
-+++ b/libavutil/hwcontext_qsv.c
-@@ -724,20 +724,44 @@ static int qsv_create_mfx_session(void *ctx,
-         goto fail;
-     }
- 
--    if (child_device &&
--        (MFX_HANDLE_D3D9_DEVICE_MANAGER == handle_type ||
--         MFX_HANDLE_D3D11_DEVICE == handle_type)) {
--        uint32_t idx = atoi(child_device);
--
--        impl_value.Type = MFX_VARIANT_TYPE_U32;
--        impl_value.Data.U32 = idx;
--        sts = MFXSetConfigFilterProperty(cfg,
--                                         (const mfxU8 *)"mfxImplDescription.VendorImplID", impl_value);
--
--        if (sts != MFX_ERR_NONE) {
--            av_log(ctx, AV_LOG_ERROR, "Error adding a MFX configuration"
--                   "VendorImplID property: %d.\n", sts);
--            goto fail;
-+    if (child_device) {
-+        if ((MFX_HANDLE_D3D9_DEVICE_MANAGER == handle_type ||
-+             MFX_HANDLE_D3D11_DEVICE == handle_type)) {
-+            uint32_t idx = atoi(child_device);
-+
-+            impl_value.Type = MFX_VARIANT_TYPE_U32;
-+            impl_value.Data.U32 = idx;
-+            sts = MFXSetConfigFilterProperty(cfg,
-+                                             (const mfxU8 *)"mfxImplDescription.VendorImplID", impl_value);
-+
-+            if (sts != MFX_ERR_NONE) {
-+                av_log(ctx, AV_LOG_ERROR, "Error adding a MFX configuration"
-+                       "VendorImplID property: %d.\n", sts);
-+                goto fail;
-+            }
-+        } else {
-+            uint32_t node;
-+
-+            if ((sscanf(child_device, "/dev/dri/renderD%d", &node) != 1) &&
-+                (sscanf(child_device, "/dev/dri/card%d", &node) != 1)) {
-+                av_log(ctx, AV_LOG_ERROR, "Invalid DRI device\n");
-+                goto fail;
-+            }
-+
-+            /* Use the corresponding render node to find the implementation for card0, card1, ... */
-+            if (node < 128)
-+                node += 128;
-+
-+            impl_value.Type = MFX_VARIANT_TYPE_U32;
-+            impl_value.Data.U32 = node;
-+            MFXSetConfigFilterProperty(cfg,
-+                                       (const mfxU8 *)"mfxExtendedDeviceId.DRMRenderNodeNum", impl_value);
-+
-+            if (sts != MFX_ERR_NONE) {
-+                av_log(ctx, AV_LOG_ERROR, "Error adding a MFX configuration"
-+                       "DRMRenderNodeNum property: %d.\n", sts);
-+                goto fail;
-+            }
-         }
-     }
- 
 -- 
 2.17.1
 
