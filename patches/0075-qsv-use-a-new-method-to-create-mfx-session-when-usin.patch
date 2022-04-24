@@ -1,4 +1,4 @@
-From 44b2cb8e3858ac10ca44ca396deacaf242e8b5aa Mon Sep 17 00:00:00 2001
+From e2993720f0d37b25ffbf7bf49d35e99e316dcc3e Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
 Subject: [PATCH 54/65] qsv: use a new method to create mfx session when using
@@ -7,7 +7,7 @@ Subject: [PATCH 54/65] qsv: use a new method to create mfx session when using
 In oneVPL, MFXLoad() and MFXCreateSession() are required to create a
 workable mfx session[1]
 
-Add AccelerationMode config filter for D3D9/D3D11 session (galinart)
+Add config filters for D3D9/D3D11 session (galinart)
 
 The default device is changed to d3d11va for oneVPL when both d3d11va
 and dxva2 are enabled on Microsoft Windows
@@ -16,9 +16,10 @@ This is in preparation for oneVPL support
 
 [1] https://spec.oneapi.io/versions/latest/elements/oneVPL/source/programming_guide/VPL_prg_session.html#onevpl-dispatcher
 
+Co-authored-by: galinart <artem.galin@intel.com>
 Signed-off-by: galinart <artem.galin@intel.com>
 ---
- libavcodec/qsv.c                 | 197 ++++++++++++--
+ libavcodec/qsv.c                 | 197 ++++++++++--
  libavcodec/qsv_internal.h        |   1 +
  libavcodec/qsvdec.c              |  10 +
  libavcodec/qsvenc.h              |   3 +
@@ -27,16 +28,16 @@ Signed-off-by: galinart <artem.galin@intel.com>
  libavcodec/qsvenc_jpeg.c         |   1 -
  libavcodec/qsvenc_mpeg2.c        |   1 -
  libavcodec/qsvenc_vp9.c          |   1 -
- libavfilter/qsvvpp.c             | 113 +++++++-
+ libavfilter/qsvvpp.c             | 113 ++++++-
  libavfilter/qsvvpp.h             |   5 +
  libavfilter/vf_deinterlace_qsv.c |  14 +-
  libavfilter/vf_scale_qsv.c       |  12 +-
  libavutil/hwcontext_d3d11va.c    |   7 +
- libavutil/hwcontext_qsv.c        | 448 ++++++++++++++++++++++++++++---
+ libavutil/hwcontext_qsv.c        | 515 ++++++++++++++++++++++++++++---
  libavutil/hwcontext_qsv.h        |   1 +
  libavutil/hwcontext_vaapi.c      |  13 +
  libavutil/hwcontext_vaapi.h      |   4 +
- 18 files changed, 745 insertions(+), 88 deletions(-)
+ 18 files changed, 812 insertions(+), 88 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
 index 42cf7727c4..cec838d15c 100644
@@ -659,7 +660,7 @@ index 8ab96bad25..fd5fedbdac 100644
  #if !HAVE_UWP
      if (!LoadLibrary("d3d11_1sdklayers.dll"))
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index f37a1f9615..45b602b6c2 100644
+index f37a1f9615..38cb481462 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -58,6 +58,12 @@
@@ -711,7 +712,7 @@ index f37a1f9615..45b602b6c2 100644
      s->session_upload_init = 0;
  
  #if HAVE_PTHREADS
-@@ -635,8 +648,329 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
+@@ -635,8 +648,396 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
      return MFX_ERR_NONE;
  }
  
@@ -865,6 +866,73 @@ index f37a1f9615..45b602b6c2 100644
 +            if (sts != MFX_ERR_NONE) {
 +                av_log(ctx, AV_LOG_ERROR, "Error adding a MFX configuration"
 +                       "LUIDDeviceNodeMask property: %d.\n", sts);
++                goto fail;
++            }
++        }
++    } else
++#endif
++#if CONFIG_DXVA2
++    if (MFX_HANDLE_D3D9_DEVICE_MANAGER == handle_type) {
++        if (handle) {
++            IDirect3DDeviceManager9* devmgr = handle;
++            IDirect3DDevice9Ex *device = NULL;
++            HANDLE device_handle = 0;
++            IDirect3D9Ex *d3d9ex = NULL;
++            LUID luid;
++            D3DDEVICE_CREATION_PARAMETERS params;
++            HRESULT hr = IDirect3DDeviceManager9_OpenDeviceHandle(devmgr, &device_handle);
++
++            if (SUCCEEDED(hr)) {
++                hr = IDirect3DDeviceManager9_LockDevice(devmgr, device_handle, &device, TRUE);
++
++                if (FAILED(hr)) {
++                    av_log(ctx, AV_LOG_ERROR, "Error LockDevice %d\n", hr);
++                    goto fail;
++                }
++
++                hr = IDirect3DDevice9Ex_GetCreationParameters(device, &params);
++
++                if (FAILED(hr)) {
++                    av_log(ctx, AV_LOG_ERROR, "Error IDirect3DDevice9_GetCreationParameters %d\n", hr);
++                    IDirect3DDeviceManager9_UnlockDevice(devmgr, device_handle, FALSE);
++                    goto fail;
++                }
++
++                hr = IDirect3DDevice9Ex_GetDirect3D(device, &d3d9ex);
++
++                if (FAILED(hr)) {
++                    av_log(ctx, AV_LOG_ERROR, "Error IDirect3DDevice9Ex_GetAdapterLUID %d\n", hr);
++                    IDirect3DDeviceManager9_UnlockDevice(devmgr, device_handle, FALSE);
++                    goto fail;
++                }
++
++                hr = IDirect3D9Ex_GetAdapterLUID(d3d9ex, params.AdapterOrdinal, &luid);
++
++                if (FAILED(hr)) {
++                    av_log(ctx, AV_LOG_ERROR, "Error IDirect3DDevice9Ex_GetAdapterLUID %d\n", hr);
++                    IDirect3DDeviceManager9_UnlockDevice(devmgr, device_handle, FALSE);
++                    goto fail;
++                }
++
++                hr = IDirect3DDeviceManager9_UnlockDevice(devmgr, device_handle, FALSE);
++
++                if (FAILED(hr)) {
++                    av_log(ctx, AV_LOG_ERROR, "Error IDirect3DDeviceManager9_UnlockDevice %d\n", hr);
++                    goto fail;
++                }
++
++                impl_value.Type = MFX_VARIANT_TYPE_PTR;
++                impl_value.Data.Ptr = &luid;
++                sts = MFXSetConfigFilterProperty(cfg,
++                                                (const mfxU8 *)"mfxExtendedDeviceId.DeviceLUID", impl_value);
++
++                if (sts != MFX_ERR_NONE) {
++                    av_log(ctx, AV_LOG_ERROR, "Error adding a MFX configuration"
++                        "DeviceLUID property: %d.\n", sts);
++                    goto fail;
++                }
++            } else {
++                av_log(ctx, AV_LOG_ERROR, "Error OpenDeviceHandle %d\n", hr);
 +                goto fail;
 +            }
 +        }
@@ -1042,7 +1110,7 @@ index f37a1f9615..45b602b6c2 100644
  {
      AVQSVFramesContext *frames_hwctx = ctx->hwctx;
      QSVDeviceContext   *device_priv  = ctx->device_ctx->internal->priv;
-@@ -653,29 +987,36 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -653,29 +1054,36 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
  
      mfxVideoParam par;
      mfxStatus err;
@@ -1088,7 +1156,7 @@ index f37a1f9615..45b602b6c2 100644
      }
  
      memset(&par, 0, sizeof(par));
-@@ -711,11 +1052,22 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -711,11 +1119,22 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
      if (err != MFX_ERR_NONE) {
          av_log(ctx, AV_LOG_VERBOSE, "Error opening the internal VPP session."
                 "Surface upload/download will not be possible\n");
@@ -1113,7 +1181,7 @@ index f37a1f9615..45b602b6c2 100644
  }
  
  static int qsv_frames_init(AVHWFramesContext *ctx)
-@@ -780,6 +1132,9 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
+@@ -780,6 +1199,9 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
      s->session_download = NULL;
      s->session_upload   = NULL;
  
@@ -1123,7 +1191,7 @@ index f37a1f9615..45b602b6c2 100644
      s->session_download_init = 0;
      s->session_upload_init   = 0;
  
-@@ -1086,6 +1441,7 @@ static int qsv_internal_session_check_init(AVHWFramesContext *ctx, int upload)
+@@ -1086,6 +1508,7 @@ static int qsv_internal_session_check_init(AVHWFramesContext *ctx, int upload)
      QSVFramesContext *s = ctx->internal->priv;
      atomic_int *inited  = upload ? &s->session_upload_init : &s->session_download_init;
      mfxSession *session = upload ? &s->session_upload      : &s->session_download;
@@ -1131,7 +1199,7 @@ index f37a1f9615..45b602b6c2 100644
      int ret = 0;
  
      if (atomic_load(inited))
-@@ -1096,7 +1452,7 @@ static int qsv_internal_session_check_init(AVHWFramesContext *ctx, int upload)
+@@ -1096,7 +1519,7 @@ static int qsv_internal_session_check_init(AVHWFramesContext *ctx, int upload)
  #endif
  
      if (!atomic_load(inited)) {
@@ -1140,7 +1208,7 @@ index f37a1f9615..45b602b6c2 100644
          atomic_store(inited, 1);
      }
  
-@@ -1474,10 +1830,14 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
+@@ -1474,10 +1897,14 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
  {
      AVQSVDeviceContext *hwctx = ctx->hwctx;
      QSVDevicePriv       *priv = ctx->user_opaque;
@@ -1155,7 +1223,7 @@ index f37a1f9615..45b602b6c2 100644
      av_buffer_unref(&priv->child_device_ctx);
      av_freep(&priv);
  }
-@@ -1527,6 +1887,7 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1527,6 +1954,7 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
                                          int flags)
  {
      AVQSVDeviceContext *hwctx = ctx->hwctx;
@@ -1163,7 +1231,7 @@ index f37a1f9615..45b602b6c2 100644
  
      mfxVersion    ver = { { 3, 1 } };
      mfxHDL        handle;
-@@ -1541,6 +1902,7 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1541,6 +1969,7 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
              AVVAAPIDeviceContext *child_device_hwctx = child_device_ctx->hwctx;
              handle_type = MFX_HANDLE_VA_DISPLAY;
              handle = (mfxHDL)child_device_hwctx->display;
@@ -1171,7 +1239,7 @@ index f37a1f9615..45b602b6c2 100644
          }
          break;
  #endif
-@@ -1567,34 +1929,11 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1567,34 +1996,11 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
          goto fail;
      }
  
@@ -1182,15 +1250,12 @@ index f37a1f9615..45b602b6c2 100644
 -        ret = AVERROR_UNKNOWN;
 -        goto fail;
 -    }
-+    ret = qsv_create_mfx_session(ctx, handle, handle_type, implementation, child_device,
-+                                 &ver, &hwctx->session, &hwctx->loader);
- 
+-
 -    err = MFXQueryVersion(hwctx->session, &ver);
 -    if (err != MFX_ERR_NONE) {
 -        av_log(ctx, AV_LOG_ERROR, "Error querying an MFX session: %d.\n", err);
 -        ret = AVERROR_UNKNOWN;
-+    if (ret)
-         goto fail;
+-        goto fail;
 -    }
 -
 -    av_log(ctx, AV_LOG_VERBOSE,
@@ -1198,18 +1263,21 @@ index f37a1f9615..45b602b6c2 100644
 -           MFX_VERSION_MAJOR, MFX_VERSION_MINOR, ver.Major, ver.Minor);
 -
 -    MFXClose(hwctx->session);
--
++    ret = qsv_create_mfx_session(ctx, handle, handle_type, implementation, child_device,
++                                 &ver, &hwctx->session, &hwctx->loader);
+ 
 -    err = MFXInit(implementation, &ver, &hwctx->session);
 -    if (err != MFX_ERR_NONE) {
 -        av_log(ctx, AV_LOG_ERROR,
 -               "Error initializing an MFX session: %d.\n", err);
 -        ret = AVERROR_UNKNOWN;
--        goto fail;
++    if (ret)
+         goto fail;
 -    }
  
      err = MFXVideoCORE_SetHandle(hwctx->session, handle_type, handle);
      if (err != MFX_ERR_NONE) {
-@@ -1609,6 +1948,8 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1609,6 +2015,8 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
  fail:
      if (hwctx->session)
          MFXClose(hwctx->session);
@@ -1218,7 +1286,7 @@ index f37a1f9615..45b602b6c2 100644
      return ret;
  }
  
-@@ -1630,6 +1971,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1630,6 +2038,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
      AVHWDeviceContext *child_device;
      AVDictionary *child_device_opts;
      AVDictionaryEntry *e;
@@ -1226,7 +1294,7 @@ index f37a1f9615..45b602b6c2 100644
  
      mfxIMPL impl;
      int ret;
-@@ -1651,6 +1993,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1651,6 +2060,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
          }
      } else if (CONFIG_VAAPI) {
          child_device_type = AV_HWDEVICE_TYPE_VAAPI;
@@ -1243,7 +1311,7 @@ index f37a1f9615..45b602b6c2 100644
      } else if (CONFIG_DXVA2) {
          av_log(NULL, AV_LOG_WARNING,
                  "WARNING: defaulting child_device_type to AV_HWDEVICE_TYPE_DXVA2 for compatibility "
-@@ -1659,6 +2011,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1659,6 +2078,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
          child_device_type = AV_HWDEVICE_TYPE_DXVA2;
      } else if (CONFIG_D3D11VA) {
          child_device_type = AV_HWDEVICE_TYPE_D3D11VA;
@@ -1251,7 +1319,7 @@ index f37a1f9615..45b602b6c2 100644
      } else {
          av_log(ctx, AV_LOG_ERROR, "No supported child device type is enabled\n");
          return AVERROR(ENOSYS);
-@@ -1685,6 +2038,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1685,6 +2105,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
  #endif
  #if CONFIG_DXVA2
      case AV_HWDEVICE_TYPE_DXVA2:
@@ -1265,7 +1333,7 @@ index f37a1f9615..45b602b6c2 100644
          break;
  #endif
      default:
-@@ -1695,7 +2055,17 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1695,7 +2122,17 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
          break;
      }
  
