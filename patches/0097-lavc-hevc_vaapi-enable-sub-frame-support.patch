@@ -1,7 +1,7 @@
-From f4be804be4b4d31f3ef1aa356708163a6151cadd Mon Sep 17 00:00:00 2001
+From 974cfa2564e2ebd0b06c267583d717cd0cde54dd Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:40 +0800
-Subject: [PATCH 3/4] lavc/hevc_vaapi: enable sub frame support
+Subject: [PATCH 1/2] lavc/hevc_vaapi: enable sub frame support
 
 Intel HW provide a feature that allows decoder output another scaled
 frame beside original frame. And the scaled frame will attach to main
@@ -39,7 +39,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  5 files changed, 153 insertions(+), 6 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 252c3f9f3a..33a217a9a2 100644
+index 252c3f9f3a..84cbe7aee3 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -160,6 +160,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
@@ -75,7 +75,7 @@ index 252c3f9f3a..33a217a9a2 100644
 +            av_log(avctx, AV_LOG_ERROR, "Failed to query decode process "
 +                   "attributes: %d (%s).\n", vas, vaErrorStr(vas));
 +            return AVERROR_EXTERNAL;
-+        } else if (attr.value | VA_DEC_PROCESSING) {
++        } else if (attr.value & VA_DEC_PROCESSING) {
 +            support_dec_processing = 1;
 +            attr_num++;
 +        } else
