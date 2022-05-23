@@ -1,7 +1,7 @@
-From e2993720f0d37b25ffbf7bf49d35e99e316dcc3e Mon Sep 17 00:00:00 2001
+From 27e634d89858424875601d518c60aad741f93a59 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
-Subject: [PATCH 54/65] qsv: use a new method to create mfx session when using
+Subject: [PATCH 54/69] qsv: use a new method to create mfx session when using
  oneVPL
 
 In oneVPL, MFXLoad() and MFXCreateSession() are required to create a
@@ -660,7 +660,7 @@ index 8ab96bad25..fd5fedbdac 100644
  #if !HAVE_UWP
      if (!LoadLibrary("d3d11_1sdklayers.dll"))
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index f37a1f9615..38cb481462 100644
+index f37a1f9615..66bfe34285 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -58,6 +58,12 @@
@@ -954,8 +954,8 @@ index f37a1f9615..38cb481462 100644
 +
 +            impl_value.Type = MFX_VARIANT_TYPE_U32;
 +            impl_value.Data.U32 = node;
-+            MFXSetConfigFilterProperty(cfg,
-+                                       (const mfxU8 *)"mfxExtendedDeviceId.DRMRenderNodeNum", impl_value);
++            sts = MFXSetConfigFilterProperty(cfg,
++                                             (const mfxU8 *)"mfxExtendedDeviceId.DRMRenderNodeNum", impl_value);
 +
 +            if (sts != MFX_ERR_NONE) {
 +                av_log(ctx, AV_LOG_ERROR, "Error adding a MFX configuration"
