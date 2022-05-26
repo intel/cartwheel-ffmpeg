@@ -1,7 +1,7 @@
-From b8dedad8c443d672a0c5ad1aaf396bc9ea1a531f Mon Sep 17 00:00:00 2001
+From 48d14aecc1ab82ee1b714bdce8c728d735cd3b02 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Wed, 18 May 2022 16:15:17 +0800
-Subject: [PATCH] libavcodec/qsvenc: Add adaptive_i/b to hevc_qsv
+Subject: [PATCH 70/70] libavcodec/qsvenc: Add adaptive_i/b to hevc_qsv
 
 Add adaptive_i/b feature to hevc_qsv. Adaptive_i allows changing of
 frame type from P and B to I. Adaptive_b allows changing of frame type
@@ -32,11 +32,11 @@ index d5819ef005..72c4f13378 100644
  Enable P-pyramid: 0-default 1-simple 2-pyramid(bf need to be set to 0).
  
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index f9d5a62e78..732aa74620 100644
+index 44ec360e51..04836430de 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -1041,11 +1041,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
- #if QSV_VERSION_ATLEAST(1, 8)
+@@ -922,11 +922,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ 
              q->extco2.LookAheadDS = q->look_ahead_downsampling;
              q->extco2.RepeatPPS   = q->repeat_pps ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 -
@@ -44,20 +44,20 @@ index f9d5a62e78..732aa74620 100644
 -                q->extco2.AdaptiveI = q->adaptive_i ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 -            if (q->adaptive_b >= 0)
 -                q->extco2.AdaptiveB = q->adaptive_b ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
- #endif
          }
  
-@@ -1071,6 +1066,10 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
- #if QSV_VERSION_ATLEAST(1, 8)
+         if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
+@@ -946,6 +941,10 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ 
              if (q->b_strategy >= 0)
                  q->extco2.BRefType = q->b_strategy ? MFX_B_REF_PYRAMID : MFX_B_REF_OFF;
 +            if (q->adaptive_i >= 0)
 +                q->extco2.AdaptiveI = q->adaptive_i ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 +            if (q->adaptive_b >= 0)
 +                q->extco2.AdaptiveB = q->adaptive_b ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
- #endif
- #if QSV_VERSION_ATLEAST(1, 9)
              if (avctx->qmin >= 0 && avctx->qmax >= 0 && avctx->qmin > avctx->qmax) {
+                 av_log(avctx, AV_LOG_ERROR, "qmin and or qmax are set but invalid, please make sure min <= max\n");
+                 return AVERROR(EINVAL);
 -- 
-2.32.0
+2.17.1
 

@@ -1,7 +1,7 @@
-From daa6b4ea03eb911d1a93b0a6bfcebbd04c14c0dc Mon Sep 17 00:00:00 2001
+From 5c76df534112d3258614b6e391843a2158e7d47d Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Thu, 14 Jan 2021 15:55:47 +0800
-Subject: [PATCH 46/74] libavcodec/qsvenc.c: add ROI support to qsv encoder
+Subject: [PATCH 43/70] libavcodec/qsvenc.c: add ROI support to qsv encoder
 
 Use the mfxEncoderCtrl parameter to enable ROI. Get side data "AVRegionOfInterest"
 from filter "addroi" and use it to configure "mfxExtEncoderROI" which is
@@ -16,7 +16,7 @@ Sigend-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 79 insertions(+)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 2db9581d90..1102cdb80f 100644
+index a804c392c1..701ee97d2e 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -51,6 +51,9 @@
@@ -38,10 +38,10 @@ index 2db9581d90..1102cdb80f 100644
      int queued;
      int used;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index e04a8701dc..dbcc4674d4 100644
+index 4fc39553c7..b3d452b834 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -1480,15 +1480,28 @@ static void free_encoder_ctrl_payloads(mfxEncodeCtrl* enc_ctrl)
+@@ -1373,15 +1373,28 @@ static void free_encoder_ctrl_payloads(mfxEncodeCtrl* enc_ctrl)
      }
  }
  
@@ -70,7 +70,7 @@ index e04a8701dc..dbcc4674d4 100644
              if (cur->frame->format == AV_PIX_FMT_QSV) {
                  av_frame_unref(cur->frame);
              }
-@@ -1526,6 +1539,7 @@ static int get_free_frame(QSVEncContext *q, QSVFrame **f)
+@@ -1419,6 +1432,7 @@ static int get_free_frame(QSVEncContext *q, QSVFrame **f)
          return AVERROR(ENOMEM);
      }
      frame->enc_ctrl.Payload = frame->payloads;
@@ -78,15 +78,14 @@ index e04a8701dc..dbcc4674d4 100644
      *last = frame;
  
      *f = frame;
-@@ -1645,6 +1659,7 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+@@ -1524,12 +1538,14 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
                          const AVFrame *frame)
  {
      QSVPacket pkt = { { 0 } };
 +    AVFrameSideData *sd;
- #if QSV_VERSION_ATLEAST(1, 26)
      mfxExtAVCEncodedFrameInfo *enc_info = NULL;
      mfxExtBuffer **enc_buf = NULL;
-@@ -1653,6 +1668,7 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+ 
      mfxFrameSurface1 *surf = NULL;
      QSVFrame *qsv_frame = NULL;
      mfxEncodeCtrl* enc_ctrl = NULL;
@@ -94,16 +93,16 @@ index e04a8701dc..dbcc4674d4 100644
      int ret;
  
      if (frame) {
-@@ -1685,6 +1701,8 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+@@ -1562,6 +1578,8 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
      pkt.bs->Data      = pkt.pkt.data;
      pkt.bs->MaxLength = pkt.pkt.size;
  
 +    enc_info = NULL;
 +    enc_buf = NULL;
- #if QSV_VERSION_ATLEAST(1, 26)
      if (avctx->codec_id == AV_CODEC_ID_H264) {
          enc_info = av_mallocz(sizeof(*enc_info));
-@@ -1707,6 +1725,62 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+         if (!enc_info)
+@@ -1582,6 +1600,62 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
          q->set_encode_ctrl_cb(avctx, frame, &qsv_frame->enc_ctrl);
      }
  
@@ -166,7 +165,7 @@ index e04a8701dc..dbcc4674d4 100644
      pkt.sync = av_mallocz(sizeof(*pkt.sync));
      if (!pkt.sync)
          goto nomem;
-@@ -1835,6 +1909,7 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1704,6 +1778,7 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
      while (cur) {
          q->work_frames = cur->next;
          av_frame_free(&cur->frame);
@@ -175,5 +174,5 @@ index e04a8701dc..dbcc4674d4 100644
          av_freep(&cur);
          cur = q->work_frames;
 -- 
-2.32.0
+2.17.1
 
