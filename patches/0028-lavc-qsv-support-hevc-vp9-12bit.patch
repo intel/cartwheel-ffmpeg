@@ -1,7 +1,7 @@
-From b843b4f8f923719f235b36f92e6274a83833e58c Mon Sep 17 00:00:00 2001
+From 392770b9ca1aa4d4998d6b5b6e0ad5b600661696 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 28 May 2020 14:14:32 -0400
-Subject: [PATCH 28/92] lavc/qsv: support hevc/vp9 12bit
+Subject: [PATCH 22/70] lavc/qsv: support hevc/vp9 12bit
 
 ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v hevc_qsv -i GENERAL_12b_420_RExt_Sony_1.bit -vf hwdownload,format=p012 -vsync passthrough -frames 25 -f md5 -y qsv_out.md5
 
@@ -20,13 +20,13 @@ ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose 
  2 files changed, 35 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 47dec181a153..b9deb6b1a629 100644
+index 9c27d022b6..356596ae64 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -198,6 +198,11 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+@@ -188,6 +188,11 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+     case MFX_FOURCC_AYUV: return AV_PIX_FMT_0YUV;
      case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
      case MFX_FOURCC_Y410: return AV_PIX_FMT_Y410;
- #endif
 +#if QSV_VERSION_ATLEAST(1, 31)
 +    case MFX_FOURCC_P016: return AV_PIX_FMT_P012;
 +    case MFX_FOURCC_Y216: return AV_PIX_FMT_Y212;
@@ -35,10 +35,10 @@ index 47dec181a153..b9deb6b1a629 100644
  #endif
      }
      return AV_PIX_FMT_NONE;
-@@ -236,6 +241,20 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+@@ -228,6 +233,20 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+     case AV_PIX_FMT_YUV444P10:
          *fourcc = MFX_FOURCC_Y410;
          return AV_PIX_FMT_Y410;
- #endif
 +#if QSV_VERSION_ATLEAST(1, 31)
 +    case AV_PIX_FMT_YUV420P12:
 +    case AV_PIX_FMT_P012:
@@ -57,13 +57,13 @@ index 47dec181a153..b9deb6b1a629 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 362108e26aab..16966016710d 100644
+index e5edde3bda..c5f402cc1c 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -113,6 +113,14 @@ static const struct {
+@@ -112,6 +112,14 @@ static const struct {
+                        MFX_FOURCC_Y210 },
      { AV_PIX_FMT_Y410,
                         MFX_FOURCC_Y410 },
- #endif
 +#if QSV_VERSION_ATLEAST(1, 31)
 +    { AV_PIX_FMT_P012,
 +                       MFX_FOURCC_P016 },
@@ -75,7 +75,7 @@ index 362108e26aab..16966016710d 100644
  #endif
  };
  
-@@ -909,6 +917,7 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -998,6 +1006,7 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
      switch (frame->format) {
      case AV_PIX_FMT_NV12:
      case AV_PIX_FMT_P010:
@@ -83,7 +83,7 @@ index 362108e26aab..16966016710d 100644
          surface->Data.Y  = frame->data[0];
          surface->Data.UV = frame->data[1];
          break;
-@@ -933,6 +942,7 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1022,6 +1031,7 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          break;
  
      case AV_PIX_FMT_Y210:
@@ -91,7 +91,7 @@ index 362108e26aab..16966016710d 100644
          surface->Data.Y16 = (mfxU16 *)frame->data[0];
          surface->Data.U16 = (mfxU16 *)frame->data[0] + 1;
          surface->Data.V16 = (mfxU16 *)frame->data[0] + 3;
-@@ -946,6 +956,12 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1035,6 +1045,12 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
      case AV_PIX_FMT_Y410:
          surface->Data.U = frame->data[0];
          break;
@@ -105,5 +105,5 @@ index 362108e26aab..16966016710d 100644
      default:
          return MFX_ERR_UNSUPPORTED;
 -- 
-2.25.4
+2.17.1
 

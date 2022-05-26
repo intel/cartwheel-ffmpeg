@@ -1,42 +1,36 @@
-From 0741236729b7e373d23b1535d943aff9b71042c3 Mon Sep 17 00:00:00 2001
+From eb18f2392636460969ba3fe496eedd76ff872c75 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:54:57 +0800
-Subject: [PATCH 05/72] lavcu/qsv: Add decoding support for 444 8/10 bit
+Subject: [PATCH 05/70] lavcu/qsv: Add decoding support for 444 8/10 bit
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
- libavcodec/qsv.c          | 14 ++++++++++++++
- libavutil/hwcontext_qsv.c | 15 +++++++++++++++
- 2 files changed, 29 insertions(+)
+ libavcodec/qsv.c          | 10 ++++++++++
+ libavutil/hwcontext_qsv.c | 13 +++++++++++++
+ 2 files changed, 23 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index b75877e698..9f03eb8bbd 100644
+index 385b43bb6c..9c27d022b6 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -197,8 +197,12 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
- #endif
+@@ -185,7 +185,9 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+     case MFX_FOURCC_RGB4: return AV_PIX_FMT_BGRA;
  #if CONFIG_VAAPI
      case MFX_FOURCC_YUY2: return AV_PIX_FMT_YUYV422;
-+#if QSV_VERSION_ATLEAST(1, 17)
 +    case MFX_FOURCC_AYUV: return AV_PIX_FMT_0YUV;
-+#endif
- #if QSV_VERSION_ATLEAST(1, 27)
      case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
 +    case MFX_FOURCC_Y410: return AV_PIX_FMT_Y410;
  #endif
- #endif
      }
-@@ -232,11 +236,21 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+     return AV_PIX_FMT_NONE;
+@@ -214,10 +216,18 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
      case AV_PIX_FMT_YUYV422:
          *fourcc = MFX_FOURCC_YUY2;
          return AV_PIX_FMT_YUYV422;
-+#if QSV_VERSION_ATLEAST(1, 17)
 +    case AV_PIX_FMT_0YUV:
 +    case AV_PIX_FMT_YUV444P:
 +        *fourcc = MFX_FOURCC_AYUV;
 +        return AV_PIX_FMT_0YUV;
-+#endif
- #if QSV_VERSION_ATLEAST(1, 27)
      case AV_PIX_FMT_YUV422P10:
      case AV_PIX_FMT_Y210:
          *fourcc = MFX_FOURCC_Y210;
@@ -46,29 +40,26 @@ index b75877e698..9f03eb8bbd 100644
 +        *fourcc = MFX_FOURCC_Y410;
 +        return AV_PIX_FMT_Y410;
  #endif
- #endif
      default:
+         return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index d9baea667f..59bd354d17 100644
+index 82cbe2e124..e5edde3bda 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -105,9 +105,15 @@ static const struct {
+@@ -106,8 +106,12 @@ static const struct {
  #if CONFIG_VAAPI
      { AV_PIX_FMT_YUYV422,
                         MFX_FOURCC_YUY2 },
-+#if QSV_VERSION_ATLEAST(1, 17)
 +    { AV_PIX_FMT_0YUV,
 +                       MFX_FOURCC_AYUV },
-+#endif
- #if QSV_VERSION_ATLEAST(1, 27)
      { AV_PIX_FMT_Y210,
                         MFX_FOURCC_Y210 },
 +    { AV_PIX_FMT_Y410,
 +                       MFX_FOURCC_Y410 },
  #endif
- #endif
  };
-@@ -1012,6 +1018,15 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+ 
+@@ -1022,6 +1026,15 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.U16 = (mfxU16 *)frame->data[0] + 1;
          surface->Data.V16 = (mfxU16 *)frame->data[0] + 3;
          break;

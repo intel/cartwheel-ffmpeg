@@ -1,7 +1,7 @@
-From f938267ac92bf1291d0806d5c18277b980a8e8d0 Mon Sep 17 00:00:00 2001
+From a8ae6d920c97cbb85886ed319de553e9e3bf4eb1 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 28 Apr 2021 09:25:11 +0800
-Subject: [PATCH] Clean-up QSV filters
+Subject: [PATCH 65/70] Clean-up QSV filters
 
 This is the combination of
 https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=4467
@@ -9,19 +9,19 @@ https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=4467
  libavfilter/Makefile             |   4 +-
  libavfilter/qsvvpp.c             |  65 ++-
  libavfilter/qsvvpp.h             |  11 +-
- libavfilter/vf_deinterlace_qsv.c | 606 ---------------------------
+ libavfilter/vf_deinterlace_qsv.c | 606 ----------------------------
  libavfilter/vf_overlay_qsv.c     |  11 +-
- libavfilter/vf_scale_qsv.c       | 683 -------------------------------
- libavfilter/vf_vpp_qsv.c         | 492 ++++++++++++++--------
- 7 files changed, 370 insertions(+), 1502 deletions(-)
+ libavfilter/vf_scale_qsv.c       | 672 -------------------------------
+ libavfilter/vf_vpp_qsv.c         | 477 ++++++++++++++--------
+ 7 files changed, 357 insertions(+), 1489 deletions(-)
  delete mode 100644 libavfilter/vf_deinterlace_qsv.c
  delete mode 100644 libavfilter/vf_scale_qsv.c
 
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index c4c946a988..ad1b4b66a6 100644
+index e0e4d0de2c..44361b5182 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -243,7 +243,7 @@ OBJS-$(CONFIG_DECONVOLVE_FILTER)             += vf_convolve.o framesync.o
+@@ -248,7 +248,7 @@ OBJS-$(CONFIG_DECONVOLVE_FILTER)             += vf_convolve.o framesync.o
  OBJS-$(CONFIG_DEDOT_FILTER)                  += vf_dedot.o
  OBJS-$(CONFIG_DEFLATE_FILTER)                += vf_neighbor.o
  OBJS-$(CONFIG_DEFLICKER_FILTER)              += vf_deflicker.o
@@ -30,7 +30,7 @@ index c4c946a988..ad1b4b66a6 100644
  OBJS-$(CONFIG_DEINTERLACE_VAAPI_FILTER)      += vf_deinterlace_vaapi.o vaapi_vpp.o
  OBJS-$(CONFIG_DEJUDDER_FILTER)               += vf_dejudder.o
  OBJS-$(CONFIG_DELOGO_FILTER)                 += vf_delogo.o
-@@ -422,7 +422,7 @@ OBJS-$(CONFIG_SCALE_FILTER)                  += vf_scale.o scale_eval.o
+@@ -432,7 +432,7 @@ OBJS-$(CONFIG_SCALE_FILTER)                  += vf_scale.o scale_eval.o
  OBJS-$(CONFIG_SCALE_CUDA_FILTER)             += vf_scale_cuda.o scale_eval.o \
                                                  vf_scale_cuda.ptx.o cuda/load_helper.o
  OBJS-$(CONFIG_SCALE_NPP_FILTER)              += vf_scale_npp.o scale_eval.o
@@ -902,10 +902,10 @@ index 7e76b39aa9..91281d8c45 100644
      av_freep(&vpp->qsv_param.ext_buf);
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
 deleted file mode 100644
-index 12125a4dbe..0000000000
+index 2ff2c1db7b..0000000000
 --- a/libavfilter/vf_scale_qsv.c
 +++ /dev/null
-@@ -1,683 +0,0 @@
+@@ -1,672 +0,0 @@
 -/*
 - * This file is part of FFmpeg.
 - *
@@ -977,7 +977,6 @@ index 12125a4dbe..0000000000
 -    VARS_NB
 -};
 -
--#define QSV_HAVE_SCALING_CONFIG  QSV_VERSION_ATLEAST(1, 19)
 -#define MFX_IMPL_VIA_MASK(impl) (0x0f00 & (impl))
 -
 -typedef struct QSVScaleContext {
@@ -1002,12 +1001,10 @@ index 12125a4dbe..0000000000
 -    mfxExtOpaqueSurfaceAlloc opaque_alloc;
 -#endif
 -
--#if QSV_HAVE_SCALING_CONFIG
 -    mfxExtVPPScaling         scale_conf;
--#endif
 -    int                      mode;
 -
--    mfxExtBuffer             *ext_buffers[1 + QSV_HAVE_SCALING_CONFIG];
+-    mfxExtBuffer             *ext_buffers[2];
 -    int                      num_ext_buf;
 -
 -    int shift_width, shift_height;
@@ -1313,14 +1310,12 @@ index 12125a4dbe..0000000000
 -    }
 -#endif
 -
--#if QSV_HAVE_SCALING_CONFIG
 -    memset(&s->scale_conf, 0, sizeof(mfxExtVPPScaling));
 -    s->scale_conf.Header.BufferId     = MFX_EXTBUFF_VPP_SCALING;
 -    s->scale_conf.Header.BufferSz     = sizeof(mfxExtVPPScaling);
 -    s->scale_conf.ScalingMode         = s->mode;
 -    s->ext_buffers[s->num_ext_buf++]  = (mfxExtBuffer*)&s->scale_conf;
 -    av_log(ctx, AV_LOG_VERBOSE, "Scaling mode: %d\n", s->mode);
--#endif
 -
 -    par.ExtParam    = s->ext_buffers;
 -    par.NumExtParam = s->num_ext_buf;
@@ -1536,15 +1531,9 @@ index 12125a4dbe..0000000000
 -    { "h",      "Output video height", OFFSET(h_expr),     AV_OPT_TYPE_STRING, { .str = "ih"   }, .flags = FLAGS },
 -    { "format", "Output pixel format", OFFSET(format_str), AV_OPT_TYPE_STRING, { .str = "same" }, .flags = FLAGS },
 -
--#if QSV_HAVE_SCALING_CONFIG
 -    { "mode",      "set scaling mode",    OFFSET(mode),    AV_OPT_TYPE_INT,    { .i64 = MFX_SCALING_MODE_DEFAULT}, MFX_SCALING_MODE_DEFAULT, MFX_SCALING_MODE_QUALITY, FLAGS, "mode"},
 -    { "low_power", "low power mode",        0,             AV_OPT_TYPE_CONST,  { .i64 = MFX_SCALING_MODE_LOWPOWER}, INT_MIN, INT_MAX, FLAGS, "mode"},
 -    { "hq",        "high quality mode",     0,             AV_OPT_TYPE_CONST,  { .i64 = MFX_SCALING_MODE_QUALITY},  INT_MIN, INT_MAX, FLAGS, "mode"},
--#else
--    { "mode",      "(not supported)",     OFFSET(mode),    AV_OPT_TYPE_INT,    { .i64 = 0}, 0, INT_MAX, FLAGS, "mode"},
--    { "low_power", "",                      0,             AV_OPT_TYPE_CONST,  { .i64 = 1}, 0,   0,     FLAGS, "mode"},
--    { "hq",        "",                      0,             AV_OPT_TYPE_CONST,  { .i64 = 2}, 0,   0,     FLAGS, "mode"},
--#endif
 -
 -    { NULL },
 -};
@@ -1590,11 +1579,11 @@ index 12125a4dbe..0000000000
 -    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 -};
 diff --git a/libavfilter/vf_vpp_qsv.c b/libavfilter/vf_vpp_qsv.c
-index cfe343822b..d866ad9ce3 100644
+index 6e5056d133..a8e47f8567 100644
 --- a/libavfilter/vf_vpp_qsv.c
 +++ b/libavfilter/vf_vpp_qsv.c
-@@ -48,9 +48,7 @@
- #define QSV_HAVE_SCALING_CONFIG QSV_VERSION_ATLEAST(1, 19)
+@@ -45,9 +45,7 @@
+ #define ENH_FILTERS_COUNT (8)
  
  typedef struct VPPContext{
 -    const AVClass *class;
@@ -1604,9 +1593,9 @@ index cfe343822b..d866ad9ce3 100644
  
      /* Video Enhancement Algorithms */
      mfxExtVPPDeinterlacing  deinterlace_conf;
-@@ -64,6 +62,11 @@ typedef struct VPPContext{
+@@ -59,6 +57,11 @@ typedef struct VPPContext{
+     mfxExtVPPMirroring mirroring_conf;
      mfxExtVPPScaling scale_conf;
- #endif
  
 +    /**
 +     * New dimensions. Special values are:
@@ -1616,7 +1605,7 @@ index cfe343822b..d866ad9ce3 100644
      int out_width;
      int out_height;
      /**
-@@ -100,50 +103,10 @@ typedef struct VPPContext{
+@@ -95,48 +98,10 @@ typedef struct VPPContext{
      char *ow, *oh;
      char *output_format_str;
  
@@ -1660,16 +1649,14 @@ index cfe343822b..d866ad9ce3 100644
 -    { "height", "Output video height", OFFSET(oh), AV_OPT_TYPE_STRING, { .str="w*ch/cw" }, 0, 255, .flags = FLAGS },
 -    { "format", "Output pixel format", OFFSET(output_format_str), AV_OPT_TYPE_STRING, { .str = "same" }, .flags = FLAGS },
 -    { "async_depth", "Internal parallelization depth, the higher the value the higher the latency.", OFFSET(async_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
--#ifdef QSV_HAVE_SCALING_CONFIG
 -    { "scale_mode", "scale mode: 0=auto, 1=low power, 2=high quality", OFFSET(scale_mode), AV_OPT_TYPE_INT, { .i64 = MFX_SCALING_MODE_DEFAULT }, MFX_SCALING_MODE_DEFAULT, MFX_SCALING_MODE_QUALITY, .flags = FLAGS, "scale mode" },
--#endif
 -    { NULL }
 -};
 -
  static const char *const var_names[] = {
      "iw", "in_w",
      "ih", "in_h",
-@@ -153,32 +116,41 @@ static const char *const var_names[] = {
+@@ -146,32 +111,41 @@ static const char *const var_names[] = {
      "ch",
      "cx",
      "cy",
@@ -1725,7 +1712,7 @@ index cfe343822b..d866ad9ce3 100644
  }
      VPPContext *vpp = ctx->priv;
      double  var_values[VAR_VARS_NB] = { NAN };
-@@ -196,39 +168,43 @@ static int eval_expr(AVFilterContext *ctx)
+@@ -189,39 +163,43 @@ static int eval_expr(AVFilterContext *ctx)
      PASS_EXPR(cx_expr, vpp->cx);
      PASS_EXPR(cy_expr, vpp->cy);
  
@@ -1767,10 +1754,10 @@ index cfe343822b..d866ad9ce3 100644
      CALC_EXPR(w_expr,
 -            var_values[VAR_OUT_W] = var_values[VAR_oW] = var_values[VAR_W],
 -            vpp->out_width);
--
 +            var_values[VAR_OUT_W] = var_values[VAR_OW] = var_values[VAR_W],
 +            vpp->out_width, var_values[VAR_CW]);
  
+-
 -    CALC_EXPR(cx_expr, var_values[CX], vpp->crop_x);
 -    CALC_EXPR(cy_expr, var_values[CY], vpp->crop_y);
 +    CALC_EXPR(cx_expr, var_values[VAR_CX], vpp->crop_x, (var_values[VAR_IW] - var_values[VAR_OW]) / 2);
@@ -1785,7 +1772,7 @@ index cfe343822b..d866ad9ce3 100644
          vpp->use_crop = 1;
  
  release:
-@@ -244,11 +220,27 @@ release:
+@@ -237,11 +215,27 @@ release:
      return ret;
  }
  
@@ -1814,7 +1801,7 @@ index cfe343822b..d866ad9ce3 100644
          vpp->out_format = AV_PIX_FMT_NONE;
      } else {
          vpp->out_format = av_get_pix_fmt(vpp->output_format_str);
-@@ -266,11 +258,15 @@ static int config_input(AVFilterLink *inlink)
+@@ -259,11 +253,15 @@ static int config_input(AVFilterLink *inlink)
      AVFilterContext *ctx = inlink->dst;
      VPPContext      *vpp = ctx->priv;
      int              ret;
@@ -1831,7 +1818,7 @@ index cfe343822b..d866ad9ce3 100644
          vpp->use_frc = 1;
  
      ret = eval_expr(ctx);
-@@ -279,11 +275,38 @@ static int config_input(AVFilterLink *inlink)
+@@ -272,11 +270,38 @@ static int config_input(AVFilterLink *inlink)
          return ret;
      }
  
@@ -1873,7 +1860,7 @@ index cfe343822b..d866ad9ce3 100644
      if (vpp->use_crop) {
          vpp->crop_x = FFMAX(vpp->crop_x, 0);
          vpp->crop_y = FFMAX(vpp->crop_y, 0);
-@@ -342,7 +365,6 @@ static int config_output(AVFilterLink *outlink)
+@@ -335,7 +360,6 @@ static int config_output(AVFilterLink *outlink)
      param.filter_frame  = NULL;
      param.num_ext_buf   = 0;
      param.ext_buf       = ext_buf;
@@ -1881,7 +1868,7 @@ index cfe343822b..d866ad9ce3 100644
  
      if (get_mfx_version(ctx, &mfx_version) != MFX_ERR_NONE) {
          av_log(ctx, AV_LOG_ERROR, "Failed to query mfx version.\n");
-@@ -372,53 +394,46 @@ static int config_output(AVFilterLink *outlink)
+@@ -365,53 +389,46 @@ static int config_output(AVFilterLink *outlink)
          param.crop     = &crop;
      }
  
@@ -1962,44 +1949,44 @@ index cfe343822b..d866ad9ce3 100644
      }
  
      if (vpp->transpose >= 0) {
-@@ -465,18 +480,14 @@ static int config_output(AVFilterLink *outlink)
+@@ -458,18 +475,14 @@ static int config_output(AVFilterLink *outlink)
  
      if (vpp->rotate) {
- #ifdef QSV_HAVE_ROTATION
--        memset(&vpp->rotation_conf, 0, sizeof(mfxExtVPPRotation));
--        vpp->rotation_conf.Header.BufferId  = MFX_EXTBUFF_VPP_ROTATION;
--        vpp->rotation_conf.Header.BufferSz  = sizeof(mfxExtVPPRotation);
--        vpp->rotation_conf.Angle = vpp->rotate;
-+        INIT_MFX_EXTBUF(rotation_conf, MFX_EXTBUFF_VPP_ROTATION);
-+        SET_MFX_PARAM_FIELD(rotation_conf, Angle, vpp->rotate);
+         if (QSV_RUNTIME_VERSION_ATLEAST(mfx_version, 1, 17)) {
+-            memset(&vpp->rotation_conf, 0, sizeof(mfxExtVPPRotation));
+-            vpp->rotation_conf.Header.BufferId  = MFX_EXTBUFF_VPP_ROTATION;
+-            vpp->rotation_conf.Header.BufferSz  = sizeof(mfxExtVPPRotation);
+-            vpp->rotation_conf.Angle = vpp->rotate;
++            INIT_MFX_EXTBUF(rotation_conf, MFX_EXTBUFF_VPP_ROTATION);
++            SET_MFX_PARAM_FIELD(rotation_conf, Angle, vpp->rotate);
  
-         if (MFX_ANGLE_90 == vpp->rotate || MFX_ANGLE_270 == vpp->rotate) {
-             FFSWAP(int, vpp->out_width, vpp->out_height);
-             FFSWAP(int, outlink->w, outlink->h);
-             av_log(ctx, AV_LOG_DEBUG, "Swap width and height for clock/cclock rotation.\n");
-         }
+             if (MFX_ANGLE_90 == vpp->rotate || MFX_ANGLE_270 == vpp->rotate) {
+                 FFSWAP(int, vpp->out_width, vpp->out_height);
+                 FFSWAP(int, outlink->w, outlink->h);
+                 av_log(ctx, AV_LOG_DEBUG, "Swap width and height for clock/cclock rotation.\n");
+             }
 -
--        param.ext_buf[param.num_ext_buf++] = (mfxExtBuffer*)&vpp->rotation_conf;
- #else
-         av_log(ctx, AV_LOG_WARNING, "The QSV VPP rotate option is "
-             "not supported with this MSDK version.\n");
-@@ -486,12 +497,8 @@ static int config_output(AVFilterLink *outlink)
+-            param.ext_buf[param.num_ext_buf++] = (mfxExtBuffer*)&vpp->rotation_conf;
+         } else {
+             av_log(ctx, AV_LOG_WARNING, "The QSV VPP rotate option is "
+                    "not supported with this MSDK version.\n");
+@@ -479,12 +492,8 @@ static int config_output(AVFilterLink *outlink)
  
      if (vpp->hflip) {
- #ifdef QSV_HAVE_MIRRORING
--        memset(&vpp->mirroring_conf, 0, sizeof(mfxExtVPPMirroring));
--        vpp->mirroring_conf.Header.BufferId = MFX_EXTBUFF_VPP_MIRRORING;
--        vpp->mirroring_conf.Header.BufferSz = sizeof(mfxExtVPPMirroring);
--        vpp->mirroring_conf.Type = vpp->hflip;
+         if (QSV_RUNTIME_VERSION_ATLEAST(mfx_version, 1, 19)) {
+-            memset(&vpp->mirroring_conf, 0, sizeof(mfxExtVPPMirroring));
+-            vpp->mirroring_conf.Header.BufferId = MFX_EXTBUFF_VPP_MIRRORING;
+-            vpp->mirroring_conf.Header.BufferSz = sizeof(mfxExtVPPMirroring);
+-            vpp->mirroring_conf.Type = vpp->hflip;
 -
--        param.ext_buf[param.num_ext_buf++] = (mfxExtBuffer*)&vpp->mirroring_conf;
-+        INIT_MFX_EXTBUF(mirroring_conf, MFX_EXTBUFF_VPP_MIRRORING);
-+        SET_MFX_PARAM_FIELD(mirroring_conf, Type, vpp->hflip);
- #else
-         av_log(ctx, AV_LOG_WARNING, "The QSV VPP hflip option is "
-             "not supported with this MSDK version.\n");
-@@ -502,23 +509,24 @@ static int config_output(AVFilterLink *outlink)
- #ifdef QSV_HAVE_SCALING_CONFIG
+-            param.ext_buf[param.num_ext_buf++] = (mfxExtBuffer*)&vpp->mirroring_conf;
++            INIT_MFX_EXTBUF(mirroring_conf, MFX_EXTBUFF_VPP_MIRRORING);
++            SET_MFX_PARAM_FIELD(mirroring_conf, Type, vpp->hflip);
+         } else {
+             av_log(ctx, AV_LOG_WARNING, "The QSV VPP hflip option is "
+                    "not supported with this MSDK version.\n");
+@@ -494,22 +503,23 @@ static int config_output(AVFilterLink *outlink)
+ 
      if (inlink->w != outlink->w || inlink->h != outlink->h) {
          if (QSV_RUNTIME_VERSION_ATLEAST(mfx_version, 1, 19)) {
 -            memset(&vpp->scale_conf, 0, sizeof(mfxExtVPPScaling));
@@ -2014,7 +2001,6 @@ index cfe343822b..d866ad9ce3 100644
              av_log(ctx, AV_LOG_WARNING, "The QSV VPP Scale option is "
                  "not supported with this MSDK version.\n");
      }
- #endif
  
 +#undef INIT_MFX_EXTBUF
 +#undef SET_MFX_PARAM_FIELD
@@ -2031,7 +2017,7 @@ index cfe343822b..d866ad9ce3 100644
          av_log(ctx, AV_LOG_VERBOSE, "qsv vpp pass through mode.\n");
          if (inlink->hw_frames_ctx)
              outlink->hw_frames_ctx = av_buffer_ref(inlink->hw_frames_ctx);
-@@ -531,33 +539,31 @@ static int activate(AVFilterContext *ctx)
+@@ -522,33 +532,31 @@ static int activate(AVFilterContext *ctx)
  {
      AVFilterLink *inlink = ctx->inputs[0];
      AVFilterLink *outlink = ctx->outputs[0];
@@ -2071,7 +2057,7 @@ index cfe343822b..d866ad9ce3 100644
                  ff_outlink_set_status(outlink, status, pts);
                  return 0;
              }
-@@ -568,6 +574,7 @@ static int activate(AVFilterContext *ctx)
+@@ -559,6 +567,7 @@ static int activate(AVFilterContext *ctx)
              }
          }
      } else {
@@ -2079,7 +2065,7 @@ index cfe343822b..d866ad9ce3 100644
          if (in) {
              if (in->pts != AV_NOPTS_VALUE)
                  in->pts = av_rescale_q(in->pts, inlink->time_base, outlink->time_base);
-@@ -577,7 +584,7 @@ static int activate(AVFilterContext *ctx)
+@@ -568,7 +577,7 @@ static int activate(AVFilterContext *ctx)
          }
      }
  
@@ -2088,7 +2074,7 @@ index cfe343822b..d866ad9ce3 100644
          ff_outlink_set_status(outlink, status, pts);
          return 0;
      } else {
-@@ -587,7 +594,99 @@ static int activate(AVFilterContext *ctx)
+@@ -578,7 +587,92 @@ static int activate(AVFilterContext *ctx)
      return FFERROR_NOT_READY;
  }
  
@@ -2170,17 +2156,10 @@ index cfe343822b..d866ad9ce3 100644
 +    { "height", "Output video height(0=input video height, -1=keep input video aspect)", OFFSET(oh), AV_OPT_TYPE_STRING, { .str="w*ch/cw" }, 0, 255, .flags = FLAGS },
 +    { "format", "Output pixel format", OFFSET(output_format_str), AV_OPT_TYPE_STRING, { .str = "same" }, .flags = FLAGS },
 +    { "async_depth", "Internal parallelization depth, the higher the value the higher the latency.", OFFSET(qsv.async_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
-+#if QSV_HAVE_SCALING_CONFIG
 +    { "scale_mode", "scale mode", OFFSET(scale_mode), AV_OPT_TYPE_INT, { .i64 = MFX_SCALING_MODE_DEFAULT }, MFX_SCALING_MODE_DEFAULT, MFX_SCALING_MODE_QUALITY, .flags = FLAGS, "scale mode" },
 +    { "auto",      "auto mode",             0,    AV_OPT_TYPE_CONST,  { .i64 = MFX_SCALING_MODE_DEFAULT},  INT_MIN, INT_MAX, FLAGS, "scale mode"},
 +    { "low_power", "low power mode",        0,    AV_OPT_TYPE_CONST,  { .i64 = MFX_SCALING_MODE_LOWPOWER}, INT_MIN, INT_MAX, FLAGS, "scale mode"},
 +    { "hq",        "high quality mode",     0,    AV_OPT_TYPE_CONST,  { .i64 = MFX_SCALING_MODE_QUALITY},  INT_MIN, INT_MAX, FLAGS, "scale mode"},
-+#else
-+    { "scale_mode", "(not supported)",        OFFSET(scale_mode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS, "scale mode" },
-+    { "auto",      "",                      0,    AV_OPT_TYPE_CONST,  { .i64 = 0}, 0,   0,     FLAGS, "scale mode"},
-+    { "low_power", "",                      0,    AV_OPT_TYPE_CONST,  { .i64 = 1}, 0,   0,     FLAGS, "scale mode"},
-+    { "hq",        "",                      0,    AV_OPT_TYPE_CONST,  { .i64 = 2}, 0,   0,     FLAGS, "scale mode"},
-+#endif
 +
 +    { NULL }
 +};
@@ -2189,7 +2168,7 @@ index cfe343822b..d866ad9ce3 100644
  {
      int ret;
      static const enum AVPixelFormat in_pix_fmts[] = {
-@@ -613,46 +712,81 @@ static int query_formats(AVFilterContext *ctx)
+@@ -604,46 +698,75 @@ static int query_formats(AVFilterContext *ctx)
                            &ctx->outputs[0]->incfg.formats);
  }
  
@@ -2212,15 +2191,9 @@ index cfe343822b..d866ad9ce3 100644
 +    { "cy",     "set the y crop area expression",       OFFSET(cy), AV_OPT_TYPE_STRING, { .str = "(ih-oh)/2" }, .flags = FLAGS },
 +    { "format", "Output pixel format", OFFSET(output_format_str), AV_OPT_TYPE_STRING, { .str = "same" }, .flags = FLAGS },
 +
-+#if QSV_HAVE_SCALING_CONFIG
 +    { "mode",      "set scaling mode",    OFFSET(scale_mode),    AV_OPT_TYPE_INT,    { .i64 = MFX_SCALING_MODE_DEFAULT}, MFX_SCALING_MODE_DEFAULT, MFX_SCALING_MODE_QUALITY, FLAGS, "mode"},
 +    { "low_power", "low power mode",        0,             AV_OPT_TYPE_CONST,  { .i64 = MFX_SCALING_MODE_LOWPOWER}, INT_MIN, INT_MAX, FLAGS, "mode"},
 +    { "hq",        "high quality mode",     0,             AV_OPT_TYPE_CONST,  { .i64 = MFX_SCALING_MODE_QUALITY},  INT_MIN, INT_MAX, FLAGS, "mode"},
-+#else
-+    { "mode",      "(not supported)",     OFFSET(scale_mode),    AV_OPT_TYPE_INT,    { .i64 = 0}, 0, INT_MAX, FLAGS, "mode"},
-+    { "low_power", "",                      0,             AV_OPT_TYPE_CONST,  { .i64 = 1}, 0,   0,     FLAGS, "mode"},
-+    { "hq",        "",                      0,             AV_OPT_TYPE_CONST,  { .i64 = 2}, 0,   0,     FLAGS, "mode"},
-+#endif
 +
 +    { "async_depth", "Internal parallelization depth, the higher the value the higher the latency.", OFFSET(qsv.async_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
 +
@@ -2270,13 +2243,6 @@ index cfe343822b..d866ad9ce3 100644
 +    { "mode", "set deinterlace mode", OFFSET(deinterlace),   AV_OPT_TYPE_INT, {.i64 = MFX_DEINTERLACING_ADVANCED}, MFX_DEINTERLACING_BOB, MFX_DEINTERLACING_ADVANCED, FLAGS, "mode"},
 +    { "bob",   "bob algorithm",                  0, AV_OPT_TYPE_CONST,      {.i64 = MFX_DEINTERLACING_BOB}, MFX_DEINTERLACING_BOB, MFX_DEINTERLACING_ADVANCED, FLAGS, "mode"},
 +    { "advanced", "Motion adaptive algorithm",   0, AV_OPT_TYPE_CONST, {.i64 = MFX_DEINTERLACING_ADVANCED}, MFX_DEINTERLACING_BOB, MFX_DEINTERLACING_ADVANCED, FLAGS, "mode"},
-+
-+    { "rate", "Generate output at frame rate or field rate",
-+      OFFSET(field_rate), AV_OPT_TYPE_INT, { .i64 = 2 }, 1, 2, FLAGS, "rate" },
-+    { "frame", "Output at frame rate (one frame of output for each field-pair)",
-+      0, AV_OPT_TYPE_CONST, { .i64 = 1 }, 0, 0, FLAGS, "rate" },
-+    { "field", "Output at field rate (one frame of output for each field)",
-+      0, AV_OPT_TYPE_CONST, { .i64 = 2 }, 0, 0, FLAGS, "rate" },
  
 -const AVFilter ff_vf_vpp_qsv = {
 -    .name          = "vpp_qsv",
@@ -2290,6 +2256,13 @@ index cfe343822b..d866ad9ce3 100644
 -    .activate      = activate,
 -    .priv_class    = &vpp_class,
 -    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
++    { "rate", "Generate output at frame rate or field rate",
++      OFFSET(field_rate), AV_OPT_TYPE_INT, { .i64 = 2 }, 1, 2, FLAGS, "rate" },
++    { "frame", "Output at frame rate (one frame of output for each field-pair)",
++      0, AV_OPT_TYPE_CONST, { .i64 = 1 }, 0, 0, FLAGS, "rate" },
++    { "field", "Output at field rate (one frame of output for each field)",
++      0, AV_OPT_TYPE_CONST, { .i64 = 2 }, 0, 0, FLAGS, "rate" },
++
 +    { "async_depth", "Internal parallelization depth, the higher the value the higher the latency.", OFFSET(qsv.async_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
 +    { NULL },
  };
@@ -2306,5 +2279,5 @@ index cfe343822b..d866ad9ce3 100644
 +
 +DEFINE_QSV_FILTER(qsvdeint, deinterlace, "deinterlacing", FILTER_PIXFMTS_ARRAY(qsvdeint_pix_fmts));
 -- 
-2.32.0
+2.17.1
 
