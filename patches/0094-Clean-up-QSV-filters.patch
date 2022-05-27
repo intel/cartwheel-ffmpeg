@@ -1,4 +1,4 @@
-From a8ae6d920c97cbb85886ed319de553e9e3bf4eb1 Mon Sep 17 00:00:00 2001
+From 05115c160e7926803d08f3bd70ae015665996cd4 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 28 Apr 2021 09:25:11 +0800
 Subject: [PATCH 65/70] Clean-up QSV filters
@@ -12,8 +12,8 @@ https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=4467
  libavfilter/vf_deinterlace_qsv.c | 606 ----------------------------
  libavfilter/vf_overlay_qsv.c     |  11 +-
  libavfilter/vf_scale_qsv.c       | 672 -------------------------------
- libavfilter/vf_vpp_qsv.c         | 477 ++++++++++++++--------
- 7 files changed, 357 insertions(+), 1489 deletions(-)
+ libavfilter/vf_vpp_qsv.c         | 479 ++++++++++++++--------
+ 7 files changed, 358 insertions(+), 1490 deletions(-)
  delete mode 100644 libavfilter/vf_deinterlace_qsv.c
  delete mode 100644 libavfilter/vf_scale_qsv.c
 
@@ -1579,7 +1579,7 @@ index 2ff2c1db7b..0000000000
 -    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 -};
 diff --git a/libavfilter/vf_vpp_qsv.c b/libavfilter/vf_vpp_qsv.c
-index 6e5056d133..a8e47f8567 100644
+index 4a053f9145..dd8c1307f1 100644
 --- a/libavfilter/vf_vpp_qsv.c
 +++ b/libavfilter/vf_vpp_qsv.c
 @@ -45,9 +45,7 @@
@@ -2017,7 +2017,7 @@ index 6e5056d133..a8e47f8567 100644
          av_log(ctx, AV_LOG_VERBOSE, "qsv vpp pass through mode.\n");
          if (inlink->hw_frames_ctx)
              outlink->hw_frames_ctx = av_buffer_ref(inlink->hw_frames_ctx);
-@@ -522,33 +532,31 @@ static int activate(AVFilterContext *ctx)
+@@ -522,29 +532,27 @@ static int activate(AVFilterContext *ctx)
  {
      AVFilterLink *inlink = ctx->inputs[0];
      AVFilterLink *outlink = ctx->outputs[0];
@@ -2051,13 +2051,17 @@ index 6e5056d133..a8e47f8567 100644
 +        if (in || qsv->eof) {
              ret = ff_qsvvpp_filter_frame(qsv, inlink, in);
              av_frame_free(&in);
+             if (ret == AVERROR(EAGAIN))
+@@ -552,7 +560,7 @@ static int activate(AVFilterContext *ctx)
+             else if (ret < 0)
+                 return ret;
  
--            if (s->eof) {
-+            if (qsv->eof) {
-                 ff_outlink_set_status(outlink, status, pts);
-                 return 0;
-             }
-@@ -559,6 +567,7 @@ static int activate(AVFilterContext *ctx)
+-            if (s->eof)
++            if (qsv->eof)
+                 goto eof;
+ 
+             if (qsv->got_frame) {
+@@ -561,6 +569,7 @@ static int activate(AVFilterContext *ctx)
              }
          }
      } else {
@@ -2065,17 +2069,26 @@ index 6e5056d133..a8e47f8567 100644
          if (in) {
              if (in->pts != AV_NOPTS_VALUE)
                  in->pts = av_rescale_q(in->pts, inlink->time_base, outlink->time_base);
-@@ -568,7 +577,7 @@ static int activate(AVFilterContext *ctx)
-         }
+@@ -569,7 +578,7 @@ static int activate(AVFilterContext *ctx)
+             if (ret < 0)
+                 return ret;
+ 
+-            if (s->eof)
++            if (qsv->eof)
+                 goto eof;
+ 
+             return 0;
+@@ -577,7 +586,7 @@ static int activate(AVFilterContext *ctx)
      }
  
--    if (s->eof) {
-+    if (qsv->eof) {
-         ff_outlink_set_status(outlink, status, pts);
-         return 0;
-     } else {
-@@ -578,7 +587,92 @@ static int activate(AVFilterContext *ctx)
-     return FFERROR_NOT_READY;
+ not_ready:
+-    if (s->eof)
++    if (qsv->eof)
+         goto eof;
+ 
+     FF_FILTER_FORWARD_WANTED(outlink, inlink);
+@@ -589,7 +598,92 @@ eof:
+     return 0;
  }
  
 -static int query_formats(AVFilterContext *ctx)
@@ -2168,7 +2181,7 @@ index 6e5056d133..a8e47f8567 100644
  {
      int ret;
      static const enum AVPixelFormat in_pix_fmts[] = {
-@@ -604,46 +698,75 @@ static int query_formats(AVFilterContext *ctx)
+@@ -615,46 +709,75 @@ static int query_formats(AVFilterContext *ctx)
                            &ctx->outputs[0]->incfg.formats);
  }
  
