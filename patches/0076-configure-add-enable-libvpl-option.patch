@@ -1,7 +1,7 @@
-From 2c3f1d498b6b5e114f71484279b179eaa729a385 Mon Sep 17 00:00:00 2001
+From b2ed153e55d82c3be6e96c1029f463e44531d84f Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 14:49:46 +0800
-Subject: [PATCH 55/70] configure: add --enable-libvpl option
+Subject: [PATCH 55/72] configure: add --enable-libvpl option
 
 This allows user to build FFmpeg against Intel oneVPL. oneVPL 2.6
 is the required minimum version when building Intel oneVPL code.

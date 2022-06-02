@@ -1,19 +1,19 @@
-From c5aad5114b788211a00a305711b6d7e3899ba478 Mon Sep 17 00:00:00 2001
+From ed1c4c2db20c51aae757a841540da6eb543f800e Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 09:08:27 +0800
-Subject: [PATCH 46/70] configure: ensure --enable-libmfx uses libmfx 1.x
+Subject: [PATCH 46/72] configure: ensure --enable-libmfx uses libmfx 1.x
 
 Intel's oneVPL is a successor to MediaSDK, but removed some obsolete
-features of MediaSDK[1]. Some early versions of oneVPL still uses libmfx
-as library name[2], however some of obsolete features, including OPAQUE
+features of MediaSDK[1], some early versions of oneVPL still use libmfx
+as library name[2]. However some of obsolete features, including OPAQUE
 memory, multi-frame encode, user plugins and LA_EXT rate control mode
 etc, have been enabled in QSV, so user can not use --enable-libmfx to
-enable QSV if using an early version of oneVPL SDK. In order to make
-sure user builds FFmpeg against a right version of libmfx, this patch
-added a check for the version of libmfx and warning message about the
-used obsolete features.
+enable QSV if using an early version of oneVPL SDK. In order to ensure
+user builds FFmpeg against a right version of libmfx, this patch added a
+check for version < 2.0 and warning message about the used obsolete
+features.
 
-[1] https://spec.oneapi.io/versions/latest/elements/oneVPL/source/appendix/VPL_intel_media_sdk.html
+[1] https://spec.oneapi.io/versions/latest/elements/oneVPL/source/VPL_intel_media_sdk.html
 [2] https://github.com/oneapi-src/oneVPL
 ---
  configure | 10 ++++++----

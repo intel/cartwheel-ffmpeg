@@ -1,13 +1,13 @@
-From 720d2f2617ef0d491a661b719d441d0160d3fe47 Mon Sep 17 00:00:00 2001
+From 8550237ff96a340f1d86da19195b48f6d6aa3bb7 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 19 Aug 2020 09:43:12 +0800
-Subject: [PATCH 53/70] qsv: support OPAQUE memory when MFX_VERSION < 2.0
+Subject: [PATCH 53/72] qsv: support OPAQUE memory when MFX_VERSION < 2.0
 
 OPAQUE memory isn't supported for MFX_VERSION >= 2.0[1][2]. This is in
 preparation for oneVPL support
 
-[1]: https://spec.oneapi.io/versions/latest/elements/oneVPL/source/appendix/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
-[2]: https://github.com/oneapi-src/oneVPL
+[1] https://spec.oneapi.io/versions/latest/elements/oneVPL/source/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
+[2] https://github.com/oneapi-src/oneVPL
 ---
  libavcodec/qsv.c                 |  4 ++
  libavcodec/qsv.h                 |  2 +
