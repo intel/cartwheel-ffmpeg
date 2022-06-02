@@ -1,7 +1,7 @@
-From a13ab1ab1fb0bedbedfda766e58e4203bae49a3e Mon Sep 17 00:00:00 2001
+From 7024e178cbdae7aba2a74931c1efb711610d0d1a Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Fri, 19 Feb 2021 08:51:35 +0800
-Subject: [PATCH 47/70] configure: fix the check for MFX_CODEC_VP9
+Subject: [PATCH 47/72] configure: fix the check for MFX_CODEC_VP9
 
 The data structures for VP9 in mfxvp9.h is wrapped by
 MFX_VERSION_NEXT, which means those data structures have never been used

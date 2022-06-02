@@ -1,13 +1,13 @@
-From 27c963a9a024c7aa5acc6445938dad6f3b561e51 Mon Sep 17 00:00:00 2001
+From 59e00d37988029e4d10fed320975d64f080b98c1 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 18 Aug 2020 15:30:32 +0800
-Subject: [PATCH 50/70] qsv: build audio related code when MFX_VERSION < 2.0
+Subject: [PATCH 50/72] qsv: build audio related code when MFX_VERSION < 2.0
 
 Audio isn't supported for MFX_VERSION >= 2.0[1][2]. This is in
 preparation for oneVPL support
 
-[1]: https://spec.oneapi.io/versions/latest/elements/oneVPL/source/appendix/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
-[2]: https://github.com/oneapi-src/oneVPL
+[1] https://spec.oneapi.io/versions/latest/elements/oneVPL/source/VPL_intel_media_sdk.html#msdk-full-name-feature-removals
+[2] https://github.com/oneapi-src/oneVPL
 ---
  libavcodec/qsv.c     | 5 +++++
  libavfilter/qsvvpp.c | 6 ++++++
