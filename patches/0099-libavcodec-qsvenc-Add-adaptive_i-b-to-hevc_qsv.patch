@@ -1,7 +1,7 @@
-From 48d14aecc1ab82ee1b714bdce8c728d735cd3b02 Mon Sep 17 00:00:00 2001
+From 964038af88276c95a815b201271003312491b141 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Wed, 18 May 2022 16:15:17 +0800
-Subject: [PATCH 70/70] libavcodec/qsvenc: Add adaptive_i/b to hevc_qsv
+Subject: [PATCH 67/69] libavcodec/qsvenc: Add adaptive_i/b to hevc_qsv
 
 Add adaptive_i/b feature to hevc_qsv. Adaptive_i allows changing of
 frame type from P and B to I. Adaptive_b allows changing of frame type
@@ -14,10 +14,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  2 files changed, 11 insertions(+), 5 deletions(-)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index d5819ef005..72c4f13378 100644
+index 2154c0e7e2..44c7fd224b 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3512,6 +3512,13 @@ Setting this flag turns on or off LowDelayBRC feautre in qsv plugin, which provi
+@@ -3530,6 +3530,13 @@ Setting this flag turns on or off LowDelayBRC feautre in qsv plugin, which provi
  more accurate bitrate control to minimize the variance of bitstream size frame
  by frame. Value: -1-default 0-off 1-on
  
@@ -32,7 +32,7 @@ index d5819ef005..72c4f13378 100644
  Enable P-pyramid: 0-default 1-simple 2-pyramid(bf need to be set to 0).
  
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 44ec360e51..04836430de 100644
+index 271e70b8b4..3f162a5e4f 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -922,11 +922,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
@@ -55,9 +55,9 @@ index 44ec360e51..04836430de 100644
 +                q->extco2.AdaptiveI = q->adaptive_i ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 +            if (q->adaptive_b >= 0)
 +                q->extco2.AdaptiveB = q->adaptive_b ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
-             if (avctx->qmin >= 0 && avctx->qmax >= 0 && avctx->qmin > avctx->qmax) {
-                 av_log(avctx, AV_LOG_ERROR, "qmin and or qmax are set but invalid, please make sure min <= max\n");
-                 return AVERROR(EINVAL);
+             if ((avctx->qmin >= 0 && avctx->qmax >= 0 && avctx->qmin > avctx->qmax) ||
+                 (q->max_qp_i >= 0 && q->min_qp_i >= 0 && q->min_qp_i > q->max_qp_i) ||
+                 (q->max_qp_p >= 0 && q->min_qp_p >= 0 && q->min_qp_p > q->max_qp_p) ||
 -- 
 2.17.1
 

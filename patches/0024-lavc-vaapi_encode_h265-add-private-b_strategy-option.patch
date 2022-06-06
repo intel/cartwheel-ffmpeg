@@ -1,7 +1,7 @@
-From 465f0d7137a9511436bb7a48ce5cd1c66d38b48b Mon Sep 17 00:00:00 2001
+From 609e306b0390319e707be0bab0920faa482b89f2 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 7 Apr 2020 14:03:21 +0800
-Subject: [PATCH 19/65] lavc/vaapi_encode_h265: add private b_strategy option
+Subject: [PATCH 17/69] lavc/vaapi_encode_h265: add private b_strategy option
  for hevc_vaapi
 
 Allow user to choose between I/P/B frames:
@@ -39,10 +39,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  4 files changed, 31 insertions(+)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index d265dd5a81..a5173a17f5 100644
+index 1850c99fe9..9fd496afcc 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3721,6 +3721,22 @@ Some combination of the following values:
+@@ -3840,6 +3840,22 @@ Some combination of the following values:
  Include HDR metadata if the input frames have it
  (@emph{mastering_display_colour_volume} and @emph{content_light_level}
  messages).
@@ -66,10 +66,10 @@ index d265dd5a81..a5173a17f5 100644
  
  @item tiles
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 0b84f07043..9275c5e305 100644
+index 284ce29888..42d845d5a7 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1993,6 +1993,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -2004,6 +2004,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
                  }
              }
          }
@@ -80,17 +80,17 @@ index 0b84f07043..9275c5e305 100644
  #endif
  
 diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
-index 28f82a72a2..7e199af291 100644
+index 359f954fff..f10d4d74a7 100644
 --- a/libavcodec/vaapi_encode.h
 +++ b/libavcodec/vaapi_encode.h
-@@ -342,6 +342,7 @@ typedef struct VAAPIEncodeContext {
+@@ -336,6 +336,7 @@ typedef struct VAAPIEncodeContext {
      int gop_counter;
      int end_of_stream;
      int p_to_gpb;
 +    int b_frame_strategy;
-     uint8_t *delta_qp;
  
      // Whether the driver supports ROI at all.
+     int             roi_allowed;
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
 index 456307d570..de9561a6af 100644
 --- a/libavcodec/vaapi_encode_h265.c
