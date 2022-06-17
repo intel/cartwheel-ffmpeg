@@ -1,4 +1,4 @@
-From 3c001960158e9f8a6cd68fe8f83dff7cdda5d484 Mon Sep 17 00:00:00 2001
+From 40d00cdc34b427490d06640b3de8ae10671e6b05 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 2 Jun 2022 14:00:57 +0800
 Subject: [PATCH] avcodec/qsvenc: make QSV encoder encode VAAPI and D3D11
@@ -12,14 +12,12 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
  libavcodec/qsvenc.c       | 59 ++++++++++++++++++++++++++++++++++-----
- libavcodec/qsvenc.c.rej   | 34 ++++++++++++++++++++++
  libavcodec/qsvenc_h264.c  |  2 ++
  libavcodec/qsvenc_hevc.c  |  2 ++
  libavcodec/qsvenc_jpeg.c  |  2 ++
  libavcodec/qsvenc_mpeg2.c |  2 ++
  libavcodec/qsvenc_vp9.c   |  2 ++
- 7 files changed, 96 insertions(+), 7 deletions(-)
- create mode 100644 libavcodec/qsvenc.c.rej
+ 6 files changed, 62 insertions(+), 7 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
 index 3f162a5e4f..620e801aa3 100644
@@ -119,46 +117,6 @@ index 3f162a5e4f..620e801aa3 100644
      HW_CONFIG_ENCODER_DEVICE(NV12, QSV),
      HW_CONFIG_ENCODER_DEVICE(P010, QSV),
      NULL,
-diff --git a/libavcodec/qsvenc.c.rej b/libavcodec/qsvenc.c.rej
-new file mode 100644
-index 0000000000..92ae28434b
---- /dev/null
-+++ b/libavcodec/qsvenc.c.rej
-@@ -0,0 +1,34 @@
-+diff a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c	(rejected hunks)
-+@@ -1247,7 +1251,31 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
-+ 
-+     if (avctx->hw_frames_ctx) {
-+         AVHWFramesContext    *frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
-+-        AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
-++        AVQSVFramesContext *frames_hwctx = NULL;
-++
-++        if (frames_ctx->format == AV_PIX_FMT_VAAPI || frames_ctx->format == AV_PIX_FMT_D3D11) {
-++            AVBufferRef *derive_device_ref = NULL;
-++            AVBufferRef *derive_frames_ref = NULL;
-++            ret = av_hwdevice_ctx_create_derived(&derive_device_ref,
-++                                                 AV_HWDEVICE_TYPE_QSV, frames_ctx->device_ref, 0);
-++            if (ret < 0) {
-++                av_log(avctx, AV_LOG_ERROR, "Failed to derive QSV device context: %d.\n", ret);
-++                return ret;
-++            }
-++            ret = av_hwframe_ctx_create_derived(&derive_frames_ref,
-++                                                AV_PIX_FMT_QSV, derive_device_ref, avctx->hw_frames_ctx, 0);
-++            if (ret < 0) {
-++                av_log(avctx, AV_LOG_ERROR, "Failed to derive QSV frames context: %d.\n", ret);
-++                av_buffer_unref(&derive_device_ref);
-++                return ret;
-++            }
-++            av_buffer_unref(&avctx->hw_device_ctx);
-++            avctx->hw_device_ctx = derive_device_ref;
-++            av_buffer_unref(&avctx->hw_frames_ctx);
-++            avctx->hw_frames_ctx = derive_frames_ref;
-++            frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
-++        }
-++        frames_hwctx = frames_ctx->hwctx;
-+ 
-+         if (!iopattern) {
-+             if (frames_hwctx->frame_type & MFX_MEMTYPE_OPAQUE_FRAME)
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
 index 53d754a473..ac3097c498 100644
 --- a/libavcodec/qsvenc_h264.c
