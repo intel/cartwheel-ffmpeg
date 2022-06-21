@@ -1,0 +1,187 @@
+From 40d00cdc34b427490d06640b3de8ae10671e6b05 Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Thu, 2 Jun 2022 14:00:57 +0800
+Subject: [PATCH] avcodec/qsvenc: make QSV encoder encode VAAPI and D3D11
+ frames directly
+
+QSV encoder is able to encode frames with VAAPI or D3D11 pixel format
+directly. This patch adds support for qsv encoder to accept VAAPI and
+D3D11 pixel formats as input.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/qsvenc.c       | 59 ++++++++++++++++++++++++++++++++++-----
+ libavcodec/qsvenc_h264.c  |  2 ++
+ libavcodec/qsvenc_hevc.c  |  2 ++
+ libavcodec/qsvenc_jpeg.c  |  2 ++
+ libavcodec/qsvenc_mpeg2.c |  2 ++
+ libavcodec/qsvenc_vp9.c   |  2 ++
+ 6 files changed, 62 insertions(+), 7 deletions(-)
+
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 3f162a5e4f..620e801aa3 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -635,7 +635,9 @@ static int check_enc_param(AVCodecContext *avctx, QSVEncContext *q)
+ 
+ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+ {
+-    enum AVPixelFormat sw_format = avctx->pix_fmt == AV_PIX_FMT_QSV ?
++    enum AVPixelFormat sw_format = avctx->pix_fmt == AV_PIX_FMT_QSV ||
++                                   avctx->pix_fmt == AV_PIX_FMT_VAAPI ||
++                                   avctx->pix_fmt == AV_PIX_FMT_D3D11 ?
+                                    avctx->sw_pix_fmt : avctx->pix_fmt;
+     const AVPixFmtDescriptor *desc;
+     int ret;
+@@ -702,7 +704,9 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+ 
+ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ {
+-    enum AVPixelFormat sw_format = avctx->pix_fmt == AV_PIX_FMT_QSV ?
++    enum AVPixelFormat sw_format = avctx->pix_fmt == AV_PIX_FMT_QSV ||
++                                   avctx->pix_fmt == AV_PIX_FMT_VAAPI ||
++                                   avctx->pix_fmt == AV_PIX_FMT_D3D11 ?
+                                    avctx->sw_pix_fmt : avctx->pix_fmt;
+     const AVPixFmtDescriptor *desc;
+     float quant;
+@@ -1486,7 +1490,31 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
+ 
+     if (avctx->hw_frames_ctx) {
+         AVHWFramesContext    *frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
+-        AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
++        AVQSVFramesContext *frames_hwctx = NULL;
++
++        if (frames_ctx->format == AV_PIX_FMT_VAAPI || frames_ctx->format == AV_PIX_FMT_D3D11) {
++            AVBufferRef *derive_device_ref = NULL;
++            AVBufferRef *derive_frames_ref = NULL;
++            ret = av_hwdevice_ctx_create_derived(&derive_device_ref,
++                                                 AV_HWDEVICE_TYPE_QSV, frames_ctx->device_ref, 0);
++            if (ret < 0) {
++                av_log(avctx, AV_LOG_ERROR, "Failed to derive QSV device context: %d.\n", ret);
++                return ret;
++            }
++            ret = av_hwframe_ctx_create_derived(&derive_frames_ref,
++                                                AV_PIX_FMT_QSV, derive_device_ref, avctx->hw_frames_ctx, 0);
++            if (ret < 0) {
++                av_log(avctx, AV_LOG_ERROR, "Failed to derive QSV frames context: %d.\n", ret);
++                av_buffer_unref(&derive_device_ref);
++                return ret;
++            }
++            av_buffer_unref(&avctx->hw_device_ctx);
++            avctx->hw_device_ctx = derive_device_ref;
++            av_buffer_unref(&avctx->hw_frames_ctx);
++            avctx->hw_frames_ctx = derive_frames_ref;
++            frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
++        }
++        frames_hwctx = frames_ctx->hwctx;
+ 
+         if (!iopattern) {
+ #if QSV_HAVE_OPAQUE
+@@ -1710,10 +1738,25 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+     if (ret < 0)
+         return ret;
+ 
+-    if (frame->format == AV_PIX_FMT_QSV) {
+-        ret = av_frame_ref(qf->frame, frame);
+-        if (ret < 0)
+-            return ret;
++    if (frame->format == AV_PIX_FMT_QSV || frame->format == AV_PIX_FMT_VAAPI || frame->format == AV_PIX_FMT_D3D11) {
++        if (frame->format == AV_PIX_FMT_QSV) {
++            ret = av_frame_ref(qf->frame, frame);
++            if (ret < 0)
++                return ret;
++        } else {
++            qf->frame->format = AV_PIX_FMT_QSV;
++            qf->frame->hw_frames_ctx = av_buffer_ref(q->avctx->hw_frames_ctx);
++            if (!qf->frame->hw_frames_ctx)
++                return AVERROR(ENOMEM);
++            ret = av_hwframe_map(qf->frame, frame, 0);
++            if (ret < 0) {
++                av_log(q->avctx, AV_LOG_ERROR, "Failed to map to QSV frames\n");
++                return ret;
++            }
++            ret = av_frame_copy_props(qf->frame, frame);
++            if (ret < 0)
++                return ret;
++        }
+ 
+         qf->surface = *(mfxFrameSurface1*)qf->frame->data[3];
+ 
+@@ -2079,6 +2122,8 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+ 
+ const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[] = {
+     HW_CONFIG_ENCODER_FRAMES(QSV,  QSV),
++    HW_CONFIG_ENCODER_FRAMES(VAAPI,VAAPI),
++    HW_CONFIG_ENCODER_FRAMES(D3D11,D3D11VA),
+     HW_CONFIG_ENCODER_DEVICE(NV12, QSV),
+     HW_CONFIG_ENCODER_DEVICE(P010, QSV),
+     NULL,
+diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
+index 53d754a473..ac3097c498 100644
+--- a/libavcodec/qsvenc_h264.c
++++ b/libavcodec/qsvenc_h264.c
+@@ -196,6 +196,8 @@ const FFCodec ff_h264_qsv_encoder = {
+     .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
+                                                     AV_PIX_FMT_P010,
+                                                     AV_PIX_FMT_QSV,
++                                                    AV_PIX_FMT_VAAPI,
++                                                    AV_PIX_FMT_D3D11,
+                                                     AV_PIX_FMT_NONE },
+     .p.priv_class   = &class,
+     .defaults       = qsv_enc_defaults,
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index fa183c7215..5d1e2914d8 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -314,6 +314,8 @@ const FFCodec ff_hevc_qsv_encoder = {
+                                                     AV_PIX_FMT_YUYV422,
+                                                     AV_PIX_FMT_Y210,
+                                                     AV_PIX_FMT_QSV,
++                                                    AV_PIX_FMT_VAAPI,
++                                                    AV_PIX_FMT_D3D11,
+                                                     AV_PIX_FMT_BGRA,
+                                                     AV_PIX_FMT_X2RGB10,
+                                                     AV_PIX_FMT_NONE },
+diff --git a/libavcodec/qsvenc_jpeg.c b/libavcodec/qsvenc_jpeg.c
+index ca56989d23..f096fafe95 100644
+--- a/libavcodec/qsvenc_jpeg.c
++++ b/libavcodec/qsvenc_jpeg.c
+@@ -90,6 +90,8 @@ const FFCodec ff_mjpeg_qsv_encoder = {
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HYBRID,
+     .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
+                                                     AV_PIX_FMT_QSV,
++                                                    AV_PIX_FMT_VAAPI,
++                                                    AV_PIX_FMT_D3D11,
+                                                     AV_PIX_FMT_NONE },
+     .p.priv_class   = &class,
+     .defaults       = qsv_enc_defaults,
+diff --git a/libavcodec/qsvenc_mpeg2.c b/libavcodec/qsvenc_mpeg2.c
+index 6b7677148c..5d6779ac7a 100644
+--- a/libavcodec/qsvenc_mpeg2.c
++++ b/libavcodec/qsvenc_mpeg2.c
+@@ -104,6 +104,8 @@ const FFCodec ff_mpeg2_qsv_encoder = {
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HYBRID,
+     .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
+                                                     AV_PIX_FMT_QSV,
++                                                    AV_PIX_FMT_VAAPI,
++                                                    AV_PIX_FMT_D3D11,
+                                                     AV_PIX_FMT_NONE },
+     .p.priv_class   = &class,
+     .defaults       = qsv_enc_defaults,
+diff --git a/libavcodec/qsvenc_vp9.c b/libavcodec/qsvenc_vp9.c
+index 81f5e69e24..d91d2cffab 100644
+--- a/libavcodec/qsvenc_vp9.c
++++ b/libavcodec/qsvenc_vp9.c
+@@ -114,6 +114,8 @@ const FFCodec ff_vp9_qsv_encoder = {
+     .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
+                                                     AV_PIX_FMT_P010,
+                                                     AV_PIX_FMT_QSV,
++                                                    AV_PIX_FMT_VAAPI,
++                                                    AV_PIX_FMT_D3D11,
+                                                     AV_PIX_FMT_NONE },
+     .p.priv_class   = &class,
+     .defaults       = qsv_enc_defaults,
+-- 
+2.35.3.windows.1
+
