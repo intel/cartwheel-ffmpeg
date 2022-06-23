@@ -1,4 +1,4 @@
-From 1e57c02c7f7c2ef2c6606120ee4078d2f9eb17bc Mon Sep 17 00:00:00 2001
+From fd4d596bd09a97811453e8f77126a47be4d3de1f Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 8 Apr 2021 13:09:47 +0800
 Subject: [PATCH] libavcodec/qsvenc_av1: add av1_qsv encoder
@@ -17,8 +17,8 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  libavcodec/allcodecs.c  |   1 +
  libavcodec/qsvenc.c     | 195 ++++++++++++++++++++++++++++-
  libavcodec/qsvenc.h     |   7 +-
- libavcodec/qsvenc_av1.c | 266 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 470 insertions(+), 4 deletions(-)
+ libavcodec/qsvenc_av1.c | 267 ++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 471 insertions(+), 4 deletions(-)
  create mode 100644 libavcodec/qsvenc_av1.c
 
 diff --git a/configure b/configure
@@ -356,10 +356,10 @@ index 86fe673a3e..230514aea3 100644
      mfxExtBuffer **extparam;
 diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
 new file mode 100644
-index 0000000000..b6823bbfe2
+index 0000000000..e8fd46640c
 --- /dev/null
 +++ b/libavcodec/qsvenc_av1.c
-@@ -0,0 +1,266 @@
+@@ -0,0 +1,267 @@
 +/*
 + * Intel MediaSDK QSV based AV1 encoder
 + *
@@ -475,7 +475,8 @@ index 0000000000..b6823bbfe2
 +    QSVEncContext *enc_ctx = &q->qsv;
 +    AVPacket pkt_tmp, *output_pkt = &q->output_pkt;
 +    if (!output_pkt->data) {
-+        ret = av_new_packet(output_pkt, enc_ctx->packet_size);
++        ret = av_new_packet(output_pkt,
++                            enc_ctx->packet_size * enc_ctx->param.mfx.NumRefFrame);
 +        if (ret < 0)
 +            return ret;
 +        output_pkt->size = 0;
