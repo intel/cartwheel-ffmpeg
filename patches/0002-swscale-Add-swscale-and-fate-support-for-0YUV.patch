@@ -1,7 +1,7 @@
-From bbcbfcb09f5ec8b5ae2348837499c19b862b23db Mon Sep 17 00:00:00 2001
+From b64a2838e0d94d452aca3a28e51622f7c4521fdf Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 15 Jun 2020 15:38:48 +0800
-Subject: [PATCH 02/87] swscale: Add swscale and fate support for 0YUV
+Subject: [PATCH 02/71] swscale: Add swscale and fate support for 0YUV
 
 Add input and output support in swscale for 0YUV.
 
@@ -32,10 +32,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  create mode 100644 tests/ref/fate/filter-pixdesc-0yuv
 
 diff --git a/libswscale/input.c b/libswscale/input.c
-index 6acc39f89f..4d697f296b 100644
+index fe0c27d743..e0277c8554 100644
 --- a/libswscale/input.c
 +++ b/libswscale/input.c
-@@ -574,6 +574,25 @@ static void y210le_Y_c(uint8_t *dst, const uint8_t *src, const uint8_t *unused0,
+@@ -568,6 +568,25 @@ static void y210le_Y_c(uint8_t *dst, const uint8_t *src, const uint8_t *unused0,
          AV_WN16(dst + i * 2, AV_RL16(src + i * 4) >> 6);
  }
  
@@ -61,7 +61,7 @@ index 6acc39f89f..4d697f296b 100644
  static void bswap16Y_c(uint8_t *_dst, const uint8_t *_src, const uint8_t *unused1, const uint8_t *unused2, int width,
                         uint32_t *unused)
  {
-@@ -1260,6 +1279,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
+@@ -1254,6 +1273,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
      case AV_PIX_FMT_Y210LE:
          c->chrToYV12 = y210le_UV_c;
          break;
@@ -71,7 +71,7 @@ index 6acc39f89f..4d697f296b 100644
      }
      if (c->chrSrcHSubSample) {
          switch (srcFormat) {
-@@ -1717,6 +1739,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
+@@ -1711,6 +1733,9 @@ av_cold void ff_sws_init_input_funcs(SwsContext *c)
      case AV_PIX_FMT_Y210LE:
          c->lumToYV12 = y210le_Y_c;
          break;
@@ -150,7 +150,7 @@ index 773f3ce059..42ceb784ee 100644
          *yuv2packedX = yuv2ayuv64le_X_c;
          break;
 diff --git a/libswscale/swscale_unscaled.c b/libswscale/swscale_unscaled.c
-index 7cb2a62f07..16fa443833 100644
+index 8838cc8b53..6f7a499444 100644
 --- a/libswscale/swscale_unscaled.c
 +++ b/libswscale/swscale_unscaled.c
 @@ -371,6 +371,41 @@ static int yuv422pToUyvyWrapper(SwsContext *c, const uint8_t *src[],
@@ -208,10 +208,10 @@ index 7cb2a62f07..16fa443833 100644
      if (srcFormat == AV_PIX_FMT_GRAY8 && dstFormat == AV_PIX_FMT_GRAYF32){
          c->convert_unscaled = uint_y_to_float_y_wrapper;
 diff --git a/libswscale/utils.c b/libswscale/utils.c
-index c5ea8853d5..bd99d9bb3f 100644
+index cb4f5b521c..5c26c24c4f 100644
 --- a/libswscale/utils.c
 +++ b/libswscale/utils.c
-@@ -266,6 +266,7 @@ static const FormatEntry format_entries[] = {
+@@ -247,6 +247,7 @@ static const FormatEntry format_entries[] = {
      [AV_PIX_FMT_NV24]        = { 1, 1 },
      [AV_PIX_FMT_NV42]        = { 1, 1 },
      [AV_PIX_FMT_Y210LE]      = { 1, 0 },
@@ -304,13 +304,13 @@ index f06fa1574e..b7b66fde48 100644
  argb                f003b555ef429222005d33844cca9325
  ayuv64le            07b9c969dfbe4add4c0626773b151d4f
 diff --git a/tests/ref/fate/filter-pixfmts-pad b/tests/ref/fate/filter-pixfmts-pad
-index 519473032e..44262f942a 100644
+index a30658bed3..b411900cd7 100644
 --- a/tests/ref/fate/filter-pixfmts-pad
 +++ b/tests/ref/fate/filter-pixfmts-pad
 @@ -1,5 +1,6 @@
  0bgr                55d41bba3609383bf658169f90b30b42
  0rgb                8e076dd0f8a9f4652595dffe3544f0f0
-+0yuv                93fca69f640574dc7d8cce6282f72e96
++0yuv                c1014bc35bb44656096fb6a6719e524b
  abgr                52738042432893de555e6a3833172806
  argb                2a10108ac524b422b8a2393c064b3eab
  bgr0                025d4d5e5691801ba39bc9de70e39df0
@@ -348,5 +348,5 @@ index 3a53bb5837..a5dfc898e5 100644
  argb                3fd6af7ef2364d8aa845d45db289a04a
  ayuv64le            558671dd31d0754cfa6344eaf441df78
 -- 
-2.25.1
+2.17.1
 
