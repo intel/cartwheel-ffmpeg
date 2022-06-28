@@ -1,7 +1,7 @@
-From e1c03a75804bbfafcbf4f55178e2a8c0faf2d9e3 Mon Sep 17 00:00:00 2001
+From 2d833f5e270ae988831b76b5ef736ff3c709290f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 16 Jun 2022 10:04:18 +0800
-Subject: [PATCH 3/3] lavc/vaapi: support av1 encode
+Subject: [PATCH] lavc/vaapi: support av1 encode
 
 example cmd:
 CQP:
@@ -30,19 +30,19 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  libavcodec/tests/av1_levels.c  |  124 ++++
  libavcodec/vaapi_encode.c      |  155 ++++-
  libavcodec/vaapi_encode.h      |   15 +
- libavcodec/vaapi_encode_av1.c  | 1149 ++++++++++++++++++++++++++++++++
+ libavcodec/vaapi_encode_av1.c  | 1152 ++++++++++++++++++++++++++++++++
  tests/fate/libavcodec.mak      |    5 +
- 12 files changed, 1594 insertions(+), 25 deletions(-)
+ 12 files changed, 1597 insertions(+), 25 deletions(-)
  create mode 100644 libavcodec/av1_profile_level.c
  create mode 100644 libavcodec/av1_profile_level.h
  create mode 100644 libavcodec/tests/av1_levels.c
  create mode 100644 libavcodec/vaapi_encode_av1.c
 
 diff --git a/configure b/configure
-index 6651e72910..ae1036ae7c 100755
+index a7ef96d4ee..38f1428a8c 100755
 --- a/configure
 +++ b/configure
-@@ -3252,6 +3252,8 @@ wmv3_crystalhd_decoder_select="crystalhd"
+@@ -3255,6 +3255,8 @@ wmv3_crystalhd_decoder_select="crystalhd"
  av1_qsv_decoder_select="qsvdec"
  av1_qsv_encoder_select="qsvenc"
  av1_qsv_encoder_deps="libvpl MFX_EXTBUFF_AV1_BITSTREAM_PARAM"
@@ -51,7 +51,7 @@ index 6651e72910..ae1036ae7c 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6939,6 +6941,7 @@ if enabled vaapi; then
+@@ -6944,6 +6946,7 @@ if enabled vaapi; then
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
      check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
@@ -60,10 +60,10 @@ index 6651e72910..ae1036ae7c 100755
  
  if enabled_all opencl libdrm ; then
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 764e50b3cc..1ad784bb90 100644
+index 0a869dceb2..953713d55e 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3806,6 +3806,20 @@ Average variable bitrate.
+@@ -3816,6 +3816,20 @@ Average variable bitrate.
  Each encoder also has its own specific options:
  @table @option
  
@@ -85,7 +85,7 @@ index 764e50b3cc..1ad784bb90 100644
  @option{profile} sets the value of @emph{profile_idc} and the @emph{constraint_set*_flag}s.
  @option{level} sets the value of @emph{level_idc}.
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 87e5ee0ce1..96316014e9 100644
+index 9b19abdca2..aa2762956a 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -242,6 +242,7 @@ OBJS-$(CONFIG_AURA2_DECODER)           += aura.o
@@ -96,7 +96,7 @@ index 87e5ee0ce1..96316014e9 100644
  OBJS-$(CONFIG_AVRN_DECODER)            += avrndec.o
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
-@@ -1271,6 +1272,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
+@@ -1272,6 +1273,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
  TESTPROGS-$(CONFIG_HEVC_METADATA_BSF)     += h265_levels
  TESTPROGS-$(CONFIG_RANGECODER)            += rangecoder
  TESTPROGS-$(CONFIG_SNOW_ENCODER)          += snowenc
@@ -418,7 +418,7 @@ index 0000000000..8a980d42c1
 +    return 0;
 +}
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index f1a7c47cb3..abc4dfb357 100644
+index f1a7c47cb3..98ee68a091 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -650,15 +650,58 @@ fail_at_end:
@@ -471,7 +471,7 @@ index f1a7c47cb3..abc4dfb357 100644
 +        pkt_size =  ctx->coded_frame_size;
 +        err = ff_get_encode_buffer(avctx, pkt, pkt_size, 0);
 +        if (err < 0)
-+            goto fail_mapped;
++            return err;
 +        ptr = pkt->data;
 +        memcpy(ptr, ctx->coded_frame_data, ctx->coded_frame_size);
 +        ctx->coded_frame_type = CODED_FRAME_NONE;
@@ -684,10 +684,10 @@ index 359f954fff..68256ad8a6 100644
      // Whether the driver support vaSyncBuffer
 diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
 new file mode 100644
-index 0000000000..85fe024c58
+index 0000000000..5fd1339e1d
 --- /dev/null
 +++ b/libavcodec/vaapi_encode_av1.c
-@@ -0,0 +1,1149 @@
+@@ -0,0 +1,1152 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -1162,6 +1162,9 @@ index 0000000000..85fe024c58
 +        *data_len -= (8 - obu_size_len) * 8;
 +    }
 +
++    if (fh->show_existing_frame)
++        return 0;
++
 +    if (!(ctx->va_rc_mode & VA_RC_CQP)) {
 +        vpic->min_base_qindex = av_clip(avctx->qmin, 1, AV1_MAX_QUANT);
 +        vpic->max_base_qindex = av_clip(avctx->qmax, 1, AV1_MAX_QUANT);
@@ -1392,7 +1395,7 @@ index 0000000000..85fe024c58
 +        hpic->last_idr_frame = pic->display_order;
 +        break;
 +    case PICTURE_TYPE_P:
-+        av_assert0(pic->nb_refs == 1);
++        av_assert0(pic->nb_refs == 1 && prev);
 +        fh->frame_type = AV1_FRAME_INTER;
 +        fh->base_q_idx = priv->q_idx_p;
 +        hpic->last_idr_frame = hprev->last_idr_frame;
@@ -1409,12 +1412,12 @@ index 0000000000..85fe024c58
 +            }
 +
 +            if (hpic->slot) {
-+                for (i=0; i <= AV1_REFS_PER_FRAME; i++)
++                for (i=0; i < AV1_REFS_PER_FRAME; i++)
 +                    fh->ref_frame_idx[i] = 0;
 +                if (pic->refs[0]->refs[0])
 +                    fh->ref_order_hint[1] = pic->refs[0]->refs[0]->display_order - hpic->last_idr_frame;
 +            } else {
-+                for (i=0; i <= AV1_REFS_PER_FRAME; i++)
++                for (i=0; i < AV1_REFS_PER_FRAME; i++)
 +                    fh->ref_frame_idx[i] = 1;
 +                fh->primary_ref_frame = 1;
 +                if (pic->refs[0]->refs[0])
@@ -1428,7 +1431,7 @@ index 0000000000..85fe024c58
 +        }
 +        break;
 +    case PICTURE_TYPE_B:
-+        av_assert0(pic->nb_refs == 2);
++        av_assert0(pic->nb_refs == 2 && prev);
 +        href0 = pic->refs[0]->priv_data;
 +        href1 = pic->refs[1]->priv_data;
 +        av_assert0(href0->slot < pic->b_depth + 1 &&
