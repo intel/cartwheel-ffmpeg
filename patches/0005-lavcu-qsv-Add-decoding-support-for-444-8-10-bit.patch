@@ -1,16 +1,20 @@
-From eb18f2392636460969ba3fe496eedd76ff872c75 Mon Sep 17 00:00:00 2001
+From 51b1b3b5661793765106ec77ad5e6a56417fa178 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:54:57 +0800
 Subject: [PATCH 05/70] lavcu/qsv: Add decoding support for 444 8/10 bit
 
+Add support for 0yuv/y410 in system memory
+
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
- libavcodec/qsv.c          | 10 ++++++++++
+ libavcodec/qsv.c          | 22 ++++++++++++++++++++++
+ libavcodec/qsvdec.c       |  4 ++++
  libavutil/hwcontext_qsv.c | 13 +++++++++++++
- 2 files changed, 23 insertions(+)
+ 3 files changed, 39 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 385b43bb6c..9c27d022b6 100644
+index 385b43bb6c..8107a14217 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -185,7 +185,9 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
@@ -42,6 +46,47 @@ index 385b43bb6c..9c27d022b6 100644
  #endif
      default:
          return AVERROR(ENOSYS);
+@@ -252,6 +262,18 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+         surface->Data.U16 = (mfxU16 *)frame->data[0] + 1;
+         surface->Data.V16 = (mfxU16 *)frame->data[0] + 3;
+         break;
++
++    case AV_PIX_FMT_0YUV:
++        surface->Data.V = frame->data[0];
++        surface->Data.U = frame->data[0] + 1;
++        surface->Data.Y = frame->data[0] + 2;
++        surface->Data.A = frame->data[0] + 3;
++        break;
++
++    case AV_PIX_FMT_Y410:
++        surface->Data.U = frame->data[0];
++        break;
++
+     default:
+         return AVERROR(ENOSYS);
+     }
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index 5fc5bed4c8..c4f381ca69 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -135,6 +135,8 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
+         frame->linesize[0] = 2 * FFALIGN(avctx->width, 128);
+         break;
+     case AV_PIX_FMT_Y210:
++    case AV_PIX_FMT_Y410:
++    case AV_PIX_FMT_0YUV:
+         frame->linesize[0] = 4 * FFALIGN(avctx->width, 128);
+         break;
+     default:
+@@ -1021,6 +1023,8 @@ const FFCodec ff_##x##_qsv_decoder = { \
+                                                     AV_PIX_FMT_P010, \
+                                                     AV_PIX_FMT_YUYV422, \
+                                                     AV_PIX_FMT_Y210, \
++                                                    AV_PIX_FMT_0YUV, \
++                                                    AV_PIX_FMT_Y410, \
+                                                     AV_PIX_FMT_QSV, \
+                                                     AV_PIX_FMT_NONE }, \
+     .hw_configs     = qsv_hw_configs, \
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
 index 82cbe2e124..e5edde3bda 100644
 --- a/libavutil/hwcontext_qsv.c
