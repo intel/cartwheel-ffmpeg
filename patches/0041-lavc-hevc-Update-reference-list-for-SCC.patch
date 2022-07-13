@@ -1,7 +1,7 @@
-From 1b6e66941e4d69736af0646b41ba9b8d93251000 Mon Sep 17 00:00:00 2001
+From b13f8e7a401287d46417eaa1313c3d98b48692b4 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:45 +0800
-Subject: [PATCH 41/92] lavc/hevc: Update reference list for SCC
+Subject: [PATCH 41/77] lavc/hevc: Update reference list for SCC
 
 Screen Content Coding allows non-intra slice in an IDR frame, and would
 mark the current decoded picture as "used for long-term reference", no
@@ -17,10 +17,10 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 27 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
-index f78a690b2500..e6054696a337 100644
+index 36a1c72613..b51b81119b 100644
 --- a/libavcodec/hevc_refs.c
 +++ b/libavcodec/hevc_refs.c
-@@ -315,7 +315,7 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+@@ -323,7 +323,7 @@ int ff_hevc_slice_rpl(HEVCContext *s)
          return ret;
  
      if (!(s->rps[ST_CURR_BEF].nb_refs + s->rps[ST_CURR_AFT].nb_refs +
@@ -29,7 +29,7 @@ index f78a690b2500..e6054696a337 100644
          av_log(s->avctx, AV_LOG_ERROR, "Zero refs in the frame RPS.\n");
          return AVERROR_INVALIDDATA;
      }
-@@ -342,6 +342,12 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+@@ -350,6 +350,12 @@ int ff_hevc_slice_rpl(HEVCContext *s)
                      rpl_tmp.nb_refs++;
                  }
              }
@@ -42,7 +42,7 @@ index f78a690b2500..e6054696a337 100644
          }
  
          /* reorder the references if necessary */
-@@ -364,6 +370,12 @@ int ff_hevc_slice_rpl(HEVCContext *s)
+@@ -372,6 +378,12 @@ int ff_hevc_slice_rpl(HEVCContext *s)
              rpl->nb_refs = FFMIN(rpl->nb_refs, sh->nb_refs[list_idx]);
          }
  
@@ -55,7 +55,7 @@ index f78a690b2500..e6054696a337 100644
          if (sh->collocated_list == list_idx &&
              sh->collocated_ref_idx < rpl->nb_refs)
              s->ref->collocated_ref = rpl->ref[sh->collocated_ref_idx];
-@@ -437,7 +449,8 @@ static int add_candidate_ref(HEVCContext *s, RefPicList *list,
+@@ -445,7 +457,8 @@ static int add_candidate_ref(HEVCContext *s, RefPicList *list,
  {
      HEVCFrame *ref = find_ref_idx(s, poc, use_msb);
  
@@ -65,7 +65,7 @@ index f78a690b2500..e6054696a337 100644
          return AVERROR_INVALIDDATA;
  
      if (!ref) {
-@@ -506,6 +519,12 @@ int ff_hevc_frame_rps(HEVCContext *s)
+@@ -514,6 +527,12 @@ int ff_hevc_frame_rps(HEVCContext *s)
              goto fail;
      }
  
@@ -78,7 +78,7 @@ index f78a690b2500..e6054696a337 100644
  fail:
      /* release any frames that are now unused */
      for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++)
-@@ -532,5 +551,9 @@ int ff_hevc_frame_nb_refs(const HEVCContext *s)
+@@ -540,5 +559,9 @@ int ff_hevc_frame_nb_refs(const HEVCContext *s)
          for (i = 0; i < long_rps->nb_refs; i++)
              ret += !!long_rps->used[i];
      }
@@ -89,10 +89,10 @@ index f78a690b2500..e6054696a337 100644
      return ret;
  }
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 80a679788abd..3025fd6511b4 100644
+index 365bc7891f..c506c0f77a 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -652,7 +652,8 @@ static int hls_slice_header(HEVCContext *s)
+@@ -670,7 +670,8 @@ static int hls_slice_header(HEVCContext *s)
                     sh->slice_type);
              return AVERROR_INVALIDDATA;
          }
@@ -103,5 +103,5 @@ index 80a679788abd..3025fd6511b4 100644
              return AVERROR_INVALIDDATA;
          }
 -- 
-2.25.4
+2.17.1
 

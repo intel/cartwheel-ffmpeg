@@ -1,7 +1,7 @@
-From 4eee6813d934ad0b63cd57b8e6cae0cd33a77571 Mon Sep 17 00:00:00 2001
+From 5b0e5c1e8ad0aca8d8de396187403538cecaa22e Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:41 +0800
-Subject: [PATCH 37/92] lavc/hevc_ps: Add pps parse support for HEVC SCC
+Subject: [PATCH 37/77] lavc/hevc_ps: Add pps parse support for HEVC SCC
  extension
 
 Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
@@ -12,10 +12,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  2 files changed, 86 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
-index 7e72acc2e950..460a39235865 100644
+index a2d069a001..0a8a9dadd9 100644
 --- a/libavcodec/hevc_ps.c
 +++ b/libavcodec/hevc_ps.c
-@@ -1404,6 +1404,48 @@ static int pps_range_extensions(GetBitContext *gb, AVCodecContext *avctx,
+@@ -1401,6 +1401,48 @@ static int pps_range_extensions(GetBitContext *gb, AVCodecContext *avctx,
      return(0);
  }
  
@@ -64,7 +64,7 @@ index 7e72acc2e950..460a39235865 100644
  static inline int setup_pps(AVCodecContext *avctx, GetBitContext *gb,
                              HEVCPPS *pps, HEVCSPS *sps)
  {
-@@ -1757,11 +1799,37 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
+@@ -1754,11 +1796,37 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
  
      if (get_bits1(gb)) { // pps_extension_present_flag
          pps->pps_range_extensions_flag = get_bits1(gb);
@@ -104,7 +104,7 @@ index 7e72acc2e950..460a39235865 100644
  
      ret = setup_pps(avctx, gb, pps, sps);
 diff --git a/libavcodec/hevc_ps.h b/libavcodec/hevc_ps.h
-index be237580083f..155b66062e78 100644
+index be23758008..155b66062e 100644
 --- a/libavcodec/hevc_ps.h
 +++ b/libavcodec/hevc_ps.h
 @@ -312,6 +312,9 @@ typedef struct HEVCPPS {
@@ -139,5 +139,5 @@ index be237580083f..155b66062e78 100644
      unsigned int *column_width;  ///< ColumnWidth
      unsigned int *row_height;    ///< RowHeight
 -- 
-2.25.4
+2.17.1
 

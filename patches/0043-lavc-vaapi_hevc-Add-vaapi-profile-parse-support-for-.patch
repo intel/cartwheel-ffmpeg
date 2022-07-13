@@ -1,7 +1,7 @@
-From 83e5ce80a14a375dda8581424bd5881fa829d240 Mon Sep 17 00:00:00 2001
+From 922d4adc2f2eefd26f1c70c43ff5855b0f379c0f Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 2 Jun 2020 14:34:00 +0800
-Subject: [PATCH 43/92] lavc/vaapi_hevc: Add vaapi profile parse support for
+Subject: [PATCH 43/77] lavc/vaapi_hevc: Add vaapi profile parse support for
  SCC
 
 Note that Screen-Extended Main 4:4:4 and 4:4:4 10 supports
@@ -15,10 +15,10 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  2 files changed, 12 insertions(+)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index c6e3886b02be..8026e0411f2f 100644
+index 984fd8e316..252c3f9f3a 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
-@@ -416,6 +416,8 @@ static const struct {
+@@ -418,6 +418,8 @@ static const struct {
  #if VA_CHECK_VERSION(1, 2, 0) && CONFIG_HEVC_VAAPI_HWACCEL
      MAP(HEVC,        HEVC_REXT,       None,
                   ff_vaapi_parse_hevc_rext_profile ),
@@ -28,10 +28,10 @@ index c6e3886b02be..8026e0411f2f 100644
      MAP(MJPEG,       MJPEG_HUFFMAN_BASELINE_DCT,
                                        JPEGBaseline),
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 4e3ae6cf3b4c..28fe76c40e09 100644
+index 669341cf78..ca4b663565 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
-@@ -608,6 +608,16 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
+@@ -615,6 +615,16 @@ VAProfile ff_vaapi_parse_hevc_rext_profile(AVCodecContext *avctx)
      else if (!strcmp(profile->name, "Main 4:4:4 12") ||
               !strcmp(profile->name, "Main 4:4:4 12 Intra"))
          return VAProfileHEVCMain444_12;
@@ -49,5 +49,5 @@ index 4e3ae6cf3b4c..28fe76c40e09 100644
      av_log(avctx, AV_LOG_WARNING, "HEVC profile %s is "
             "not supported with this VA version.\n", profile->name);
 -- 
-2.25.4
+2.17.1
 
