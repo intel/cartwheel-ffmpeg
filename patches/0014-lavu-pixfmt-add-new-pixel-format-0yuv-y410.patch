@@ -1,0 +1,176 @@
+From 66068afd3c6ce826e3299a5de629d68226ce5a86 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Mon, 15 Jun 2020 10:58:19 +0800
+Subject: [PATCH 14/77] lavu/pixfmt: add new pixel format 0yuv/y410
+
+Previously, media driver provided planar format(like 420 8 bit),
+but for HEVC Range Extension (444 8/10 bit), the decoded image
+is produced in packed format because Windows expects it.
+
+Add some packed pixel formats for hardware decode support in VAAPI
+and QSV:
+
+4:4:4  8 bit: 0YUV
+4:4:4 10 bit: Y410
+
+Add query support in fate. New version should be bumped while
+upstreaming.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavutil/pixdesc.c              | 35 ++++++++++++++++++++++++++++++++
+ libavutil/pixfmt.h               |  5 +++++
+ tests/ref/fate/imgutils          |  3 +++
+ tests/ref/fate/sws-pixdesc-query | 11 ++++++++++
+ 4 files changed, 54 insertions(+)
+
+diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
+index 6e57a82cb6..e352f53b4f 100644
+--- a/libavutil/pixdesc.c
++++ b/libavutil/pixdesc.c
+@@ -224,6 +224,41 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+         },
+         .flags = AV_PIX_FMT_FLAG_BE,
+     },
++    [AV_PIX_FMT_0YUV] = {
++        .name = "0yuv",
++        .nb_components = 3,
++        .log2_chroma_w = 0,
++        .log2_chroma_h = 0,
++        .comp = {
++            { 0, 4, 1, 0, 8 },        /* Y */
++            { 0, 4, 2, 0, 8 },        /* U */
++            { 0, 4, 3, 0, 8 },        /* V */
++        },
++    },
++    [AV_PIX_FMT_Y410LE] = {
++        .name = "y410le",
++        .nb_components = 3,
++        .log2_chroma_w = 0,
++        .log2_chroma_h = 0,
++        .comp = {
++            { 0, 32, 10, 0, 10 },        /* Y */
++            { 0, 32,  0, 0, 10 },        /* U */
++            { 0, 32, 20, 0, 10 },        /* V */
++        },
++        .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BITSTREAM,
++    },
++    [AV_PIX_FMT_Y410BE] = {
++        .name = "y410be",
++        .nb_components = 3,
++        .log2_chroma_w = 0,
++        .log2_chroma_h = 0,
++        .comp = {
++            { 0, 32, 10, 0, 10 },        /* Y */
++            { 0, 32,  0, 0, 10 },        /* U */
++            { 0, 32, 20, 0, 10 },        /* V */
++        },
++        .flags = AV_PIX_FMT_FLAG_ALPHA | AV_PIX_FMT_FLAG_BITSTREAM | AV_PIX_FMT_FLAG_BE,
++    },
+     [AV_PIX_FMT_RGB24] = {
+         .name = "rgb24",
+         .nb_components = 3,
+diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
+index 2d3927cc3f..6314930e99 100644
+--- a/libavutil/pixfmt.h
++++ b/libavutil/pixfmt.h
+@@ -350,6 +350,10 @@ enum AVPixelFormat {
+     AV_PIX_FMT_Y210BE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, big-endian
+     AV_PIX_FMT_Y210LE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, little-endian
+ 
++    AV_PIX_FMT_0YUV,      ///< packed YUV 4:4:4, 32bpp,  X  Y Cb Cr, X=unused/undefined
++    AV_PIX_FMT_Y410LE,    ///< packed YUV 4:4:4, 32bpp, Cr  Y Cb  A, little-endian
++    AV_PIX_FMT_Y410BE,    ///< packed YUV 4:4:4, 32bpp, Cr  Y Cb  A, big-endian
++
+     AV_PIX_FMT_X2RGB10LE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), little-endian, X=unused/undefined
+     AV_PIX_FMT_X2RGB10BE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), big-endian, X=unused/undefined
+     AV_PIX_FMT_X2BGR10LE, ///< packed BGR 10:10:10, 30bpp, (msb)2X 10B 10G 10R(lsb), little-endian, X=unused/undefined
+@@ -456,6 +460,7 @@ enum AVPixelFormat {
+ #define AV_PIX_FMT_P016       AV_PIX_FMT_NE(P016BE,  P016LE)
+ 
+ #define AV_PIX_FMT_Y210       AV_PIX_FMT_NE(Y210BE,  Y210LE)
++#define AV_PIX_FMT_Y410       AV_PIX_FMT_NE(Y410BE,  Y410LE)
+ #define AV_PIX_FMT_X2RGB10    AV_PIX_FMT_NE(X2RGB10BE, X2RGB10LE)
+ #define AV_PIX_FMT_X2BGR10    AV_PIX_FMT_NE(X2BGR10BE, X2BGR10LE)
+ 
+diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
+index b23d1b4c39..024a5da6b1 100644
+--- a/tests/ref/fate/imgutils
++++ b/tests/ref/fate/imgutils
+@@ -234,6 +234,9 @@ nv24            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144
+ nv42            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144     0     0, plane_offsets:  3072     0     0, total_size: 9216
+ y210be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ y210le          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
++0yuv            planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
++y410le          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
++y410be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ x2rgb10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ x2bgr10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
+index 76104bc5a6..06301cb8aa 100644
+--- a/tests/ref/fate/sws-pixdesc-query
++++ b/tests/ref/fate/sws-pixdesc-query
+@@ -73,6 +73,8 @@ isNBPS:
+   xyz12le
+   y210be
+   y210le
++  y410be
++  y410le
+   yuv420p10be
+   yuv420p10le
+   yuv420p12be
+@@ -161,6 +163,7 @@ isBE:
+   x2rgb10be
+   xyz12be
+   y210be
++  y410be
+   ya16be
+   yuv420p10be
+   yuv420p12be
+@@ -192,6 +195,7 @@ isBE:
+   yuva444p9be
+ 
+ isYUV:
++  0yuv
+   ayuv64be
+   ayuv64le
+   nv12
+@@ -219,6 +223,8 @@ isYUV:
+   xyz12le
+   y210be
+   y210le
++  y410be
++  y410le
+   ya16be
+   ya16le
+   ya8
+@@ -654,6 +660,8 @@ ALPHA:
+   rgb32_1
+   rgba64be
+   rgba64le
++  y410be
++  y410le
+   ya16be
+   ya16le
+   ya8
+@@ -686,6 +694,7 @@ ALPHA:
+ Packed:
+   0bgr
+   0rgb
++  0yuv
+   ayuv64be
+   ayuv64le
+   bayer_bggr16be
+@@ -747,6 +756,8 @@ Packed:
+   xyz12le
+   y210be
+   y210le
++  y410be
++  y410le
+   ya16be
+   ya16le
+   ya8
+-- 
+2.17.1
+

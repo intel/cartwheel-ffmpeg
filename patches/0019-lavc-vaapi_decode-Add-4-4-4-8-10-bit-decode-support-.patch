@@ -1,0 +1,48 @@
+From 9961a3e705aafba1152e127dc24b65b8d78f29a0 Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Fri, 20 Sep 2019 10:07:02 +0800
+Subject: [PATCH 19/77] lavc/vaapi_decode: Add 4:4:4 8/10 bit decode support
+ for VP9
+
+VP9 4:4:4 8 bit and 10 bit decode are supported since Ice Lake.
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavcodec/vaapi_decode.c | 2 ++
+ libavcodec/vp9.c          | 6 ++++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
+index a7abddb06b..e898243bc7 100644
+--- a/libavcodec/vaapi_decode.c
++++ b/libavcodec/vaapi_decode.c
+@@ -410,7 +410,9 @@ static const struct {
+     MAP(VP9,         VP9_0,           VP9Profile0 ),
+ #endif
+ #if VA_CHECK_VERSION(0, 39, 0)
++    MAP(VP9,         VP9_1,           VP9Profile1 ),
+     MAP(VP9,         VP9_2,           VP9Profile2 ),
++    MAP(VP9,         VP9_3,           VP9Profile3 ),
+ #endif
+ #if VA_CHECK_VERSION(1, 8, 0)
+     MAP(AV1,         AV1_MAIN,        AV1Profile0),
+diff --git a/libavcodec/vp9.c b/libavcodec/vp9.c
+index fee79fb45b..4913ae58ec 100644
+--- a/libavcodec/vp9.c
++++ b/libavcodec/vp9.c
+@@ -231,6 +231,12 @@ static int update_size(AVCodecContext *avctx, int w, int h)
+ #endif
+ #if CONFIG_VP9_VDPAU_HWACCEL
+             *fmtp++ = AV_PIX_FMT_VDPAU;
++#endif
++            break;
++        case AV_PIX_FMT_YUV444P:
++        case AV_PIX_FMT_YUV444P10:
++#if CONFIG_VP9_VAAPI_HWACCEL
++            *fmtp++ = AV_PIX_FMT_VAAPI;
+ #endif
+             break;
+         }
+-- 
+2.17.1
+

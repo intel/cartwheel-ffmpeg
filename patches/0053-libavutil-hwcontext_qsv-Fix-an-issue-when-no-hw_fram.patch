@@ -1,0 +1,260 @@
+From 9d2844f3c57177e27cf7a733f087543fc1a32e9b Mon Sep 17 00:00:00 2001
+From: "Chen,Wenbin" <wenbin.chen@intel.com>
+Date: Wed, 9 Jun 2021 16:09:31 +0800
+Subject: [PATCH 53/77] libavutil/hwcontext_qsv: Fix an issue when no hw_frame
+ is allocated
+
+Some filters and codecs use surfaces[0] to get frameInfo, but there is not
+guarantee that the surfaces is allocated. Add a variable to store the
+surface information, and filter and codec and get mfxSurface information
+from it.
+
+Now the following command can work:
+
+ffmpeg -v verbose -hwaccel qsv -c:v h264_qsv -i 1080p.264 -vf
+"hwmap=derive_device=vaapi,format=vaapi,hwmap=derive_device=vulkan,format=vulkan,
+scale_vulkan=w=1920:h=1080,hwmap=derive_device=vaapi,format=vaapi,hwmap=derive_device=qsv,
+format=qsv,scale_qsv=w=720:h=480" -c:v h264_qsv output.264
+
+Signed-off-by: Wenbin,Chen <wenbin.chen@intel.com>
+---
+ libavcodec/qsv.c                 |  4 +--
+ libavcodec/qsvenc.c              |  8 ++---
+ libavfilter/qsvvpp.c             |  2 +-
+ libavfilter/vf_deinterlace_qsv.c |  2 +-
+ libavfilter/vf_scale_qsv.c       |  4 +--
+ libavutil/hwcontext_qsv.c        | 54 +++++++++++++++++++++++++-------
+ libavutil/hwcontext_qsv.h        |  6 ++++
+ 7 files changed, 58 insertions(+), 22 deletions(-)
+
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index 52c630a50e..e1cbca919e 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -805,7 +805,7 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
+         AVHWFramesContext *frames_ctx = (AVHWFramesContext*)ctx->hw_frames_ctx->data;
+         AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
+         mfxFrameInfo      *i  = &req->Info;
+-        mfxFrameInfo      *i1 = &frames_hwctx->surfaces[0].Info;
++        mfxFrameInfo      *i1 = &frames_hwctx->reserve_surface.Info;
+ 
+         if (i->Width  > i1->Width  || i->Height > i1->Height ||
+             i->FourCC != i1->FourCC || i->ChromaFormat != i1->ChromaFormat) {
+@@ -920,7 +920,7 @@ static mfxStatus qsv_frame_lock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+     if (!qsv_mid->hw_frame->hw_frames_ctx)
+         goto fail;
+ 
+-    qsv_mid->surf.Info = hw_frames_hwctx->surfaces[0].Info;
++    qsv_mid->surf.Info = hw_frames_hwctx->reserve_surface.Info;
+     qsv_mid->surf.Data.MemId = qsv_mid->handle_pair;
+ 
+     /* map the data to the system memory */
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 0f6a384bdc..d777491c7a 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -574,8 +574,8 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+     if (avctx->hw_frames_ctx) {
+         AVHWFramesContext *frames_ctx    = (AVHWFramesContext *)avctx->hw_frames_ctx->data;
+         AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
+-        q->param.mfx.FrameInfo.Width  = frames_hwctx->surfaces[0].Info.Width;
+-        q->param.mfx.FrameInfo.Height = frames_hwctx->surfaces[0].Info.Height;
++        q->param.mfx.FrameInfo.Width  = frames_hwctx->reserve_surface.Info.Width;
++        q->param.mfx.FrameInfo.Height = frames_hwctx->reserve_surface.Info.Height;
+     }
+ 
+     if (avctx->framerate.den > 0 && avctx->framerate.num > 0) {
+@@ -692,8 +692,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+     if (avctx->hw_frames_ctx) {
+         AVHWFramesContext *frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
+         AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
+-        q->param.mfx.FrameInfo.Width  = frames_hwctx->surfaces[0].Info.Width;
+-        q->param.mfx.FrameInfo.Height = frames_hwctx->surfaces[0].Info.Height;
++        q->param.mfx.FrameInfo.Width  = frames_hwctx->reserve_surface.Info.Width;
++        q->param.mfx.FrameInfo.Height = frames_hwctx->reserve_surface.Info.Height;
+     }
+ 
+     if (avctx->framerate.den > 0 && avctx->framerate.num > 0) {
+diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
+index 3ea2169a06..181622a086 100644
+--- a/libavfilter/qsvvpp.c
++++ b/libavfilter/qsvvpp.c
+@@ -290,7 +290,7 @@ static int fill_frameinfo_by_link(mfxFrameInfo *frameinfo, AVFilterLink *link)
+ 
+         frames_ctx   = (AVHWFramesContext *)link->hw_frames_ctx->data;
+         frames_hwctx = frames_ctx->hwctx;
+-        *frameinfo   = frames_hwctx->surfaces[0].Info;
++        *frameinfo   = frames_hwctx->reserve_surface.Info;
+     } else {
+         pix_fmt = link->format;
+         desc = av_pix_fmt_desc_get(pix_fmt);
+diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
+index 3065d6ac95..4120b2c65c 100644
+--- a/libavfilter/vf_deinterlace_qsv.c
++++ b/libavfilter/vf_deinterlace_qsv.c
+@@ -278,7 +278,7 @@ static int init_out_session(AVFilterContext *ctx)
+ 
+     par.AsyncDepth = 1;    // TODO async
+ 
+-    par.vpp.In = hw_frames_hwctx->surfaces[0].Info;
++    par.vpp.In = hw_frames_hwctx->reserve_surface.Info;
+ 
+     par.vpp.In.CropW = ctx->inputs[0]->w;
+     par.vpp.In.CropH = ctx->inputs[0]->h;
+diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
+index 758e730f78..dbde24eb8c 100644
+--- a/libavfilter/vf_scale_qsv.c
++++ b/libavfilter/vf_scale_qsv.c
+@@ -413,8 +413,8 @@ static int init_out_session(AVFilterContext *ctx)
+ 
+     par.AsyncDepth = 1;    // TODO async
+ 
+-    par.vpp.In  = in_frames_hwctx->surfaces[0].Info;
+-    par.vpp.Out = out_frames_hwctx->surfaces[0].Info;
++    par.vpp.In  = in_frames_hwctx->reserve_surface.Info;
++    par.vpp.Out = out_frames_hwctx->reserve_surface.Info;
+ 
+     /* Apparently VPP requires the frame rate to be set to some value, otherwise
+      * init will fail (probably for the framerate conversion filter). Since we
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index 295ced8cc8..1c5e326c8f 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -590,7 +590,7 @@ static mfxStatus frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
+     QSVFramesContext       *s = ctx->internal->priv;
+     AVQSVFramesContext *hwctx = ctx->hwctx;
+     mfxFrameInfo *i  = &req->Info;
+-    mfxFrameInfo *i1 = &hwctx->surfaces[0].Info;
++    mfxFrameInfo *i1 = &hwctx->reserve_surface.Info;
+ 
+     if (!(req->Type & MFX_MEMTYPE_VIDEO_MEMORY_PROCESSOR_TARGET) ||
+         !(req->Type & (MFX_MEMTYPE_FROM_VPPIN | MFX_MEMTYPE_FROM_VPPOUT)) ||
+@@ -1136,7 +1136,7 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+                               MFX_IOPATTERN_OUT_SYSTEM_MEMORY;
+     par.AsyncDepth = 1;
+ 
+-    par.vpp.In = frames_hwctx->surfaces[0].Info;
++    par.vpp.In = frames_hwctx->reserve_surface.Info;
+ 
+     /* Apparently VPP requires the frame rate to be set to some value, otherwise
+      * init will fail (probably for the framerate conversion filter). Since we
+@@ -1225,6 +1225,15 @@ static int qsv_frames_init(AVHWFramesContext *ctx)
+     }
+ #endif
+ 
++    ret = qsv_init_surface(ctx, &frames_hwctx->reserve_surface);
++    if (ret < 0) {
++#if QSV_HAVE_OPAQUE
++        av_freep(&s->surface_ptrs);
++#endif
++        return ret;
++    }
++
++
+     s->session_download = NULL;
+     s->session_upload   = NULL;
+ 
+@@ -1746,13 +1755,7 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+ {
+     QSVFramesContext *s = dst_ctx->internal->priv;
+     AVQSVFramesContext *dst_hwctx = dst_ctx->hwctx;
+-    int i;
+-
+-    if (src_ctx->initial_pool_size == 0) {
+-        av_log(dst_ctx, AV_LOG_ERROR, "Only fixed-size pools can be "
+-            "mapped to QSV frames.\n");
+-        return AVERROR(EINVAL);
+-    }
++    int i, ret;
+ 
+     switch (src_ctx->device_ctx->type) {
+ #if CONFIG_VAAPI
+@@ -1768,11 +1771,20 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+             if (!s->surfaces_internal)
+                 return AVERROR(ENOMEM);
+             for (i = 0; i < src_hwctx->nb_surfaces; i++) {
+-                qsv_init_surface(dst_ctx, &s->surfaces_internal[i]);
++                ret = qsv_init_surface(dst_ctx, &s->surfaces_internal[i]);
++                if (ret < 0) {
++                    av_freep(&s->surfaces_internal);
++                    return ret;
++                }
+                 s->handle_pairs_internal[i].first = src_hwctx->surface_ids + i;
+                 s->handle_pairs_internal[i].second = (mfxMemId)MFX_INFINITE;
+                 s->surfaces_internal[i].Data.MemId = (mfxMemId)&s->handle_pairs_internal[i];
+             }
++            ret = qsv_init_surface(dst_ctx, &dst_hwctx->reserve_surface);
++            if (ret < 0) {
++                av_freep(&s->surfaces_internal);
++                return ret;
++            }
+             dst_hwctx->nb_surfaces = src_hwctx->nb_surfaces;
+             dst_hwctx->frame_type  = MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET;
+         }
+@@ -1791,7 +1803,11 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+             if (!s->surfaces_internal)
+                 return AVERROR(ENOMEM);
+             for (i = 0; i < src_ctx->initial_pool_size; i++) {
+-                qsv_init_surface(dst_ctx, &s->surfaces_internal[i]);
++                ret = qsv_init_surface(dst_ctx, &s->surfaces_internal[i]);
++                if (ret < 0) {
++                    av_freep(&s->surfaces_internal);
++                    return ret;
++                }
+                 s->handle_pairs_internal[i].first = (mfxMemId)src_hwctx->texture_infos[i].texture;
+                 if (src_hwctx->BindFlags & D3D11_BIND_RENDER_TARGET) {
+                     s->handle_pairs_internal[i].second = (mfxMemId)MFX_INFINITE;
+@@ -1800,6 +1816,11 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+                 }
+                 s->surfaces_internal[i].Data.MemId = (mfxMemId)&s->handle_pairs_internal[i];
+             }
++            ret = qsv_init_surface(dst_ctx, &dst_hwctx->reserve_surface);
++            if (ret < 0) {
++                av_freep(&s->surfaces_internal);
++                return ret;
++            }
+             dst_hwctx->nb_surfaces = src_ctx->initial_pool_size;
+             if (src_hwctx->BindFlags & D3D11_BIND_RENDER_TARGET) {
+                 dst_hwctx->frame_type |= MFX_MEMTYPE_VIDEO_MEMORY_PROCESSOR_TARGET;
+@@ -1822,11 +1843,20 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+             if (!s->surfaces_internal)
+                 return AVERROR(ENOMEM);
+             for (i = 0; i < src_hwctx->nb_surfaces; i++) {
+-                qsv_init_surface(dst_ctx, &s->surfaces_internal[i]);
++                ret = qsv_init_surface(dst_ctx, &s->surfaces_internal[i]);
++                if (ret < 0) {
++                    av_freep(&s->surfaces_internal);
++                    return ret;
++                }
+                 s->handle_pairs_internal[i].first = (mfxMemId)src_hwctx->surfaces[i];
+                 s->handle_pairs_internal[i].second = (mfxMemId)MFX_INFINITE;
+                 s->surfaces_internal[i].Data.MemId = (mfxMemId)&s->handle_pairs_internal[i];
+             }
++            ret = qsv_init_surface(dst_ctx, &dst_hwctx->reserve_surface);
++            if (ret < 0) {
++                av_freep(&s->surfaces_internal);
++                return ret;
++            }
+             dst_hwctx->nb_surfaces = src_hwctx->nb_surfaces;
+             if (src_hwctx->surface_type == DXVA2_VideoProcessorRenderTarget)
+                 dst_hwctx->frame_type = MFX_MEMTYPE_VIDEO_MEMORY_PROCESSOR_TARGET;
+diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
+index e2dba8ad83..19d0600fc9 100644
+--- a/libavutil/hwcontext_qsv.h
++++ b/libavutil/hwcontext_qsv.h
+@@ -54,6 +54,12 @@ typedef struct AVQSVFramesContext {
+     mfxFrameSurface1 *surfaces;
+     int            nb_surfaces;
+ 
++    /*
++     * This surface store the surface information,
++     * and can be used to init dec, enc and vpp.
++     */
++    mfxFrameSurface1 reserve_surface;
++
+     /**
+      * A combination of MFX_MEMTYPE_* describing the frame pool.
+      */
+-- 
+2.17.1
+
