@@ -1,4 +1,4 @@
-From d9eb4fadbd622c3cb74e552e29bdb3717e951732 Mon Sep 17 00:00:00 2001
+From 8d5b547af34ca6fbb1d50e3247ea04edf5756112 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
 Subject: [PATCH 10/77] lavu/hwcontext_qsv: make qsv hwdevice works with oneVPL
@@ -23,7 +23,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 492 insertions(+), 38 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 21a2a805f8..9b0c255cf4 100644
+index 21a2a805f8..5486c7bb20 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -49,6 +49,7 @@
@@ -185,7 +185,7 @@ index 21a2a805f8..9b0c255cf4 100644
 +static int qsv_va_update_config(void *ctx, mfxHDL handle, mfxConfig cfg)
 +{
 +#if CONFIG_VAAPI
-+#if VA_CHECK_VERSION(1, 5, 0)
++#if VA_CHECK_VERSION(1, 15, 0)
 +#define LOCAL_VADISPLAYPCIID VADisplayPCIID
 +#else
 +#define LOCAL_VADISPLAYPCIID 21
@@ -212,7 +212,7 @@ index 21a2a805f8..9b0c255cf4 100644
 +    } else
 +        av_log(ctx, AV_LOG_WARNING, "Cannot get device id from the driver, the default "
 +               "MFX implementation will be loaded for this device. Please consider to "
-+               "upgrade the driver to support VAAPI 1.5.0. \n");
++               "upgrade the driver to support VAAPI 1.15.0. \n");
 +
 +    return 0;
 +
