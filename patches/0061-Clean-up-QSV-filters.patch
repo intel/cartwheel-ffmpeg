@@ -1,7 +1,7 @@
-From 65f084d908f612abef4b54b236b10aa74320f57d Mon Sep 17 00:00:00 2001
+From 714fd52c15e698da557aace704c4b8fd629e88be Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 28 Apr 2021 09:25:11 +0800
-Subject: [PATCH 61/77] Clean-up QSV filters
+Subject: [PATCH] Clean-up QSV filters
 
 This is the combination of
 https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=4467
@@ -18,7 +18,7 @@ https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=4467
  delete mode 100644 libavfilter/vf_scale_qsv.c
 
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index 30cc329fb6..9aae41cf29 100644
+index c026f8f809..43ba9607ca 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
 @@ -252,7 +252,7 @@ OBJS-$(CONFIG_DECONVOLVE_FILTER)             += vf_convolve.o framesync.o
@@ -40,7 +40,7 @@ index 30cc329fb6..9aae41cf29 100644
  OBJS-$(CONFIG_SCALE_VULKAN_FILTER)           += vf_scale_vulkan.o vulkan.o vulkan_filter.o
  OBJS-$(CONFIG_SCALE2REF_FILTER)              += vf_scale.o scale_eval.o
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 181622a086..c2d8827af4 100644
+index 3ea2169a06..eb835dadfb 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
 @@ -318,6 +318,14 @@ static int fill_frameinfo_by_link(mfxFrameInfo *frameinfo, AVFilterLink *link)
@@ -239,7 +239,7 @@ index a8cfcc565a..a180273664 100644
  int ff_qsvvpp_filter_frame(QSVVPPContext *vpp, AVFilterLink *inlink, AVFrame *frame);
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
 deleted file mode 100644
-index 4120b2c65c..0000000000
+index 3065d6ac95..0000000000
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ /dev/null
 @@ -1,605 +0,0 @@
@@ -523,7 +523,7 @@ index 4120b2c65c..0000000000
 -
 -    par.AsyncDepth = 1;    // TODO async
 -
--    par.vpp.In = hw_frames_hwctx->reserve_surface.Info;
+-    par.vpp.In = hw_frames_hwctx->surfaces[0].Info;
 -
 -    par.vpp.In.CropW = ctx->inputs[0]->w;
 -    par.vpp.In.CropH = ctx->inputs[0]->h;
@@ -849,7 +849,7 @@ index 4120b2c65c..0000000000
 -    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 -};
 diff --git a/libavfilter/vf_overlay_qsv.c b/libavfilter/vf_overlay_qsv.c
-index 7e76b39aa9..91281d8c45 100644
+index d947a1faa1..7976111773 100644
 --- a/libavfilter/vf_overlay_qsv.c
 +++ b/libavfilter/vf_overlay_qsv.c
 @@ -57,10 +57,9 @@ enum var_name {
@@ -881,7 +881,7 @@ index 7e76b39aa9..91281d8c45 100644
          if (ret < 0 && ret != AVERROR(EAGAIN))
              break;
      }
-@@ -299,7 +298,7 @@ static int config_output(AVFilterLink *outlink)
+@@ -301,7 +300,7 @@ static int config_output(AVFilterLink *outlink)
      if (ret < 0)
          return ret;
  
@@ -890,7 +890,7 @@ index 7e76b39aa9..91281d8c45 100644
  }
  
  /*
-@@ -348,7 +347,7 @@ static av_cold void overlay_qsv_uninit(AVFilterContext *ctx)
+@@ -350,7 +349,7 @@ static av_cold void overlay_qsv_uninit(AVFilterContext *ctx)
  {
      QSVOverlayContext *vpp = ctx->priv;
  
@@ -901,7 +901,7 @@ index 7e76b39aa9..91281d8c45 100644
      av_freep(&vpp->qsv_param.ext_buf);
 diff --git a/libavfilter/vf_scale_qsv.c b/libavfilter/vf_scale_qsv.c
 deleted file mode 100644
-index dbde24eb8c..0000000000
+index 758e730f78..0000000000
 --- a/libavfilter/vf_scale_qsv.c
 +++ /dev/null
 @@ -1,671 +0,0 @@
@@ -1320,8 +1320,8 @@ index dbde24eb8c..0000000000
 -
 -    par.AsyncDepth = 1;    // TODO async
 -
--    par.vpp.In  = in_frames_hwctx->reserve_surface.Info;
--    par.vpp.Out = out_frames_hwctx->reserve_surface.Info;
+-    par.vpp.In  = in_frames_hwctx->surfaces[0].Info;
+-    par.vpp.Out = out_frames_hwctx->surfaces[0].Info;
 -
 -    /* Apparently VPP requires the frame rate to be set to some value, otherwise
 -     * init will fail (probably for the framerate conversion filter). Since we
@@ -2290,5 +2290,5 @@ index 4a053f9145..dd8c1307f1 100644
 +
 +DEFINE_QSV_FILTER(qsvdeint, deinterlace, "deinterlacing", FILTER_PIXFMTS_ARRAY(qsvdeint_pix_fmts));
 -- 
-2.17.1
+2.32.0
 
