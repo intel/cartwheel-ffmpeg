@@ -1,7 +1,7 @@
-From f77b567686c4351fe30a4c42d61f3a88e33b5ae7 Mon Sep 17 00:00:00 2001
+From aa793f9403aeeb7362531af91c652d7a3fa90ba1 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 5 Jul 2022 11:04:49 +0800
-Subject: [PATCH 09/77] lavu/hwcontext_qsv: add loader field to
+Subject: [PATCH 09/73] lavu/hwcontext_qsv: add loader field to
  AVQSVDeviceContext
 
 In oneVPL, a valid mfxLoader handle is needed when creating mfx session
@@ -19,7 +19,7 @@ This is in preparation for oneVPL support
  3 files changed, 15 insertions(+), 1 deletion(-)
 
 diff --git a/doc/APIchanges b/doc/APIchanges
-index b3563cd528..265361c979 100644
+index e374f3ca81..30d6989dbc 100644
 --- a/doc/APIchanges
 +++ b/doc/APIchanges
 @@ -14,6 +14,9 @@ libavutil:     2021-04-27
@@ -29,9 +29,9 @@ index b3563cd528..265361c979 100644
 +2022-07-xx - xxxxxxxxxx - lavu 57.31.100 - hwcontext_qsv.h
 +  Add loader field to AVQSVDeviceContext
 +
- 2022-07-xx - xxxxxxxxxx - lavu 57.30.100 - frame.h
-   Add AVFrame.duration, deprecate AVFrame.pkt_duration.
- 
+ 2022-07-xx - xxxxxxxxx - lavc 59.40.100 - avcodec.h
+   Add the AV_CODEC_FLAG2_ICC_PROFILES flag to AVCodecContext, to enable
+   automatic reading and writing of embedded ICC profiles in image files.
 diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
 index 42e34d0dda..e2dba8ad83 100644
 --- a/libavutil/hwcontext_qsv.h
