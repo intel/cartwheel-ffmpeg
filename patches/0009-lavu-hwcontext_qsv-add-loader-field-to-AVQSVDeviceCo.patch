@@ -1,4 +1,4 @@
-From aa793f9403aeeb7362531af91c652d7a3fa90ba1 Mon Sep 17 00:00:00 2001
+From 58fbb415fe75bc4557aa111ce937b3a9bbb1c4ee Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Tue, 5 Jul 2022 11:04:49 +0800
 Subject: [PATCH 09/73] lavu/hwcontext_qsv: add loader field to
@@ -15,23 +15,22 @@ This is in preparation for oneVPL support
 ---
  doc/APIchanges            |  3 +++
  libavutil/hwcontext_qsv.h | 11 +++++++++++
- libavutil/version.h       |  2 +-
- 3 files changed, 15 insertions(+), 1 deletion(-)
+ 2 files changed, 14 insertions(+)
 
 diff --git a/doc/APIchanges b/doc/APIchanges
-index e374f3ca81..30d6989dbc 100644
+index 0e9ea4d7c5..77a3d5c08e 100644
 --- a/doc/APIchanges
 +++ b/doc/APIchanges
 @@ -14,6 +14,9 @@ libavutil:     2021-04-27
  
  API changes, most recent first:
  
-+2022-07-xx - xxxxxxxxxx - lavu 57.31.100 - hwcontext_qsv.h
++2022-08-xx - xxxxxxxxxx - lavu 57.31.100 - hwcontext_qsv.h
 +  Add loader field to AVQSVDeviceContext
 +
- 2022-07-xx - xxxxxxxxx - lavc 59.40.100 - avcodec.h
-   Add the AV_CODEC_FLAG2_ICC_PROFILES flag to AVCodecContext, to enable
-   automatic reading and writing of embedded ICC profiles in image files.
+ 2022-08-xx - xxxxxxxxxx - lavc 59.41.100 - avcodec.h codec.h
+   Add AV_CODEC_FLAG_RECON_FRAME and AV_CODEC_CAP_ENCODER_RECON_FRAME.
+   avcodec_receive_frame() may now be used on encoders when
 diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
 index 42e34d0dda..e2dba8ad83 100644
 --- a/libavutil/hwcontext_qsv.h
@@ -54,19 +53,6 @@ index 42e34d0dda..e2dba8ad83 100644
  } AVQSVDeviceContext;
  
  /**
-diff --git a/libavutil/version.h b/libavutil/version.h
-index ee4c531b80..e9eefcdb2c 100644
---- a/libavutil/version.h
-+++ b/libavutil/version.h
-@@ -79,7 +79,7 @@
-  */
- 
- #define LIBAVUTIL_VERSION_MAJOR  57
--#define LIBAVUTIL_VERSION_MINOR  30
-+#define LIBAVUTIL_VERSION_MINOR  31
- #define LIBAVUTIL_VERSION_MICRO 100
- 
- #define LIBAVUTIL_VERSION_INT   AV_VERSION_INT(LIBAVUTIL_VERSION_MAJOR, \
 -- 
 2.17.1
 
