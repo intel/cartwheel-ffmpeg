@@ -1,14 +1,16 @@
-From 270c0fad3d043ebfa87eb40e6643ef06c608fcc6 Mon Sep 17 00:00:00 2001
+From 92e2c3ad93fc5685aa4bfce57f09a364c5e78cf3 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 10 Sep 2020 14:42:39 +0800
-Subject: [PATCH 35/77] lavc/avcodec: Add FF_PROFILE_HEVC_SCC for screen
+Subject: [PATCH 31/73] lavc/avcodec: Add FF_PROFILE_HEVC_SCC for screen
  content coding
 
 Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
 ---
- libavcodec/hevc_ps.c  | 2 ++
- libavcodec/profiles.c | 1 +
- 2 files changed, 3 insertions(+)
+ libavcodec/hevc_ps.c           | 2 ++
+ libavcodec/profiles.c          | 1 +
+ libavcodec/vaapi_encode.c      | 1 +
+ libavcodec/vaapi_encode_h265.c | 2 +-
+ 4 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/hevc_ps.c b/libavcodec/hevc_ps.c
 index f665d8053c..86479d1813 100644
@@ -35,6 +37,31 @@ index 7af7fbeb13..2230fc5415 100644
      { FF_PROFILE_UNKNOWN },
  };
  
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index f1a7c47cb3..129219e629 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -1309,6 +1309,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
+     { "YUV444_10", VA_RT_FORMAT_YUV444_10,    10, 3, 0, 0 },
+ #endif
+     { "YUV444",    VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
++    { "YUV444",    VA_RT_FORMAT_YUV444,        8, 4, 0, 0 },
+     { "YUV411",    VA_RT_FORMAT_YUV411,        8, 3, 2, 0 },
+ #if VA_CHECK_VERSION(0, 38, 1)
+     { "YUV420_10", VA_RT_FORMAT_YUV420_10BPP, 10, 3, 1, 1 },
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index 4d1f57fe18..f478025e42 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -1315,7 +1315,7 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+     { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
+     { FF_PROFILE_HEVC_SCC,      8, 3, 1, 1, VAProfileHEVCSccMain    },
+     { FF_PROFILE_HEVC_SCC,     10, 3, 1, 1, VAProfileHEVCSccMain10  },
+-    { FF_PROFILE_HEVC_SCC,      8, 3, 0, 0, VAProfileHEVCSccMain444 },
++    { FF_PROFILE_HEVC_SCC,      8, 4, 0, 0, VAProfileHEVCSccMain444 },
+ #endif
+ #if VA_CHECK_VERSION(1, 9, 0)
+     { FF_PROFILE_HEVC_SCC,     10, 3, 0, 0, VAProfileHEVCSccMain444_10 },
 -- 
 2.17.1
 
