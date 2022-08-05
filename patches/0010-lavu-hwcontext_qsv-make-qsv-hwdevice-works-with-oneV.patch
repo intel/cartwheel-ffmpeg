@@ -1,7 +1,7 @@
-From 8d5b547af34ca6fbb1d50e3247ea04edf5756112 Mon Sep 17 00:00:00 2001
+From 4fa6dadd70c26ba3171670a741e49f335cecc81d Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 4 Jan 2021 10:46:14 +0800
-Subject: [PATCH 10/77] lavu/hwcontext_qsv: make qsv hwdevice works with oneVPL
+Subject: [PATCH 10/73] lavu/hwcontext_qsv: make qsv hwdevice works with oneVPL
 
 In oneVPL, MFXLoad() and MFXCreateSession() are required to create a
 workable mfx session[1]
@@ -19,11 +19,11 @@ Co-authored-by: galinart <artem.galin@intel.com>
 Signed-off-by: galinart <artem.galin@intel.com>
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
- libavutil/hwcontext_qsv.c | 530 +++++++++++++++++++++++++++++++++++---
- 1 file changed, 492 insertions(+), 38 deletions(-)
+ libavutil/hwcontext_qsv.c | 532 +++++++++++++++++++++++++++++++++++---
+ 1 file changed, 494 insertions(+), 38 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 21a2a805f8..5486c7bb20 100644
+index 21a2a805f8..510f422562 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -49,6 +49,7 @@
@@ -47,7 +47,7 @@ index 21a2a805f8..5486c7bb20 100644
  typedef struct QSVDevicePriv {
      AVBufferRef *child_device_ctx;
  } QSVDevicePriv;
-@@ -619,6 +626,435 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
+@@ -619,6 +626,437 @@ static mfxStatus frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
      return MFX_ERR_NONE;
  }
  
@@ -186,15 +186,11 @@ index 21a2a805f8..5486c7bb20 100644
 +{
 +#if CONFIG_VAAPI
 +#if VA_CHECK_VERSION(1, 15, 0)
-+#define LOCAL_VADISPLAYPCIID VADisplayPCIID
-+#else
-+#define LOCAL_VADISPLAYPCIID 21
-+#endif
 +    mfxStatus sts;
 +    VADisplay dpy = handle;
 +    VAStatus vas;
 +    VADisplayAttribute attr = {
-+        .type = LOCAL_VADISPLAYPCIID
++        .type = VADisplayPCIID,
 +    };
 +    mfxVariant impl_value;
 +
@@ -209,14 +205,20 @@ index 21a2a805f8..5486c7bb20 100644
 +                   "DeviceID property: %d.\n", sts);
 +            goto fail;
 +        }
-+    } else
-+        av_log(ctx, AV_LOG_WARNING, "Cannot get device id from the driver, the default "
-+               "MFX implementation will be loaded for this device. Please consider to "
-+               "upgrade the driver to support VAAPI 1.15.0. \n");
++    } else {
++        av_log(ctx, AV_LOG_ERROR, "libva: Failed to get device id from the driver. Please "
++               "consider to upgrade the driver to support VA-API 1.15.0\n");
++        goto fail;
++    }
 +
 +    return 0;
 +
 +fail:
++#else
++    av_log(ctx, AV_LOG_ERROR, "libva: This version of libva doesn't support retrieving "
++           "the device information from the driver. Please consider to upgrade libva to "
++           "support VA-API 1.15.0\n");
++#endif
 +#endif
 +    return AVERROR_UNKNOWN;
 +}
@@ -483,7 +485,7 @@ index 21a2a805f8..5486c7bb20 100644
  static int qsv_init_internal_session(AVHWFramesContext *ctx,
                                       mfxSession *session, int upload)
  {
-@@ -637,29 +1073,36 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -637,29 +1075,36 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
  
      mfxVideoParam par;
      mfxStatus err;
@@ -529,7 +531,7 @@ index 21a2a805f8..5486c7bb20 100644
      }
  
      memset(&par, 0, sizeof(par));
-@@ -695,11 +1138,20 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -695,11 +1140,20 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
      if (err != MFX_ERR_NONE) {
          av_log(ctx, AV_LOG_VERBOSE, "Error opening the internal VPP session."
                 "Surface upload/download will not be possible\n");
@@ -552,7 +554,7 @@ index 21a2a805f8..5486c7bb20 100644
  }
  
  static int qsv_frames_init(AVHWFramesContext *ctx)
-@@ -1456,6 +1908,8 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
+@@ -1456,6 +1910,8 @@ static void qsv_device_free(AVHWDeviceContext *ctx)
      if (hwctx->session)
          MFXClose(hwctx->session);
  
@@ -561,7 +563,7 @@ index 21a2a805f8..5486c7bb20 100644
      av_buffer_unref(&priv->child_device_ctx);
      av_freep(&priv);
  }
-@@ -1545,34 +1999,10 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1545,34 +2001,10 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
          goto fail;
      }
  
@@ -570,10 +572,7 @@ index 21a2a805f8..5486c7bb20 100644
 -        av_log(ctx, AV_LOG_ERROR, "Error initializing an MFX session: "
 -               "%d.\n", err);
 -        ret = AVERROR_UNKNOWN;
-+    ret = qsv_create_mfx_session(ctx, handle, handle_type, implementation, &ver,
-+                                 &hwctx->session, &hwctx->loader);
-+    if (ret)
-         goto fail;
+-        goto fail;
 -    }
 -
 -    err = MFXQueryVersion(hwctx->session, &ver);
@@ -594,12 +593,15 @@ index 21a2a805f8..5486c7bb20 100644
 -        av_log(ctx, AV_LOG_ERROR,
 -               "Error initializing an MFX session: %d.\n", err);
 -        ret = AVERROR_UNKNOWN;
--        goto fail;
++    ret = qsv_create_mfx_session(ctx, handle, handle_type, implementation, &ver,
++                                 &hwctx->session, &hwctx->loader);
++    if (ret)
+         goto fail;
 -    }
  
      err = MFXVideoCORE_SetHandle(hwctx->session, handle_type, handle);
      if (err != MFX_ERR_NONE) {
-@@ -1587,6 +2017,12 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
+@@ -1587,6 +2019,12 @@ static int qsv_device_derive_from_child(AVHWDeviceContext *ctx,
  fail:
      if (hwctx->session)
          MFXClose(hwctx->session);
@@ -612,7 +614,7 @@ index 21a2a805f8..5486c7bb20 100644
      return ret;
  }
  
-@@ -1629,6 +2065,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1629,6 +2067,16 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
          }
      } else if (CONFIG_VAAPI) {
          child_device_type = AV_HWDEVICE_TYPE_VAAPI;
@@ -629,7 +631,7 @@ index 21a2a805f8..5486c7bb20 100644
      } else if (CONFIG_DXVA2) {
          av_log(NULL, AV_LOG_WARNING,
                  "WARNING: defaulting child_device_type to AV_HWDEVICE_TYPE_DXVA2 for compatibility "
-@@ -1637,6 +2083,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1637,6 +2085,7 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
          child_device_type = AV_HWDEVICE_TYPE_DXVA2;
      } else if (CONFIG_D3D11VA) {
          child_device_type = AV_HWDEVICE_TYPE_D3D11VA;
@@ -637,7 +639,7 @@ index 21a2a805f8..5486c7bb20 100644
      } else {
          av_log(ctx, AV_LOG_ERROR, "No supported child device type is enabled\n");
          return AVERROR(ENOSYS);
-@@ -1663,6 +2110,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -1663,6 +2112,13 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
  #endif
  #if CONFIG_DXVA2
      case AV_HWDEVICE_TYPE_DXVA2:

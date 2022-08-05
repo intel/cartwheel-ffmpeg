@@ -1,7 +1,7 @@
-From 2eec2e94fcc55b9b5af8e56c1ea8751cab676667 Mon Sep 17 00:00:00 2001
+From bef392f2b508a6e63df63788cf81e7ec2a39b009 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 11 Jul 2022 15:53:30 +0800
-Subject: [PATCH 77/77] libavcodec/qsv: Add 12bit support to qsv
+Subject: [PATCH 72/73] libavcodec/qsv: Add 12bit support to qsv
 
 Add p012, y212 and y412 system memory support to qsvdec.
 Add p012 system memory support to hevc_qsv enc.
@@ -14,10 +14,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 0d7ae0e029..95a82a2290 100644
+index c6cdf7103f..8b337b7784 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -273,6 +273,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -279,6 +279,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
      switch (frame->format) {
      case AV_PIX_FMT_NV12:
      case AV_PIX_FMT_P010:
@@ -25,7 +25,7 @@ index 0d7ae0e029..95a82a2290 100644
          surface->Data.Y  = frame->data[0];
          surface->Data.UV = frame->data[1];
          /* The SDK checks Data.V when using system memory for VP9 encoding */
-@@ -292,6 +293,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -298,6 +299,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          break;
  
      case AV_PIX_FMT_Y210:
@@ -33,7 +33,7 @@ index 0d7ae0e029..95a82a2290 100644
          surface->Data.Y16 = (mfxU16 *)frame->data[0];
          surface->Data.U16 = (mfxU16 *)frame->data[0] + 1;
          surface->Data.V16 = (mfxU16 *)frame->data[0] + 3;
-@@ -308,6 +310,13 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -314,6 +316,13 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.U = frame->data[0];
          break;
  
@@ -48,7 +48,7 @@ index 0d7ae0e029..95a82a2290 100644
          return AVERROR(ENOSYS);
      }
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index b105f76688..54863ff4de 100644
+index 35961f3b54..2ebdf7dc5c 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -145,14 +145,19 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
@@ -62,7 +62,7 @@ index b105f76688..54863ff4de 100644
      case AV_PIX_FMT_Y210:
 +    case AV_PIX_FMT_Y212:
      case AV_PIX_FMT_Y410:
-     case AV_PIX_FMT_0YUV:
+     case AV_PIX_FMT_VUYA:
          frame->linesize[0] = 4 * FFALIGN(avctx->width, 128);
          break;
 +    case AV_PIX_FMT_Y412:
@@ -89,14 +89,14 @@ index b105f76688..54863ff4de 100644
                                                      AV_PIX_FMT_YUYV422, \
                                                      AV_PIX_FMT_Y210, \
 +                                                    AV_PIX_FMT_Y212, \
-                                                     AV_PIX_FMT_0YUV, \
+                                                     AV_PIX_FMT_VUYA, \
                                                      AV_PIX_FMT_Y410, \
 +                                                    AV_PIX_FMT_Y412, \
                                                      AV_PIX_FMT_QSV, \
                                                      AV_PIX_FMT_NONE }, \
      .hw_configs     = qsv_hw_configs, \
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 4e7f62458a..577429e6d8 100644
+index 4e5df99d65..835ab47f40 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -311,6 +311,7 @@ const FFCodec ff_hevc_qsv_encoder = {

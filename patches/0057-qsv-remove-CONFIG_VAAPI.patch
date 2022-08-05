@@ -1,7 +1,7 @@
-From 5353a742b5774f231ca80911761dde97cce5bcc6 Mon Sep 17 00:00:00 2001
+From 160d4a3cab32a41885747ba4575c315efdbf1f6a Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 29 Nov 2021 15:12:12 +0800
-Subject: [PATCH 57/77] qsv: remove CONFIG_VAAPI
+Subject: [PATCH 52/73] qsv: remove CONFIG_VAAPI
 
 Make 8-bit, 10-bit, 12-bit YUV 4:2:2 video sources as well as YUV 4:4:4
 video sources supported by d3d11va and dxva2 just like what VAAPI does.
@@ -13,18 +13,18 @@ Sign-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 8 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index e1cbca919e..0d7ae0e029 100644
+index a3cead54f6..c6cdf7103f 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -202,7 +202,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+@@ -208,7 +208,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
      case MFX_FOURCC_P8:   return AV_PIX_FMT_PAL8;
      case MFX_FOURCC_A2RGB10: return AV_PIX_FMT_X2RGB10;
      case MFX_FOURCC_RGB4: return AV_PIX_FMT_BGRA;
 -#if CONFIG_VAAPI
      case MFX_FOURCC_YUY2: return AV_PIX_FMT_YUYV422;
-     case MFX_FOURCC_AYUV: return AV_PIX_FMT_0YUV;
+     case MFX_FOURCC_AYUV: return AV_PIX_FMT_VUYA;
      case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
-@@ -211,7 +210,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+@@ -217,7 +216,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
      case MFX_FOURCC_P016: return AV_PIX_FMT_P012;
      case MFX_FOURCC_Y216: return AV_PIX_FMT_Y212;
      case MFX_FOURCC_Y416: return AV_PIX_FMT_Y412;
@@ -32,7 +32,7 @@ index e1cbca919e..0d7ae0e029 100644
  #endif
      }
      return AV_PIX_FMT_NONE;
-@@ -235,7 +233,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+@@ -241,7 +239,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
      case AV_PIX_FMT_BGRA:
          *fourcc = MFX_FOURCC_RGB4;
          return AV_PIX_FMT_BGRA;
@@ -40,7 +40,7 @@ index e1cbca919e..0d7ae0e029 100644
      case AV_PIX_FMT_YUV422P:
      case AV_PIX_FMT_YUYV422:
          *fourcc = MFX_FOURCC_YUY2;
-@@ -265,7 +262,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+@@ -271,7 +268,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
      case AV_PIX_FMT_Y412:
          *fourcc = MFX_FOURCC_Y416;
          return AV_PIX_FMT_Y412;
@@ -49,7 +49,7 @@ index e1cbca919e..0d7ae0e029 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 1c5e326c8f..7b4cb7d93f 100644
+index 893f3f5208..b249970844 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -114,7 +114,6 @@ static const struct {
@@ -59,7 +59,7 @@ index 1c5e326c8f..7b4cb7d93f 100644
 -#if CONFIG_VAAPI
      { AV_PIX_FMT_YUYV422,
                         MFX_FOURCC_YUY2 },
-     { AV_PIX_FMT_0YUV,
+     { AV_PIX_FMT_VUYA,
 @@ -131,7 +130,6 @@ static const struct {
      { AV_PIX_FMT_Y412,
                         MFX_FOURCC_Y416 },
@@ -68,7 +68,7 @@ index 1c5e326c8f..7b4cb7d93f 100644
  };
  
  extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
-@@ -1510,7 +1508,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1501,7 +1499,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.R = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;
@@ -76,7 +76,7 @@ index 1c5e326c8f..7b4cb7d93f 100644
      case AV_PIX_FMT_YUYV422:
          surface->Data.Y = frame->data[0];
          surface->Data.U = frame->data[0] + 1;
-@@ -1538,7 +1535,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1529,7 +1526,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.V = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;

@@ -1,7 +1,7 @@
-From ec1e5df5e2d3067b3a037ba5f37fdf5e83cf8ac8 Mon Sep 17 00:00:00 2001
+From db7da03c4098c1b0f931b7fded7b31ab18b9f1db Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 28 May 2020 14:14:32 -0400
-Subject: [PATCH 31/77] lavc/qsv: support hevc/vp9 12bit
+Subject: [PATCH 27/73] lavc/qsv: support hevc/vp9 12bit
 
 ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose -c:v hevc_qsv -i GENERAL_12b_420_RExt_Sony_1.bit -vf hwdownload,format=p012 -vsync passthrough -frames 25 -f md5 -y qsv_out.md5
 
@@ -20,11 +20,11 @@ ffmpeg -init_hw_device qsv=qsv:hw -hwaccel qsv -filter_hw_device qsv -v verbose 
  2 files changed, 35 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 8f5468a810..52c630a50e 100644
+index ac50539652..a3cead54f6 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -207,6 +207,11 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
-     case MFX_FOURCC_AYUV: return AV_PIX_FMT_0YUV;
+@@ -213,6 +213,11 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+     case MFX_FOURCC_AYUV: return AV_PIX_FMT_VUYA;
      case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
      case MFX_FOURCC_Y410: return AV_PIX_FMT_Y410;
 +#if QSV_VERSION_ATLEAST(1, 31)
@@ -35,7 +35,7 @@ index 8f5468a810..52c630a50e 100644
  #endif
      }
      return AV_PIX_FMT_NONE;
-@@ -247,6 +252,20 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
+@@ -253,6 +258,20 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
      case AV_PIX_FMT_YUV444P10:
          *fourcc = MFX_FOURCC_Y410;
          return AV_PIX_FMT_Y410;
@@ -57,7 +57,7 @@ index 8f5468a810..52c630a50e 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index f678c769dd..556a075473 100644
+index c47c0b8e22..d90562bafb 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -123,6 +123,14 @@ static const struct {
