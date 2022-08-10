@@ -1,7 +1,7 @@
-From 569657a33785bf1641b5150bc273af6ad79a2125 Mon Sep 17 00:00:00 2001
+From 6c48c07873a8fb264e05bddb6ab5a2642c5d3fc3 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 14 Jan 2021 13:15:32 -0500
-Subject: [PATCH 45/73] lavc/vaapi_hevc/vp9: support 444 8/10bit enc
+Subject: [PATCH 44/72] lavc/vaapi_hevc/vp9: support 444 8/10bit enc
 
 hevc 444 8bit:
 ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt 0yuv -s:v 1920x1080 -i 1920x1080_100.ayuv -vf 'format=0yuv,hwupload' -c:v hevc_vaapi -profile:v rext -rc_mode CQP -g 30 -qp 28 -slices 1 -low_power 1 -y out.h265
@@ -17,32 +17,29 @@ ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
- libavcodec/vaapi_encode_h265.c | 2 ++
- libavcodec/vaapi_encode_vp9.c  | 2 ++
- 2 files changed, 4 insertions(+)
+ libavcodec/vaapi_encode_h265.c | 1 +
+ libavcodec/vaapi_encode_vp9.c  | 1 +
+ 2 files changed, 2 insertions(+)
 
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index f478025e42..bf239987f3 100644
+index 30836795d7..f1345a24fa 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
-@@ -1310,6 +1310,8 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
- #if VA_CHECK_VERSION(1, 2, 0)
-     { FF_PROFILE_HEVC_REXT,     8, 3, 1, 0, VAProfileHEVCMain422_10 },
+@@ -1312,6 +1312,7 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
      { FF_PROFILE_HEVC_REXT,    10, 3, 1, 0, VAProfileHEVCMain422_10 },
-+    { FF_PROFILE_HEVC_REXT,     8, 4, 0, 0, VAProfileHEVCMain444    },
+     // Four channels because this uses the AYUV format which has Alpha
+     { FF_PROFILE_HEVC_REXT,     8, 4, 0, 0, VAProfileHEVCMain444 },
 +    { FF_PROFILE_HEVC_REXT,    10, 3, 0, 0, VAProfileHEVCMain444_10 },
      { FF_PROFILE_HEVC_REXT,    12, 3, 1, 1, VAProfileHEVCMain12     },
      { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
      { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
 diff --git a/libavcodec/vaapi_encode_vp9.c b/libavcodec/vaapi_encode_vp9.c
-index 892ad770c6..a6a5b8ef0b 100644
+index 9b455e10c9..e97a0e3eab 100644
 --- a/libavcodec/vaapi_encode_vp9.c
 +++ b/libavcodec/vaapi_encode_vp9.c
-@@ -228,7 +228,9 @@ static av_cold int vaapi_encode_vp9_configure(AVCodecContext *avctx)
- 
- static const VAAPIEncodeProfile vaapi_encode_vp9_profiles[] = {
-     { FF_PROFILE_VP9_0,  8, 3, 1, 1, VAProfileVP9Profile0 },
-+    { FF_PROFILE_VP9_1,  8, 4, 0, 0, VAProfileVP9Profile1 },
+@@ -231,6 +231,7 @@ static const VAAPIEncodeProfile vaapi_encode_vp9_profiles[] = {
+     // Four channels because this uses the AYUV format which has Alpha
+     { FF_PROFILE_VP9_1,  8, 4, 0, 0, VAProfileVP9Profile1 },
      { FF_PROFILE_VP9_2, 10, 3, 1, 1, VAProfileVP9Profile2 },
 +    { FF_PROFILE_VP9_3, 10, 3, 0, 0, VAProfileVP9Profile3 },
      { FF_PROFILE_UNKNOWN }

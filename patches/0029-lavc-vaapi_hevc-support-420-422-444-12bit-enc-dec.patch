@@ -1,7 +1,7 @@
-From 11cf551b16972b9fbd506bbe9ecb739b87af1383 Mon Sep 17 00:00:00 2001
+From e1e08a15c25da1977297d2685d886234f6fbff7a Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 14 Jul 2020 10:21:55 +0800
-Subject: [PATCH 25/73] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
+Subject: [PATCH 24/72] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
 
 ---
  libavcodec/hevcdec.c             |  5 +++
@@ -17,7 +17,7 @@ Subject: [PATCH 25/73] lavc/vaapi_hevc: support 420/422/444 12bit enc/dec
  10 files changed, 174 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 51d3485f1e..beb14bd1d0 100644
+index 0249d76de3..5f2c4d19d1 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -473,6 +473,11 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -75,10 +75,10 @@ index 97cf097af8..e876e1da54 100644
                                                  source_format, 0, NULL);
          if (format == best_format)
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 284ce29888..7b235854db 100644
+index f13daa5cff..cba664ad9f 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1312,6 +1312,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
+@@ -1313,6 +1313,11 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
  #if VA_CHECK_VERSION(0, 38, 1)
      { "YUV420_10", VA_RT_FORMAT_YUV420_10BPP, 10, 3, 1, 1 },
  #endif
@@ -91,13 +91,13 @@ index 284ce29888..7b235854db 100644
  
  static const VAEntrypoint vaapi_encode_entrypoints_normal[] = {
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index d5375add22..8a7a5f761c 100644
+index 1de323af78..27158768b7 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
-@@ -1278,7 +1278,11 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
- #if VA_CHECK_VERSION(1, 2, 0)
-     { FF_PROFILE_HEVC_REXT,     8, 3, 1, 0, VAProfileHEVCMain422_10 },
+@@ -1280,7 +1280,11 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
      { FF_PROFILE_HEVC_REXT,    10, 3, 1, 0, VAProfileHEVCMain422_10 },
+     // Four channels because this uses the AYUV format which has Alpha
+     { FF_PROFILE_HEVC_REXT,     8, 4, 0, 0, VAProfileHEVCMain444 },
 +    { FF_PROFILE_HEVC_REXT,    12, 3, 1, 1, VAProfileHEVCMain12     },
 +    { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
 +    { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
