@@ -1,7 +1,7 @@
-From 5019cb6a91ac3415c4c8260bfe850a3b3bc9d80f Mon Sep 17 00:00:00 2001
+From 3d32991ef32ab6902efff50551e9c29b97226e77 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 3 Feb 2021 14:49:46 +0800
-Subject: [PATCH 13/77] configure: add --enable-libvpl option
+Subject: [PATCH 13/72] configure: add --enable-libvpl option
 
 This allows user to build FFmpeg against Intel oneVPL. oneVPL 2.6
 is the required minimum version when building Intel oneVPL code.
@@ -26,11 +26,11 @@ $ ffmpeg -init_hw_device dxva2=d3d9:0 -init_hw_device qsv=qsv@d3d9 -hwaccel qsv 
 
 [1] https://www.intel.com/content/www/us/en/develop/documentation/upgrading-from-msdk-to-onevpl/top.html
 ---
- configure | 29 ++++++++++++++++++++++-------
- 1 file changed, 22 insertions(+), 7 deletions(-)
+ configure | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)
 
 diff --git a/configure b/configure
-index 7bf652a874..c37ef962a1 100755
+index e2210e8415..090ccf21a7 100755
 --- a/configure
 +++ b/configure
 @@ -341,6 +341,7 @@ External library support:
@@ -49,7 +49,7 @@ index 7bf652a874..c37ef962a1 100755
      mmal
      omx
      opencl
-@@ -6567,23 +6569,36 @@ enabled libjxl            && require_pkg_config libjxl "libjxl >= 0.7.0" jxl/dec
+@@ -6577,23 +6579,34 @@ enabled libjxl            && require_pkg_config libjxl "libjxl >= 0.7.0" jxl/dec
  enabled libklvanc         && require libklvanc libklvanc/vanc.h klvanc_context_create -lklvanc
  enabled libkvazaar        && require_pkg_config libkvazaar "kvazaar >= 0.8.1" kvazaar.h kvz_api_get
  enabled liblensfun        && require_pkg_config liblensfun lensfun lensfun.h lf_db_new
@@ -85,9 +85,7 @@ index 7bf652a874..c37ef962a1 100755
 +# Consider pkg-config only. The name of libmfx is still passed to check_pkg_config function for --enable-libvpl option
 +# because QSV has dependency on libmfx, we can use the same dependency if using libmfx in this check. The package name
 +# is extracted from "vpl >= 2.6"
-+    check_pkg_config libmfx "vpl >= 2.6" "mfxvideo.h mfxdispatcher.h" MFXLoad && \
-+        warn "build FFmpeg against oneVPL 2.6+, OPAQUE memory, multi-frame encode, user plugins\n"\
-+             "and LA_EXT rate control mode in FFmpeg QSV won't be supported." ||
++    check_pkg_config libmfx "vpl >= 2.6" "mfxvideo.h mfxdispatcher.h" MFXLoad || \
 +            die "ERROR: libvpl >= 2.6 not found"
 +fi
  
