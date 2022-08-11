@@ -1,7 +1,7 @@
-From f57706ff60c8299c166fd6d69ea373e69357f9d9 Mon Sep 17 00:00:00 2001
+From 3accbd90a021fccbf27cab17b8df006f6c13334c Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 8 Apr 2021 13:09:47 +0800
-Subject: [PATCH 58/77] libavcodec/qsvenc_av1: add av1_qsv encoder
+Subject: [PATCH 52/72] libavcodec/qsvenc_av1: add av1_qsv encoder
 
 It is available when libvpl is enabled
 
@@ -22,10 +22,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  create mode 100644 libavcodec/qsvenc_av1.c
 
 diff --git a/configure b/configure
-index 23a495f045..7aa935b0b3 100755
+index 090ccf21a7..6ecceef30d 100755
 --- a/configure
 +++ b/configure
-@@ -3256,6 +3256,8 @@ vp9_qsv_encoder_select="qsvenc"
+@@ -3258,6 +3258,8 @@ vp9_qsv_encoder_select="qsvenc"
  vp9_v4l2m2m_decoder_deps="v4l2_m2m vp9_v4l2_m2m"
  wmv3_crystalhd_decoder_select="crystalhd"
  av1_qsv_decoder_select="qsvdec"
@@ -34,9 +34,9 @@ index 23a495f045..7aa935b0b3 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6605,6 +6607,8 @@ elif enabled libvpl; then
-         warn "build FFmpeg against oneVPL 2.6+, OPAQUE memory, multi-frame encode, user plugins\n"\
-              "and LA_EXT rate control mode in FFmpeg QSV won't be supported." ||
+@@ -6606,6 +6608,8 @@ elif enabled libvpl; then
+ # is extracted from "vpl >= 2.6"
+     check_pkg_config libmfx "vpl >= 2.6" "mfxvideo.h mfxdispatcher.h" MFXLoad || \
              die "ERROR: libvpl >= 2.6 not found"
 +
 +    check_cc MFX_EXTBUFF_AV1_BITSTREAM_PARAM "mfxdefs.h mfxstructures.h" "MFX_EXTBUFF_AV1_BITSTREAM_PARAM"
@@ -44,10 +44,10 @@ index 23a495f045..7aa935b0b3 100755
  
  if enabled libmfx; then
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index ef2318438b..fc85d255f1 100644
+index 83901bb52b..a1da3df8b6 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -241,6 +241,7 @@ OBJS-$(CONFIG_AURA_DECODER)            += cyuv.o
+@@ -243,6 +243,7 @@ OBJS-$(CONFIG_AURA_DECODER)            += cyuv.o
  OBJS-$(CONFIG_AURA2_DECODER)           += aura.o
  OBJS-$(CONFIG_AV1_DECODER)             += av1dec.o
  OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
@@ -56,10 +56,10 @@ index ef2318438b..fc85d255f1 100644
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index 31d2c5979c..a104cf453d 100644
+index c94e2d5966..0479d7e445 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -818,6 +818,7 @@ extern const FFCodec ff_libaom_av1_decoder;
+@@ -820,6 +820,7 @@ extern const FFCodec ff_libaom_av1_decoder;
  extern const FFCodec ff_av1_decoder;
  extern const FFCodec ff_av1_cuvid_decoder;
  extern const FFCodec ff_av1_qsv_decoder;
@@ -68,7 +68,7 @@ index 31d2c5979c..a104cf453d 100644
  extern const FFCodec ff_libopenh264_decoder;
  extern const FFCodec ff_h264_amf_encoder;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 580d48f50e..00ecdf5b91 100644
+index 68fceb3507..5639f0a1ae 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -82,6 +82,14 @@ static const struct profile_names vp9_profiles[] = {
