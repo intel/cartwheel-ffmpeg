@@ -1,7 +1,7 @@
-From 13b2eea7c52fc37dc96952dd0f01255d40dc83ad Mon Sep 17 00:00:00 2001
+From 4f4f32ad249f8b1b36cd10ec969c2a35c886be90 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 12 Oct 2021 16:57:35 +0800
-Subject: [PATCH 35/59] hwcontext_d3d11va: add mutiple supported DXGI formats
+Subject: [PATCH 34/57] hwcontext_d3d11va: add mutiple supported DXGI formats
 
 Add support for 0YUV, YUYV422, Y210, Y410, P012, Y212, Y412.
 
@@ -15,14 +15,14 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  1 file changed, 7 insertions(+)
 
 diff --git a/libavutil/hwcontext_d3d11va.c b/libavutil/hwcontext_d3d11va.c
-index 363ec6a47d..758e9d13d4 100644
+index 363ec6a47d..de9793173c 100644
 --- a/libavutil/hwcontext_d3d11va.c
 +++ b/libavutil/hwcontext_d3d11va.c
 @@ -89,6 +89,13 @@ static const struct {
      { DXGI_FORMAT_B8G8R8A8_UNORM,    AV_PIX_FMT_BGRA },
      { DXGI_FORMAT_R10G10B10A2_UNORM, AV_PIX_FMT_X2BGR10 },
      { DXGI_FORMAT_R16G16B16A16_FLOAT, AV_PIX_FMT_RGBAF16 },
-+    { DXGI_FORMAT_AYUV,         AV_PIX_FMT_VUYA },
++    { DXGI_FORMAT_AYUV,         AV_PIX_FMT_VUYX },
 +    { DXGI_FORMAT_YUY2,         AV_PIX_FMT_YUYV422 },
 +    { DXGI_FORMAT_Y210,         AV_PIX_FMT_Y210 },
 +    { DXGI_FORMAT_Y410,         AV_PIX_FMT_Y410 },

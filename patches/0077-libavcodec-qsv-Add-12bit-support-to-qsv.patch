@@ -1,7 +1,7 @@
-From bef392f2b508a6e63df63788cf81e7ec2a39b009 Mon Sep 17 00:00:00 2001
+From 6b7070d75564c20147a4ec1d92bc0c0d6bc098ba Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 11 Jul 2022 15:53:30 +0800
-Subject: [PATCH 72/73] libavcodec/qsv: Add 12bit support to qsv
+Subject: [PATCH 56/57] libavcodec/qsv: Add 12bit support to qsv
 
 Add p012, y212 and y412 system memory support to qsvdec.
 Add p012 system memory support to hevc_qsv enc.
@@ -14,7 +14,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index c6cdf7103f..8b337b7784 100644
+index ad6d75f55d..0209aed18f 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -279,6 +279,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
@@ -48,7 +48,7 @@ index c6cdf7103f..8b337b7784 100644
          return AVERROR(ENOSYS);
      }
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 35961f3b54..2ebdf7dc5c 100644
+index 78995fa5b1..9a46ab369d 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -145,14 +145,19 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
@@ -62,7 +62,7 @@ index 35961f3b54..2ebdf7dc5c 100644
      case AV_PIX_FMT_Y210:
 +    case AV_PIX_FMT_Y212:
      case AV_PIX_FMT_Y410:
-     case AV_PIX_FMT_VUYA:
+     case AV_PIX_FMT_VUYX:
          frame->linesize[0] = 4 * FFALIGN(avctx->width, 128);
          break;
 +    case AV_PIX_FMT_Y412:
@@ -89,17 +89,17 @@ index 35961f3b54..2ebdf7dc5c 100644
                                                      AV_PIX_FMT_YUYV422, \
                                                      AV_PIX_FMT_Y210, \
 +                                                    AV_PIX_FMT_Y212, \
-                                                     AV_PIX_FMT_VUYA, \
+                                                     AV_PIX_FMT_VUYX, \
                                                      AV_PIX_FMT_Y410, \
 +                                                    AV_PIX_FMT_Y412, \
                                                      AV_PIX_FMT_QSV, \
                                                      AV_PIX_FMT_NONE }, \
      .hw_configs     = qsv_hw_configs, \
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 4e5df99d65..835ab47f40 100644
+index 5a235c1945..9322bdf9d3 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -311,6 +311,7 @@ const FFCodec ff_hevc_qsv_encoder = {
+@@ -312,6 +312,7 @@ const FFCodec ff_hevc_qsv_encoder = {
      .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HYBRID,
      .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
                                                      AV_PIX_FMT_P010,
