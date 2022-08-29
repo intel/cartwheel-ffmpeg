@@ -1,7 +1,7 @@
-From 160d4a3cab32a41885747ba4575c315efdbf1f6a Mon Sep 17 00:00:00 2001
+From 7fa0af1486e7bfc8eab0c4db19d82749978690da Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 29 Nov 2021 15:12:12 +0800
-Subject: [PATCH 52/73] qsv: remove CONFIG_VAAPI
+Subject: [PATCH 37/57] qsv: remove CONFIG_VAAPI
 
 Make 8-bit, 10-bit, 12-bit YUV 4:2:2 video sources as well as YUV 4:4:4
 video sources supported by d3d11va and dxva2 just like what VAAPI does.
@@ -13,7 +13,7 @@ Sign-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 8 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index a3cead54f6..c6cdf7103f 100644
+index ddd63fde32..ad6d75f55d 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -208,7 +208,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
@@ -22,7 +22,7 @@ index a3cead54f6..c6cdf7103f 100644
      case MFX_FOURCC_RGB4: return AV_PIX_FMT_BGRA;
 -#if CONFIG_VAAPI
      case MFX_FOURCC_YUY2: return AV_PIX_FMT_YUYV422;
-     case MFX_FOURCC_AYUV: return AV_PIX_FMT_VUYA;
+     case MFX_FOURCC_AYUV: return AV_PIX_FMT_VUYX;
      case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
 @@ -217,7 +216,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
      case MFX_FOURCC_P016: return AV_PIX_FMT_P012;
@@ -49,7 +49,7 @@ index a3cead54f6..c6cdf7103f 100644
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 893f3f5208..b249970844 100644
+index 75b6e9ed48..bc5f6f5783 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -114,7 +114,6 @@ static const struct {
@@ -59,7 +59,7 @@ index 893f3f5208..b249970844 100644
 -#if CONFIG_VAAPI
      { AV_PIX_FMT_YUYV422,
                         MFX_FOURCC_YUY2 },
-     { AV_PIX_FMT_VUYA,
+     { AV_PIX_FMT_VUYX,
 @@ -131,7 +130,6 @@ static const struct {
      { AV_PIX_FMT_Y412,
                         MFX_FOURCC_Y416 },
@@ -68,7 +68,7 @@ index 893f3f5208..b249970844 100644
  };
  
  extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
-@@ -1501,7 +1499,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1503,7 +1501,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.R = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;
@@ -76,7 +76,7 @@ index 893f3f5208..b249970844 100644
      case AV_PIX_FMT_YUYV422:
          surface->Data.Y = frame->data[0];
          surface->Data.U = frame->data[0] + 1;
-@@ -1529,7 +1526,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1531,7 +1528,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.V = frame->data[0] + 2;
          surface->Data.A = frame->data[0] + 3;
          break;

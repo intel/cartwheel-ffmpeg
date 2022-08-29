@@ -1,7 +1,7 @@
-From e363bb0d192e3e5e84b6c700d3770e177dc09093 Mon Sep 17 00:00:00 2001
+From 1145284e25fd4cd362177a5852730dc343c48cc2 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 10:12:26 +0800
-Subject: [PATCH 24/73] lavc/hevcdec: add vaapi decoding support for 444
+Subject: [PATCH 09/57] lavc/hevcdec: add vaapi decoding support for 444
 
 Also include 420P12, 444P12.
 
@@ -12,10 +12,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 7 insertions(+)
 
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 539b656c65..51d3485f1e 100644
+index ed6cef6bfb..d7ed09c7c8 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
-@@ -481,6 +481,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+@@ -482,6 +482,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
  #endif
      case AV_PIX_FMT_YUV420P12:
      case AV_PIX_FMT_YUV444P12:
@@ -26,20 +26,20 @@ index 539b656c65..51d3485f1e 100644
          *fmt++ = AV_PIX_FMT_VDPAU;
  #endif
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 0c4a70daec..97cf097af8 100644
+index b3d52a0dd1..4fd670915b 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
-@@ -268,6 +268,10 @@ static const struct {
-     // 4:4:4
+@@ -269,6 +269,10 @@ static const struct {
      MAP(444P, YUV444P),
-     MAP(AYUV, VUYA),
+ #ifdef VA_FOURCC_XYUV
+     MAP(XYUV, VUYX),
++#endif
 +    // 4:4:4 10-bit
 +#ifdef VA_FOURCC_Y410
 +    MAP(Y410,    Y410),
-+#endif
+ #endif
      // 4:2:0 10-bit
  #ifdef VA_FOURCC_P010
-     MAP(P010, P010),
 -- 
 2.17.1
 

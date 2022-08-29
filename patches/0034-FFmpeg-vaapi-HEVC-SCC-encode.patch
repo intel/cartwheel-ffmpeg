@@ -1,7 +1,7 @@
-From d3942fbdfa4999f480ae28eed96f3b5a5f84d7a7 Mon Sep 17 00:00:00 2001
+From 44610151e0fb2e65b8a3cd75acbe7ecb4076b99f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 18 Oct 2020 16:15:37 -0400
-Subject: [PATCH 29/72] FFmpeg vaapi HEVC SCC encode.
+Subject: [PATCH 15/57] FFmpeg vaapi HEVC SCC encode.
 
 Depend on 0008 hevc low power enable patch.
 
@@ -37,7 +37,7 @@ index 65c8535359..95c6babad3 100644
  #define FF_PROFILE_VVC_MAIN_10                      1
  #define FF_PROFILE_VVC_MAIN_10_444                 33
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index cba664ad9f..8d20ce8227 100644
+index 383bd68ebb..d3ae168957 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -1306,6 +1306,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
@@ -47,9 +47,9 @@ index cba664ad9f..8d20ce8227 100644
 +    { "YUV444_10", VA_RT_FORMAT_YUV444_10,    10, 3, 0, 0 },
  #endif
      { "YUV444",    VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
-     { "AYUV",      VA_RT_FORMAT_YUV444,        8, 4, 0, 0 },
+     { "XYUV",      VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 27158768b7..0798463ebf 100644
+index 070a60a067..7fdf89ae21 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -329,8 +329,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
@@ -142,7 +142,7 @@ index 27158768b7..0798463ebf 100644
          .num_ref_idx_l1_active_minus1 = sh->num_ref_idx_l1_active_minus1,
  
          .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
-@@ -1283,6 +1315,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+@@ -1282,6 +1314,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
      { FF_PROFILE_HEVC_REXT,    12, 3, 1, 1, VAProfileHEVCMain12     },
      { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
      { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
@@ -155,7 +155,7 @@ index 27158768b7..0798463ebf 100644
  #endif
  
      { FF_PROFILE_UNKNOWN }
-@@ -1381,6 +1419,7 @@ static const AVOption vaapi_encode_h265_options[] = {
+@@ -1380,6 +1418,7 @@ static const AVOption vaapi_encode_h265_options[] = {
      { PROFILE("main",               FF_PROFILE_HEVC_MAIN) },
      { PROFILE("main10",             FF_PROFILE_HEVC_MAIN_10) },
      { PROFILE("rext",               FF_PROFILE_HEVC_REXT) },
