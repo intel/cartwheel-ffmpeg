@@ -1,7 +1,7 @@
-From 3accbd90a021fccbf27cab17b8df006f6c13334c Mon Sep 17 00:00:00 2001
+From e5826cc8d4385ab9a760328230719ed8a28b3ef3 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 8 Apr 2021 13:09:47 +0800
-Subject: [PATCH 52/72] libavcodec/qsvenc_av1: add av1_qsv encoder
+Subject: [PATCH 1/2] libavcodec/qsvenc_av1: add av1_qsv encoder
 
 It is available when libvpl is enabled
 
@@ -15,17 +15,17 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  configure               |   4 +
  libavcodec/Makefile     |   1 +
  libavcodec/allcodecs.c  |   1 +
- libavcodec/qsvenc.c     | 195 ++++++++++++++++++++++++++++-
+ libavcodec/qsvenc.c     | 199 ++++++++++++++++++++++++++++-
  libavcodec/qsvenc.h     |   7 +-
- libavcodec/qsvenc_av1.c | 267 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 471 insertions(+), 4 deletions(-)
+ libavcodec/qsvenc_av1.c | 269 ++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 477 insertions(+), 4 deletions(-)
  create mode 100644 libavcodec/qsvenc_av1.c
 
 diff --git a/configure b/configure
-index 090ccf21a7..6ecceef30d 100755
+index 932ea5b553..04eeb25052 100755
 --- a/configure
 +++ b/configure
-@@ -3258,6 +3258,8 @@ vp9_qsv_encoder_select="qsvenc"
+@@ -3259,6 +3259,8 @@ vp9_qsv_encoder_select="qsvenc"
  vp9_v4l2m2m_decoder_deps="v4l2_m2m vp9_v4l2_m2m"
  wmv3_crystalhd_decoder_select="crystalhd"
  av1_qsv_decoder_select="qsvdec"
@@ -34,7 +34,7 @@ index 090ccf21a7..6ecceef30d 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6606,6 +6608,8 @@ elif enabled libvpl; then
+@@ -6620,6 +6622,8 @@ elif enabled libvpl; then
  # is extracted from "vpl >= 2.6"
      check_pkg_config libmfx "vpl >= 2.6" "mfxvideo.h mfxdispatcher.h" MFXLoad || \
              die "ERROR: libvpl >= 2.6 not found"
@@ -44,7 +44,7 @@ index 090ccf21a7..6ecceef30d 100755
  
  if enabled libmfx; then
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 83901bb52b..a1da3df8b6 100644
+index cb80f73d99..6047230dd9 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -243,6 +243,7 @@ OBJS-$(CONFIG_AURA_DECODER)            += cyuv.o
@@ -56,10 +56,10 @@ index 83901bb52b..a1da3df8b6 100644
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index c94e2d5966..0479d7e445 100644
+index 6939a4e25f..4d7c380b41 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -820,6 +820,7 @@ extern const FFCodec ff_libaom_av1_decoder;
+@@ -822,6 +822,7 @@ extern const FFCodec ff_libaom_av1_decoder;
  extern const FFCodec ff_av1_decoder;
  extern const FFCodec ff_av1_cuvid_decoder;
  extern const FFCodec ff_av1_qsv_decoder;
@@ -68,7 +68,7 @@ index c94e2d5966..0479d7e445 100644
  extern const FFCodec ff_libopenh264_decoder;
  extern const FFCodec ff_h264_amf_encoder;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 68fceb3507..5639f0a1ae 100644
+index bb7b2ae488..7575b06f61 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -82,6 +82,14 @@ static const struct profile_names vp9_profiles[] = {
@@ -98,7 +98,7 @@ index 68fceb3507..5639f0a1ae 100644
      default:
          return "unknown";
      }
-@@ -437,6 +450,93 @@ static void dump_video_mjpeg_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -438,6 +451,93 @@ static void dump_video_mjpeg_param(AVCodecContext *avctx, QSVEncContext *q)
             info->FrameInfo.FrameRateExtD, info->FrameInfo.FrameRateExtN);
  }
  
@@ -192,7 +192,7 @@ index 68fceb3507..5639f0a1ae 100644
  static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
  {
      const char *rc_desc;
-@@ -743,15 +843,22 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -744,15 +844,22 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
      case MFX_RATECONTROL_CQP:
          quant = avctx->global_quality / FF_QP2LAMBDA;
  
@@ -218,7 +218,7 @@ index 68fceb3507..5639f0a1ae 100644
          break;
  #if QSV_HAVE_AVBR
      case MFX_RATECONTROL_AVBR:
-@@ -884,6 +991,14 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -884,6 +991,18 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
              q->extco2.Header.BufferId = MFX_EXTBUFF_CODING_OPTION2;
              q->extco2.Header.BufferSz = sizeof(q->extco2);
  
@@ -226,6 +226,10 @@ index 68fceb3507..5639f0a1ae 100644
 +        } else if (avctx->codec_id == AV_CODEC_ID_AV1) {
 +            if (q->b_strategy >= 0)
 +                q->extco2.BRefType = q->b_strategy ? MFX_B_REF_PYRAMID : MFX_B_REF_OFF;
++            if (q->adaptive_i >= 0)
++                q->extco2.AdaptiveI = q->adaptive_i ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
++            if (q->adaptive_b >= 0)
++                q->extco2.AdaptiveB = q->adaptive_b ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
 +
 +            q->extco2.Header.BufferId = MFX_EXTBUFF_CODING_OPTION2;
 +            q->extco2.Header.BufferSz = sizeof(q->extco2);
@@ -233,7 +237,7 @@ index 68fceb3507..5639f0a1ae 100644
              q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extco2;
          }
  
-@@ -957,6 +1072,27 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -959,6 +1078,27 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
          q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extvp9param;
      }
  
@@ -261,7 +265,7 @@ index 68fceb3507..5639f0a1ae 100644
      if (avctx->codec_id == AV_CODEC_ID_HEVC) {
          q->exthevctiles.Header.BufferId = MFX_EXTBUFF_HEVC_TILES;
          q->exthevctiles.Header.BufferSz = sizeof(q->exthevctiles);
-@@ -1079,6 +1215,56 @@ static int qsv_retrieve_enc_vp9_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1081,6 +1221,56 @@ static int qsv_retrieve_enc_vp9_params(AVCodecContext *avctx, QSVEncContext *q)
      return 0;
  }
  
@@ -318,7 +322,7 @@ index 68fceb3507..5639f0a1ae 100644
  static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
  {
      AVCPBProperties *cpb_props;
-@@ -1425,6 +1611,9 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1427,6 +1617,9 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
      case AV_CODEC_ID_VP9:
          ret = qsv_retrieve_enc_vp9_params(avctx, q);
          break;
@@ -329,7 +333,7 @@ index 68fceb3507..5639f0a1ae 100644
          ret = qsv_retrieve_enc_params(avctx, q);
          break;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 1df4e26583..e3c923184e 100644
+index 38dc127048..1f24b1f811 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -39,6 +39,7 @@
@@ -340,7 +344,7 @@ index 1df4e26583..e3c923184e 100644
  
  #if defined(_WIN32) || defined(__CYGWIN__)
  #define QSV_HAVE_AVBR   1
-@@ -140,6 +141,10 @@ typedef struct QSVEncContext {
+@@ -153,6 +154,10 @@ typedef struct QSVEncContext {
      mfxExtHEVCTiles exthevctiles;
      mfxExtHEVCParam exthevcparam;
      mfxExtVP9Param  extvp9param;
@@ -351,7 +355,7 @@ index 1df4e26583..e3c923184e 100644
  
  #if QSV_HAVE_OPAQUE
      mfxExtOpaqueSurfaceAlloc opaque_alloc;
-@@ -149,7 +154,7 @@ typedef struct QSVEncContext {
+@@ -162,7 +167,7 @@ typedef struct QSVEncContext {
  
      mfxExtVideoSignalInfo extvsi;
  
@@ -362,10 +366,10 @@ index 1df4e26583..e3c923184e 100644
      mfxExtBuffer **extparam;
 diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
 new file mode 100644
-index 0000000000..e8fd46640c
+index 0000000000..db7f5ad4f6
 --- /dev/null
 +++ b/libavcodec/qsvenc_av1.c
-@@ -0,0 +1,267 @@
+@@ -0,0 +1,269 @@
 +/*
 + * Intel MediaSDK QSV based AV1 encoder
 + *
@@ -591,6 +595,8 @@ index 0000000000..e8fd46640c
 +static const AVOption options[] = {
 +    QSV_COMMON_OPTS
 +    QSV_OPTION_B_STRATEGY
++    QSV_OPTION_ADAPTIVE_I
++    QSV_OPTION_ADAPTIVE_B
 +    { "profile", NULL, OFFSET(qsv.profile), AV_OPT_TYPE_INT, { .i64 = MFX_PROFILE_UNKNOWN }, 0, INT_MAX, VE, "profile" },
 +        { "unknown" , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_UNKNOWN      }, INT_MIN, INT_MAX,     VE, "profile" },
 +        { "main"    , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_AV1_MAIN     }, INT_MIN, INT_MAX,     VE, "profile" },
@@ -634,5 +640,5 @@ index 0000000000..e8fd46640c
 +    .hw_configs     = ff_qsv_enc_hw_configs,
 +};
 -- 
-2.17.1
+2.32.0
 
