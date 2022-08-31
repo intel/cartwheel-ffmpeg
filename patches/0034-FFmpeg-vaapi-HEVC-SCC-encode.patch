@@ -12,7 +12,7 @@ Main10:
 ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt p010 -s:v 320x240 -r:v 30 -i 320x240_100.p010 -vf 'format=p010,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
 
 Main 444:
-ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt 0yuv -s:v 320x240 -r:v 30 -i 320x240_100.ayuv -vf 'format=0yuv,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt vuyx -s:v 320x240 -r:v 30 -i 320x240_100.ayuv -vf 'format=vuyx,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
 
 Main 444-10:
 ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt y410 -s:v 320x240 -r:v 30 -i 320x240_100.y410 -vf 'format=y410,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
