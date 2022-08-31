@@ -1,20 +1,20 @@
-From 1211503a55f76564f9b86f9181fd3c4b4e300f6d Mon Sep 17 00:00:00 2001
+From e7f445465e798803624b32be1ca7aafde7ba514d Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Fri, 11 Mar 2022 10:40:16 +0800
-Subject: [PATCH 59/77] doc/encoders: Add doc for av1_qsv
+Subject: [PATCH 2/2] doc/encoders: Add doc for av1_qsv
 
 Add doc for av1_qsv.
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- doc/encoders.texi | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ doc/encoders.texi | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 02a91ffe96..45d82ea04a 100644
+index d36464d629..0b685e11ce 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3674,6 +3674,22 @@ Number of columns for tiled encoding (requires libmfx >= 1.29).
+@@ -3714,6 +3714,29 @@ Number of columns for tiled encoding (requires libmfx >= 1.29).
  Number of rows for tiled encoding (requires libmfx  >= 1.29).
  @end table
  
@@ -32,11 +32,18 @@ index 02a91ffe96..45d82ea04a 100644
 +
 +@item @var{tile_rows}
 +Number of rows for tiled encoding.
++
++@item @var{adaptive_i}
++This flag controls insertion of I frames by the QSV encoder. Turn ON this flag
++to allow changing of frame type from P and B to I.
++
++@item @var{adaptive_b}
++This flag controls changing of frame type from B to P.
 +@end table
 +
  @section snow
  
  @subsection Options
 -- 
-2.17.1
+2.32.0
 
