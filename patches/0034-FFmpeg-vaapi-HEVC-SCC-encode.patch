@@ -1,7 +1,7 @@
-From 44610151e0fb2e65b8a3cd75acbe7ecb4076b99f Mon Sep 17 00:00:00 2001
+From 873878a34918d5f35aa03cebd41d64cd68e3c9a5 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 18 Oct 2020 16:15:37 -0400
-Subject: [PATCH 15/57] FFmpeg vaapi HEVC SCC encode.
+Subject: [PATCH 09/50] FFmpeg vaapi HEVC SCC encode.
 
 Depend on 0008 hevc low power enable patch.
 
@@ -20,9 +20,8 @@ ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
  libavcodec/avcodec.h           |  1 +
- libavcodec/vaapi_encode.c      |  1 +
  libavcodec/vaapi_encode_h265.c | 47 +++++++++++++++++++++++++++++++---
- 3 files changed, 45 insertions(+), 4 deletions(-)
+ 2 files changed, 44 insertions(+), 4 deletions(-)
 
 diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
 index 65c8535359..95c6babad3 100644
@@ -36,20 +35,8 @@ index 65c8535359..95c6babad3 100644
  
  #define FF_PROFILE_VVC_MAIN_10                      1
  #define FF_PROFILE_VVC_MAIN_10_444                 33
-diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 383bd68ebb..d3ae168957 100644
---- a/libavcodec/vaapi_encode.c
-+++ b/libavcodec/vaapi_encode.c
-@@ -1306,6 +1306,7 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
-     { "YUV422",    VA_RT_FORMAT_YUV422,        8, 3, 1, 0 },
- #if VA_CHECK_VERSION(1, 2, 0)
-     { "YUV422_10", VA_RT_FORMAT_YUV422_10,    10, 3, 1, 0 },
-+    { "YUV444_10", VA_RT_FORMAT_YUV444_10,    10, 3, 0, 0 },
- #endif
-     { "YUV444",    VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
-     { "XYUV",      VA_RT_FORMAT_YUV444,        8, 3, 0, 0 },
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index 070a60a067..7fdf89ae21 100644
+index 94b56c6578..fe82dfda8f 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -329,8 +329,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
@@ -142,9 +129,9 @@ index 070a60a067..7fdf89ae21 100644
          .num_ref_idx_l1_active_minus1 = sh->num_ref_idx_l1_active_minus1,
  
          .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
-@@ -1282,6 +1314,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
-     { FF_PROFILE_HEVC_REXT,    12, 3, 1, 1, VAProfileHEVCMain12     },
-     { FF_PROFILE_HEVC_REXT,    12, 3, 1, 0, VAProfileHEVCMain422_12 },
+@@ -1283,6 +1315,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+     { FF_PROFILE_HEVC_REXT,     8, 3, 0, 0, VAProfileHEVCMain444 },
+     { FF_PROFILE_HEVC_REXT,    10, 3, 0, 0, VAProfileHEVCMain444_10 },
      { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
 +    { FF_PROFILE_HEVC_SCC,      8, 3, 1, 1, VAProfileHEVCSccMain    },
 +    { FF_PROFILE_HEVC_SCC,     10, 3, 1, 1, VAProfileHEVCSccMain10  },
@@ -153,8 +140,8 @@ index 070a60a067..7fdf89ae21 100644
 +#if VA_CHECK_VERSION(1, 9, 0)
 +    { FF_PROFILE_HEVC_SCC,     10, 3, 0, 0, VAProfileHEVCSccMain444_10 },
  #endif
- 
      { FF_PROFILE_UNKNOWN }
+ };
 @@ -1380,6 +1418,7 @@ static const AVOption vaapi_encode_h265_options[] = {
      { PROFILE("main",               FF_PROFILE_HEVC_MAIN) },
      { PROFILE("main10",             FF_PROFILE_HEVC_MAIN_10) },
@@ -164,5 +151,5 @@ index 070a60a067..7fdf89ae21 100644
  
      { "tier", "Set tier (general_tier_flag)",
 -- 
-2.17.1
+2.25.1
 

@@ -1,7 +1,7 @@
-From fb8cd9b0aac089438a49fa67bf11e71c29c30e5a Mon Sep 17 00:00:00 2001
+From 42452f13d1bceb375b128c6c643ced783a2176e3 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:54:57 +0800
-Subject: [PATCH 04/57] lavcu/qsv: Add decoding support for 444 8/10 bit
+Subject: [PATCH 02/50] lavcu/qsv: Add decoding support for 444 8/10 bit
 
 Add support for 0yuv/y410 in system memory
 
@@ -14,7 +14,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  3 files changed, 39 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 3449789a2c..93d5fc9ad1 100644
+index 3449789a2c..44334f574f 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -210,7 +210,9 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
@@ -23,7 +23,7 @@ index 3449789a2c..93d5fc9ad1 100644
      case MFX_FOURCC_YUY2: return AV_PIX_FMT_YUYV422;
 +    case MFX_FOURCC_AYUV: return AV_PIX_FMT_VUYX;
      case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
-+    case MFX_FOURCC_Y410: return AV_PIX_FMT_Y410;
++    case MFX_FOURCC_Y410: return AV_PIX_FMT_XV30;
  #endif
      }
      return AV_PIX_FMT_NONE;
@@ -39,10 +39,10 @@ index 3449789a2c..93d5fc9ad1 100644
      case AV_PIX_FMT_Y210:
          *fourcc = MFX_FOURCC_Y210;
          return AV_PIX_FMT_Y210;
-+    case AV_PIX_FMT_Y410:
++    case AV_PIX_FMT_XV30:
 +    case AV_PIX_FMT_YUV444P10:
 +        *fourcc = MFX_FOURCC_Y410;
-+        return AV_PIX_FMT_Y410;
++        return AV_PIX_FMT_XV30;
  #endif
      default:
          return AVERROR(ENOSYS);
@@ -58,7 +58,7 @@ index 3449789a2c..93d5fc9ad1 100644
 +        surface->Data.A = frame->data[0] + 3;
 +        break;
 +
-+    case AV_PIX_FMT_Y410:
++    case AV_PIX_FMT_XV30:
 +        surface->Data.U = frame->data[0];
 +        break;
 +
@@ -66,14 +66,14 @@ index 3449789a2c..93d5fc9ad1 100644
          return AVERROR(ENOSYS);
      }
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 89ec5dcee8..bc3f8f70ae 100644
+index 0f0d719e23..6137f1e000 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -141,6 +141,8 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
          frame->linesize[0] = 2 * FFALIGN(avctx->width, 128);
          break;
      case AV_PIX_FMT_Y210:
-+    case AV_PIX_FMT_Y410:
++    case AV_PIX_FMT_XV30:
 +    case AV_PIX_FMT_VUYX:
          frame->linesize[0] = 4 * FFALIGN(avctx->width, 128);
          break;
@@ -83,12 +83,12 @@ index 89ec5dcee8..bc3f8f70ae 100644
                                                      AV_PIX_FMT_YUYV422, \
                                                      AV_PIX_FMT_Y210, \
 +                                                    AV_PIX_FMT_VUYX, \
-+                                                    AV_PIX_FMT_Y410, \
++                                                    AV_PIX_FMT_XV30, \
                                                      AV_PIX_FMT_QSV, \
                                                      AV_PIX_FMT_NONE }, \
      .hw_configs     = qsv_hw_configs, \
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index e08a203082..00cec592f8 100644
+index e08a203082..66ff2212e4 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -117,8 +117,12 @@ static const struct {
@@ -99,7 +99,7 @@ index e08a203082..00cec592f8 100644
 +                       MFX_FOURCC_AYUV },
      { AV_PIX_FMT_Y210,
                         MFX_FOURCC_Y210 },
-+    { AV_PIX_FMT_Y410,
++    { AV_PIX_FMT_XV30,
 +                       MFX_FOURCC_Y410 },
  #endif
  };
@@ -114,12 +114,12 @@ index e08a203082..00cec592f8 100644
 +        surface->Data.Y = frame->data[0] + 2;
 +        surface->Data.A = frame->data[0] + 3;
 +        break;
-+    case AV_PIX_FMT_Y410:
++    case AV_PIX_FMT_XV30:
 +        surface->Data.U = frame->data[0];
 +        break;
  #endif
      default:
          return MFX_ERR_UNSUPPORTED;
 -- 
-2.17.1
+2.25.1
 

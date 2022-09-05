@@ -1,7 +1,7 @@
-From 9099b2d08a84f292360734947bf4285b918265dc Mon Sep 17 00:00:00 2001
+From c40e0f27ee2c688baef5bbf6174ed0f5690aa062 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Thu, 30 Jun 2022 15:05:31 +0800
-Subject: [PATCH 55/57] lavc/qsvenc_{hevc, vp9}: 0yuv, y410 in system memory
+Subject: [PATCH 48/50] lavc/qsvenc_{hevc, vp9}: 0yuv, y410 in system memory
 
 $ ffmpeg -y -f rawvideo -pix_fmt 0yuv -s:v 352x288 -i in.yuv -c:v hevc_qsv out.h265
 $ mediainfo out.h265
@@ -15,7 +15,7 @@ Color range                              : Limited
  2 files changed, 4 insertions(+)
 
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 9637e13115..5a235c1945 100644
+index 03f6142580..2baec23b4b 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -319,6 +319,8 @@ const FFCodec ff_hevc_qsv_encoder = {
@@ -23,12 +23,12 @@ index 9637e13115..5a235c1945 100644
                                                      AV_PIX_FMT_BGRA,
                                                      AV_PIX_FMT_X2RGB10,
 +                                                    AV_PIX_FMT_VUYX,
-+                                                    AV_PIX_FMT_Y410,
++                                                    AV_PIX_FMT_XV30,
                                                      AV_PIX_FMT_NONE },
      .p.priv_class   = &class,
      .defaults       = qsv_enc_defaults,
 diff --git a/libavcodec/qsvenc_vp9.c b/libavcodec/qsvenc_vp9.c
-index 91fce84507..72aa721b86 100644
+index be44c7e6df..2247a41e4b 100644
 --- a/libavcodec/qsvenc_vp9.c
 +++ b/libavcodec/qsvenc_vp9.c
 @@ -116,6 +116,8 @@ const FFCodec ff_vp9_qsv_encoder = {
@@ -36,10 +36,10 @@ index 91fce84507..72aa721b86 100644
                                                      AV_PIX_FMT_VAAPI,
                                                      AV_PIX_FMT_D3D11,
 +                                                    AV_PIX_FMT_VUYX,
-+                                                    AV_PIX_FMT_Y410,
++                                                    AV_PIX_FMT_XV30,
                                                      AV_PIX_FMT_NONE },
      .p.priv_class   = &class,
      .defaults       = qsv_enc_defaults,
 -- 
-2.17.1
+2.25.1
 
