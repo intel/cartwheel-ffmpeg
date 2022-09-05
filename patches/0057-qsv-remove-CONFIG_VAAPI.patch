@@ -1,7 +1,7 @@
-From 7fa0af1486e7bfc8eab0c4db19d82749978690da Mon Sep 17 00:00:00 2001
+From 1a590755d9780a53234e0fc023e9d239f0b47d67 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 29 Nov 2021 15:12:12 +0800
-Subject: [PATCH 37/57] qsv: remove CONFIG_VAAPI
+Subject: [PATCH 30/50] qsv: remove CONFIG_VAAPI
 
 Make 8-bit, 10-bit, 12-bit YUV 4:2:2 video sources as well as YUV 4:4:4
 video sources supported by d3d11va and dxva2 just like what VAAPI does.
@@ -13,7 +13,7 @@ Sign-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 8 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index ddd63fde32..ad6d75f55d 100644
+index bd0d689c27..6edc029122 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -208,7 +208,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
@@ -27,7 +27,7 @@ index ddd63fde32..ad6d75f55d 100644
 @@ -217,7 +216,6 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
      case MFX_FOURCC_P016: return AV_PIX_FMT_P012;
      case MFX_FOURCC_Y216: return AV_PIX_FMT_Y212;
-     case MFX_FOURCC_Y416: return AV_PIX_FMT_Y412;
+     case MFX_FOURCC_Y416: return AV_PIX_FMT_XV36;
 -#endif
  #endif
      }
@@ -41,15 +41,15 @@ index ddd63fde32..ad6d75f55d 100644
      case AV_PIX_FMT_YUYV422:
          *fourcc = MFX_FOURCC_YUY2;
 @@ -271,7 +268,6 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
-     case AV_PIX_FMT_Y412:
+     case AV_PIX_FMT_XV36:
          *fourcc = MFX_FOURCC_Y416;
-         return AV_PIX_FMT_Y412;
+         return AV_PIX_FMT_XV36;
 -#endif
  #endif
      default:
          return AVERROR(ENOSYS);
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 75b6e9ed48..bc5f6f5783 100644
+index f17a31ceba..ec45db7e1f 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -114,7 +114,6 @@ static const struct {
@@ -61,7 +61,7 @@ index 75b6e9ed48..bc5f6f5783 100644
                         MFX_FOURCC_YUY2 },
      { AV_PIX_FMT_VUYX,
 @@ -131,7 +130,6 @@ static const struct {
-     { AV_PIX_FMT_Y412,
+     { AV_PIX_FMT_XV36,
                         MFX_FOURCC_Y416 },
  #endif
 -#endif
@@ -85,5 +85,5 @@ index 75b6e9ed48..bc5f6f5783 100644
          return MFX_ERR_UNSUPPORTED;
      }
 -- 
-2.17.1
+2.25.1
 
