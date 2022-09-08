@@ -1,7 +1,7 @@
-From 91f71f8372fa8e36ce8d685643c86ba588a7ce0b Mon Sep 17 00:00:00 2001
+From 59fc30b983237a1e031e52b8504617654fc7c852 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 2 Jun 2022 14:00:57 +0800
-Subject: [PATCH 68/77] avcodec/qsvenc: make QSV encoder encode VAAPI and D3D11
+Subject: [PATCH 41/51] avcodec/qsvenc: make QSV encoder encode VAAPI and D3D11
  frames directly
 
 QSV encoder is able to encode frames with VAAPI or D3D11 pixel format
@@ -20,10 +20,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  6 files changed, 62 insertions(+), 7 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 57102157e6..0bcaad2d64 100644
+index ec47d684ed..1318d4a873 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -643,7 +643,9 @@ static int check_enc_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -644,7 +644,9 @@ static int check_enc_param(AVCodecContext *avctx, QSVEncContext *q)
  
  static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
  {
@@ -34,7 +34,7 @@ index 57102157e6..0bcaad2d64 100644
                                     avctx->sw_pix_fmt : avctx->pix_fmt;
      const AVPixFmtDescriptor *desc;
      int ret;
-@@ -710,7 +712,9 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+@@ -711,7 +713,9 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
  
  static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
  {
@@ -45,7 +45,7 @@ index 57102157e6..0bcaad2d64 100644
                                     avctx->sw_pix_fmt : avctx->pix_fmt;
      const AVPixFmtDescriptor *desc;
      float quant;
-@@ -1494,7 +1498,31 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1506,7 +1510,31 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
  
      if (avctx->hw_frames_ctx) {
          AVHWFramesContext    *frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
@@ -78,7 +78,7 @@ index 57102157e6..0bcaad2d64 100644
  
          if (!iopattern) {
  #if QSV_HAVE_OPAQUE
-@@ -1719,10 +1747,25 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+@@ -1731,10 +1759,25 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
      if (ret < 0)
          return ret;
  
@@ -108,7 +108,7 @@ index 57102157e6..0bcaad2d64 100644
  
          qf->surface = *(mfxFrameSurface1*)qf->frame->data[3];
  
-@@ -2178,6 +2221,8 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+@@ -2183,6 +2226,8 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
  
  const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[] = {
      HW_CONFIG_ENCODER_FRAMES(QSV,  QSV),
@@ -118,10 +118,10 @@ index 57102157e6..0bcaad2d64 100644
      HW_CONFIG_ENCODER_DEVICE(P010, QSV),
      NULL,
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
-index 53d754a473..ac3097c498 100644
+index 3fae8f0200..dfcb074da7 100644
 --- a/libavcodec/qsvenc_h264.c
 +++ b/libavcodec/qsvenc_h264.c
-@@ -196,6 +196,8 @@ const FFCodec ff_h264_qsv_encoder = {
+@@ -198,6 +198,8 @@ const FFCodec ff_h264_qsv_encoder = {
      .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
                                                      AV_PIX_FMT_P010,
                                                      AV_PIX_FMT_QSV,
@@ -131,10 +131,10 @@ index 53d754a473..ac3097c498 100644
      .p.priv_class   = &class,
      .defaults       = qsv_enc_defaults,
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 3f08719c86..ae13ec3f43 100644
+index 931639ea03..36fa4a397f 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -314,6 +314,8 @@ const FFCodec ff_hevc_qsv_encoder = {
+@@ -316,6 +316,8 @@ const FFCodec ff_hevc_qsv_encoder = {
                                                      AV_PIX_FMT_YUYV422,
                                                      AV_PIX_FMT_Y210,
                                                      AV_PIX_FMT_QSV,
@@ -142,9 +142,9 @@ index 3f08719c86..ae13ec3f43 100644
 +                                                    AV_PIX_FMT_D3D11,
                                                      AV_PIX_FMT_BGRA,
                                                      AV_PIX_FMT_X2RGB10,
-                                                     AV_PIX_FMT_NONE },
+                                                     AV_PIX_FMT_VUYX,
 diff --git a/libavcodec/qsvenc_jpeg.c b/libavcodec/qsvenc_jpeg.c
-index ca56989d23..f096fafe95 100644
+index 2469ef7c9f..a7bed685d1 100644
 --- a/libavcodec/qsvenc_jpeg.c
 +++ b/libavcodec/qsvenc_jpeg.c
 @@ -90,6 +90,8 @@ const FFCodec ff_mjpeg_qsv_encoder = {
@@ -157,7 +157,7 @@ index ca56989d23..f096fafe95 100644
      .p.priv_class   = &class,
      .defaults       = qsv_enc_defaults,
 diff --git a/libavcodec/qsvenc_mpeg2.c b/libavcodec/qsvenc_mpeg2.c
-index 6b7677148c..5d6779ac7a 100644
+index 22f1ff7c0d..c1e887fc2f 100644
 --- a/libavcodec/qsvenc_mpeg2.c
 +++ b/libavcodec/qsvenc_mpeg2.c
 @@ -104,6 +104,8 @@ const FFCodec ff_mpeg2_qsv_encoder = {
@@ -170,12 +170,12 @@ index 6b7677148c..5d6779ac7a 100644
      .p.priv_class   = &class,
      .defaults       = qsv_enc_defaults,
 diff --git a/libavcodec/qsvenc_vp9.c b/libavcodec/qsvenc_vp9.c
-index 81f5e69e24..d91d2cffab 100644
+index 044a882d1a..c3d09f880b 100644
 --- a/libavcodec/qsvenc_vp9.c
 +++ b/libavcodec/qsvenc_vp9.c
-@@ -114,6 +114,8 @@ const FFCodec ff_vp9_qsv_encoder = {
-     .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
+@@ -115,6 +115,8 @@ const FFCodec ff_vp9_qsv_encoder = {
                                                      AV_PIX_FMT_P010,
+                                                     AV_PIX_FMT_VUYX,
                                                      AV_PIX_FMT_QSV,
 +                                                    AV_PIX_FMT_VAAPI,
 +                                                    AV_PIX_FMT_D3D11,
@@ -183,5 +183,5 @@ index 81f5e69e24..d91d2cffab 100644
      .p.priv_class   = &class,
      .defaults       = qsv_enc_defaults,
 -- 
-2.17.1
+2.25.1
 
