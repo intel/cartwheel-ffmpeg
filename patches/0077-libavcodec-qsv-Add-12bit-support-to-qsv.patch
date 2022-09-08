@@ -1,7 +1,7 @@
-From d067dc15cc22c111290f2b7da8901e1b525496a0 Mon Sep 17 00:00:00 2001
+From 5dee008b7c1bfeb8b159d0c231e918372b53eb98 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 11 Jul 2022 15:53:30 +0800
-Subject: [PATCH 49/50] libavcodec/qsv: Add 12bit support to qsv
+Subject: [PATCH 50/51] libavcodec/qsv: Add 12bit support to qsv
 
 Add p012, y212 and y412 system memory support to qsvdec.
 Add p012 system memory support to hevc_qsv enc.
@@ -9,15 +9,15 @@ Add p012 system memory support to hevc_qsv enc.
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
  libavcodec/qsv.c         |  9 +++++++++
- libavcodec/qsvdec.c      | 11 ++++++++++-
+ libavcodec/qsvdec.c      | 12 +++++++++++-
  libavcodec/qsvenc_hevc.c |  1 +
- 3 files changed, 20 insertions(+), 1 deletion(-)
+ 3 files changed, 21 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 6edc029122..1e4e8a22a5 100644
+index ec7b5c2ddd..7b9231c577 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -279,6 +279,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -277,6 +277,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
      switch (frame->format) {
      case AV_PIX_FMT_NV12:
      case AV_PIX_FMT_P010:
@@ -25,7 +25,7 @@ index 6edc029122..1e4e8a22a5 100644
          surface->Data.Y  = frame->data[0];
          surface->Data.UV = frame->data[1];
          /* The SDK checks Data.V when using system memory for VP9 encoding */
-@@ -298,6 +299,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -296,6 +297,7 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          break;
  
      case AV_PIX_FMT_Y210:
@@ -48,10 +48,10 @@ index 6edc029122..1e4e8a22a5 100644
          return AVERROR(ENOSYS);
      }
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 9bf6ae2a95..bb132f1214 100644
+index 26a0836cd1..33f9d99292 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -145,14 +145,19 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
+@@ -145,14 +145,20 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
          frame->linesize[0] = FFALIGN(avctx->width, 128);
          break;
      case AV_PIX_FMT_P010:
@@ -60,9 +60,10 @@ index 9bf6ae2a95..bb132f1214 100644
          frame->linesize[0] = 2 * FFALIGN(avctx->width, 128);
          break;
      case AV_PIX_FMT_Y210:
+     case AV_PIX_FMT_VUYX:
      case AV_PIX_FMT_XV30:
 +    case AV_PIX_FMT_Y212:
-     case AV_PIX_FMT_VUYX:
++
          frame->linesize[0] = 4 * FFALIGN(avctx->width, 128);
          break;
 +    case AV_PIX_FMT_XV36:
@@ -71,7 +72,7 @@ index 9bf6ae2a95..bb132f1214 100644
      default:
          av_log(avctx, AV_LOG_ERROR, "Unsupported pixel format.\n");
          return AVERROR(EINVAL);
-@@ -164,7 +169,8 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
+@@ -164,7 +170,8 @@ static int qsv_get_continuous_buffer(AVCodecContext *avctx, AVFrame *frame,
  
      frame->data[0] = frame->buf[0]->data;
      if (avctx->pix_fmt == AV_PIX_FMT_NV12 ||
@@ -81,7 +82,7 @@ index 9bf6ae2a95..bb132f1214 100644
          frame->linesize[1] = frame->linesize[0];
          frame->data[1] = frame->data[0] +
              frame->linesize[0] * FFALIGN(avctx->height, 64);
-@@ -1196,10 +1202,13 @@ const FFCodec ff_##x##_qsv_decoder = { \
+@@ -1196,10 +1203,13 @@ const FFCodec ff_##x##_qsv_decoder = { \
      .p.priv_class   = &x##_qsv_class, \
      .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12, \
                                                      AV_PIX_FMT_P010, \
@@ -96,10 +97,10 @@ index 9bf6ae2a95..bb132f1214 100644
                                                      AV_PIX_FMT_NONE }, \
      .hw_configs     = qsv_hw_configs, \
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 2baec23b4b..edc61ed4fa 100644
+index 002edd31c3..9766a64c85 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -312,6 +312,7 @@ const FFCodec ff_hevc_qsv_encoder = {
+@@ -313,6 +313,7 @@ const FFCodec ff_hevc_qsv_encoder = {
      .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HYBRID,
      .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
                                                      AV_PIX_FMT_P010,
