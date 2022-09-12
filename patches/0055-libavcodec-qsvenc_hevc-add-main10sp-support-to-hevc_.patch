@@ -1,4 +1,4 @@
-From b8bdd97364f2f707470baf21ac830e509d377f34 Mon Sep 17 00:00:00 2001
+From d4218b5c5d97cac2cd67bdc704c756a241acf922 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 26 Aug 2021 16:52:50 +0800
 Subject: [PATCH 55/77] libavcodec/qsvenc_hevc: add main10sp support to
@@ -19,7 +19,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 39 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index cb3c06bafe..580d48f50e 100644
+index 7644621b0e73..0c621e183d13 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -185,6 +185,7 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
@@ -39,7 +39,7 @@ index cb3c06bafe..580d48f50e 100644
      av_log(avctx, AV_LOG_VERBOSE, "profile: %s; level: %"PRIu16"\n",
             print_profile(avctx->codec_id, info->CodecProfile), info->CodecLevel);
  
-@@ -343,6 +346,12 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -344,6 +347,12 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
          av_log(avctx, AV_LOG_VERBOSE, "NumTileColumns: %"PRIu16"; NumTileRows: %"PRIu16"\n",
                 exthevctiles->NumTileColumns, exthevctiles->NumTileRows);
      }
@@ -52,7 +52,7 @@ index cb3c06bafe..580d48f50e 100644
  }
  
  static void dump_video_vp9_param(AVCodecContext *avctx, QSVEncContext *q,
-@@ -956,6 +965,18 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -976,6 +985,18 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
          q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->exthevctiles;
      }
  
@@ -71,7 +71,7 @@ index cb3c06bafe..580d48f50e 100644
      q->extvsi.VideoFullRange = (avctx->color_range == AVCOL_RANGE_JPEG);
      q->extvsi.ColourDescriptionPresent = 0;
  
-@@ -1098,12 +1119,16 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1118,12 +1139,16 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
           .Header.BufferSz = sizeof(hevc_tile_buf),
      };
  
@@ -90,7 +90,7 @@ index cb3c06bafe..580d48f50e 100644
      ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&extradata;
      ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&co;
  
-@@ -1125,6 +1150,10 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1145,6 +1170,10 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
          q->exthevctiles_idx = ext_buf_num;
          ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&hevc_tile_buf;
      }
@@ -102,10 +102,10 @@ index cb3c06bafe..580d48f50e 100644
      q->param.ExtParam    = ext_buffers;
      q->param.NumExtParam = ext_buf_num;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index d35a1318f2..1df4e26583 100644
+index f2b7ee361fd7..f0ff04975370 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
-@@ -138,6 +138,7 @@ typedef struct QSVEncContext {
+@@ -153,6 +153,7 @@ typedef struct QSVEncContext {
      mfxExtMultiFrameControl extmfc;
  #endif
      mfxExtHEVCTiles exthevctiles;
@@ -113,7 +113,7 @@ index d35a1318f2..1df4e26583 100644
      mfxExtVP9Param  extvp9param;
  
  #if QSV_HAVE_OPAQUE
-@@ -148,7 +149,7 @@ typedef struct QSVEncContext {
+@@ -163,7 +164,7 @@ typedef struct QSVEncContext {
  
      mfxExtVideoSignalInfo extvsi;
  
@@ -122,10 +122,10 @@ index d35a1318f2..1df4e26583 100644
      int         nb_extparam_internal;
  
      mfxExtBuffer **extparam;
-@@ -235,6 +236,9 @@ typedef struct QSVEncContext {
-     float old_i_quant_offset;
-     float old_b_quant_factor;
-     float old_b_quant_offset;
+@@ -271,6 +272,9 @@ typedef struct QSVEncContext {
+     int old_min_qp_b;
+     // This is used for low_delay_brc reset
+     int old_low_delay_brc;
 +
 +    int exthevcparam_idx;
 +    int main10sp;
@@ -133,10 +133,10 @@ index d35a1318f2..1df4e26583 100644
  
  int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index e11f5dec4a..53bbab672e 100644
+index 6ec623099949..e3becf5cde7d 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -271,6 +271,9 @@ static const AVOption options[] = {
+@@ -276,6 +276,9 @@ static const AVOption options[] = {
      { "int_ref_qp_delta",   "QP difference for the refresh MBs",                 OFFSET(qsv.int_ref_qp_delta),        AV_OPT_TYPE_INT, { .i64 = INT16_MIN }, INT16_MIN,  INT16_MAX, VE },
      { "int_ref_cycle_dist",   "Distance between the beginnings of the intra-refresh cycles in frames",  OFFSET(qsv.int_ref_cycle_dist),      AV_OPT_TYPE_INT, { .i64 = -1 }, -1, INT16_MAX, VE },
  
@@ -147,5 +147,5 @@ index e11f5dec4a..53bbab672e 100644
  };
  
 -- 
-2.17.1
+2.37.2
 
