@@ -1,49 +1,173 @@
-From e3cf9fa9908a8261c7ad88d5568bb43e91abe8e5 Mon Sep 17 00:00:00 2001
-From: Linjie Fu <linjie.fu@intel.com>
-Date: Mon, 18 May 2020 16:32:40 +0800
-Subject: [PATCH 17/77] qsv: get FrameInfo.Shift by desc->comp[0].shift
+From dc85d52efba4f148bcc4f369f66f42ee6dd2ed58 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Wed, 28 Sep 2022 17:07:32 +0800
+Subject: [PATCH 01/50] qsv: update Shift
 
-Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
- libavcodec/qsvenc.c       | 4 ++--
- libavutil/hwcontext_qsv.c | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ libavcodec/qsv.c          |  9 ++++++++-
+ libavcodec/qsv_internal.h |  2 +-
+ libavcodec/qsvenc.c       |  6 ++----
+ libavutil/hwcontext_qsv.c | 28 +++++++++++++++++++---------
+ 4 files changed, 30 insertions(+), 15 deletions(-)
 
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index 51aac16695..c7c86dadd4 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -217,35 +217,42 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
+     return AV_PIX_FMT_NONE;
+ }
+ 
+-int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
++int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc, uint16_t *shift)
+ {
+     switch (format) {
+     case AV_PIX_FMT_YUV420P:
+     case AV_PIX_FMT_YUVJ420P:
+     case AV_PIX_FMT_NV12:
+         *fourcc = MFX_FOURCC_NV12;
++        *shift = 0;
+         return AV_PIX_FMT_NV12;
+     case AV_PIX_FMT_YUV420P10:
+     case AV_PIX_FMT_P010:
+         *fourcc = MFX_FOURCC_P010;
++        *shift = 1;
+         return AV_PIX_FMT_P010;
+     case AV_PIX_FMT_X2RGB10:
+         *fourcc = MFX_FOURCC_A2RGB10;
++        *shift = 0;
+         return AV_PIX_FMT_X2RGB10;
+     case AV_PIX_FMT_BGRA:
+         *fourcc = MFX_FOURCC_RGB4;
++        *shift = 0;
+         return AV_PIX_FMT_BGRA;
+ #if CONFIG_VAAPI
+     case AV_PIX_FMT_YUV422P:
+     case AV_PIX_FMT_YUYV422:
+         *fourcc = MFX_FOURCC_YUY2;
++        *shift = 0;
+         return AV_PIX_FMT_YUYV422;
+     case AV_PIX_FMT_YUV422P10:
+     case AV_PIX_FMT_Y210:
+         *fourcc = MFX_FOURCC_Y210;
++        *shift = 1;
+         return AV_PIX_FMT_Y210;
+     case AV_PIX_FMT_VUYX:
+         *fourcc = MFX_FOURCC_AYUV;
++        *shift = 0;
+         return AV_PIX_FMT_VUYX;
+ #endif
+     default:
+diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
+index f914956596..f95e23c5e8 100644
+--- a/libavcodec/qsv_internal.h
++++ b/libavcodec/qsv_internal.h
+@@ -132,7 +132,7 @@ int ff_qsv_codec_id_to_mfx(enum AVCodecID codec_id);
+ 
+ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc);
+ 
+-int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc);
++int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc, uint16_t *shift);
+ enum AVPictureType ff_qsv_map_pictype(int mfx_pic_type);
+ 
+ enum AVFieldOrder ff_qsv_map_picstruct(int mfx_pic_struct);
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 86680b69a8..ede3fa9623 100644
+index 8bd9272dc6..3cd420a26e 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -566,7 +566,7 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+@@ -553,7 +553,7 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+     if (!desc)
+         return AVERROR_BUG;
+ 
+-    ret = ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC);
++    ret = ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC, &q->param.mfx.FrameInfo.Shift);
+     if (ret < 0)
+         return AVERROR_BUG;
+ 
+@@ -567,7 +567,6 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
                                              !desc->log2_chroma_w + !desc->log2_chroma_h;
      q->param.mfx.FrameInfo.BitDepthLuma   = desc->comp[0].depth;
      q->param.mfx.FrameInfo.BitDepthChroma = desc->comp[0].depth;
 -    q->param.mfx.FrameInfo.Shift          = desc->comp[0].depth > 8;
-+    q->param.mfx.FrameInfo.Shift          = desc->comp[0].shift > 0;
  
      q->param.mfx.FrameInfo.Width  = FFALIGN(avctx->width, 16);
      q->param.mfx.FrameInfo.Height = FFALIGN(avctx->height, 16);
-@@ -665,7 +665,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -653,7 +652,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+     if (!desc)
+         return AVERROR_BUG;
+ 
+-    ret = ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC);
++    ret = ff_qsv_map_pixfmt(sw_format, &q->param.mfx.FrameInfo.FourCC, &q->param.mfx.FrameInfo.Shift);
+     if (ret < 0)
+         return AVERROR_BUG;
+ 
+@@ -667,7 +666,6 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
                                              !desc->log2_chroma_w + !desc->log2_chroma_h;
      q->param.mfx.FrameInfo.BitDepthLuma   = desc->comp[0].depth;
      q->param.mfx.FrameInfo.BitDepthChroma = desc->comp[0].depth;
 -    q->param.mfx.FrameInfo.Shift          = desc->comp[0].depth > 8;
-+    q->param.mfx.FrameInfo.Shift          = desc->comp[0].shift > 0;
  
      // If the minor version is greater than or equal to 19,
      // then can use the same alignment settings as H.264 for HEVC
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 9b0c255cf4..71885b1a1b 100644
+index 9fa0dfa1c0..ff956de1f4 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -499,7 +499,7 @@ static int qsv_init_surface(AVHWFramesContext *ctx, mfxFrameSurface1 *surf)
+@@ -109,20 +109,20 @@ typedef struct QSVFramesContext {
+ static const struct {
+     enum AVPixelFormat pix_fmt;
+     uint32_t           fourcc;
++    int                mfx_shift;
+ } supported_pixel_formats[] = {
+-    { AV_PIX_FMT_NV12, MFX_FOURCC_NV12 },
+-    { AV_PIX_FMT_BGRA, MFX_FOURCC_RGB4 },
+-    { AV_PIX_FMT_P010, MFX_FOURCC_P010 },
+-    { AV_PIX_FMT_PAL8, MFX_FOURCC_P8   },
+-#if CONFIG_VAAPI
++    { AV_PIX_FMT_NV12, MFX_FOURCC_NV12, 0 },
++    { AV_PIX_FMT_BGRA, MFX_FOURCC_RGB4, 0 },
++    { AV_PIX_FMT_P010, MFX_FOURCC_P010, 1 },
++    { AV_PIX_FMT_PAL8, MFX_FOURCC_P8,   0 },
+     { AV_PIX_FMT_YUYV422,
+-                       MFX_FOURCC_YUY2 },
++                       MFX_FOURCC_YUY2, 0 },
+     { AV_PIX_FMT_Y210,
+-                       MFX_FOURCC_Y210 },
++                       MFX_FOURCC_Y210, 1 },
+     // VUYX is used for VAAPI child device,
+     // the SDK only delares support for AYUV
+     { AV_PIX_FMT_VUYX,
+-                       MFX_FOURCC_AYUV },
++                       MFX_FOURCC_AYUV, 0 },
+ #endif
+ };
+ 
+@@ -170,6 +170,16 @@ static uint32_t qsv_fourcc_from_pix_fmt(enum AVPixelFormat pix_fmt)
+     return 0;
+ }
+ 
++static uint32_t qsv_shift_from_pix_fmt(enum AVPixelFormat pix_fmt)
++{
++    int i;
++    for (i = 0; i < FF_ARRAY_ELEMS(supported_pixel_formats); i++) {
++        if (supported_pixel_formats[i].pix_fmt == pix_fmt)
++            return supported_pixel_formats[i].mfx_shift;
++    }
++    return 0;
++}
++
+ #if CONFIG_D3D11VA
+ static uint32_t qsv_get_d3d11va_bind_flags(int mem_type)
+ {
+@@ -503,7 +513,7 @@ static int qsv_init_surface(AVHWFramesContext *ctx, mfxFrameSurface1 *surf)
  
      surf->Info.BitDepthLuma   = desc->comp[0].depth;
      surf->Info.BitDepthChroma = desc->comp[0].depth;
 -    surf->Info.Shift          = desc->comp[0].depth > 8;
-+    surf->Info.Shift          = desc->comp[0].shift > 0;
++    surf->Info.Shift          = qsv_shift_from_pix_fmt(ctx->sw_format);
  
      if (desc->log2_chroma_w && desc->log2_chroma_h)
          surf->Info.ChromaFormat   = MFX_CHROMAFORMAT_YUV420;
 -- 
-2.17.1
+2.25.1
 
