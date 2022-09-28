@@ -1,0 +1,90 @@
+From d9a67a533612d0a9cdd677c2ee63abaec5084b65 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Thu, 25 Aug 2022 15:51:36 +0800
+Subject: [PATCH 3/3] libavcodec/qsvenc: Add pic_timing_sei reset support to
+ qsv
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ doc/encoders.texi   |  4 ++++
+ libavcodec/qsvenc.c | 21 +++++++++++++++++++++
+ libavcodec/qsvenc.h |  2 ++
+ 3 files changed, 27 insertions(+)
+
+diff --git a/doc/encoders.texi b/doc/encoders.texi
+index 0aa83698b9..9a830920c8 100644
+--- a/doc/encoders.texi
++++ b/doc/encoders.texi
+@@ -3369,6 +3369,10 @@ Change this value to reset qsv codec's framerate configuration.
+ @item @var{rc_initial_buffer_occupancy}
+ @item @var{rc_max_rate}
+ Change these value to reset qsv codec's bitrate control configuration.
++
++@item @var{pic_timing_sei}
++Supported in h264_qsv and hevc_qsv.
++Change this value to reset qsv codec's pic_timing_sei configuration.
+ @end table
+ 
+ @subsection H264 options
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 250d4f1af3..acffde685d 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -904,6 +904,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ 
+         q->extco.PicTimingSEI         = q->pic_timing_sei ?
+                                         MFX_CODINGOPTION_ON : MFX_CODINGOPTION_UNKNOWN;
++        q->old_pic_timing_sei = q->pic_timing_sei;
+ 
+         if (q->rdo >= 0)
+             q->extco.RateDistortionOpt = q->rdo > 0 ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+@@ -2177,6 +2178,25 @@ static int update_bitrate(AVCodecContext *avctx, QSVEncContext *q)
+     return updated;
+ }
+ 
++static int update_pic_timing_sei(AVCodecContext *avctx, QSVEncContext *q)
++{
++    int updated = 0;
++
++    if (avctx->codec_id != AV_CODEC_ID_H264 && avctx->codec_id != AV_CODEC_ID_HEVC)
++        return 0;
++
++    UPDATE_PARAM(q->old_pic_timing_sei, q->pic_timing_sei);
++    if (!updated)
++        return 0;
++
++    q->extco.PicTimingSEI = q->pic_timing_sei ?
++                            MFX_CODINGOPTION_ON : MFX_CODINGOPTION_UNKNOWN;
++    av_log(avctx, AV_LOG_DEBUG, "Reset PicTimingSEI: %s\n",
++           print_threestate(q->extco.PicTimingSEI));
++
++    return updated;
++}
++
+ static int update_parameters(AVCodecContext *avctx, QSVEncContext *q,
+                              const AVFrame *frame)
+ {
+@@ -2192,6 +2212,7 @@ static int update_parameters(AVCodecContext *avctx, QSVEncContext *q,
+     needReset |= update_low_delay_brc(avctx, q);
+     needReset |= update_frame_rate(avctx, q);
+     needReset |= update_bitrate(avctx, q);
++    needReset |= update_pic_timing_sei(avctx, q);
+     ret = update_min_max_qp(avctx, q);
+     if (ret < 0)
+         return ret;
+diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
+index ca335b0365..cac25fcc48 100644
+--- a/libavcodec/qsvenc.h
++++ b/libavcodec/qsvenc.h
+@@ -284,6 +284,8 @@ typedef struct QSVEncContext {
+     int old_rc_buffer_size;
+     int old_rc_initial_buffer_occupancy;
+     int old_rc_max_rate;
++    // This is used for SEI Timing reset
++    int old_pic_timing_sei;
+ 
+     int exthevcparam_idx;
+     int main10sp;
+-- 
+2.32.0
+
