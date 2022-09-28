@@ -1,20 +1,20 @@
-From 50f74dbe1b1ee4f78ab429e6e1e070168bf5d2f6 Mon Sep 17 00:00:00 2001
+From 696933652154fe632a2e1908734922b75509f2e0 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Mon, 18 May 2020 16:54:57 +0800
-Subject: [PATCH 02/51] lavcu/qsv: Add decoding support for 444 8/10 bit
+Subject: [PATCH 02/50] lavcu/qsv: Add decoding support for 444 8/10 bit
 
 Add support for 0yuv/y410 in system memory
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
- libavcodec/qsv.c          | 8 ++++++++
+ libavcodec/qsv.c          | 9 +++++++++
  libavcodec/qsvdec.c       | 2 ++
  libavutil/hwcontext_qsv.c | 5 +++++
- 3 files changed, 15 insertions(+)
+ 3 files changed, 16 insertions(+)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 51aac16695..c00dcd9b11 100644
+index c7c86dadd4..e4f6d890af 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -212,6 +212,7 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
@@ -25,17 +25,18 @@ index 51aac16695..c00dcd9b11 100644
  #endif
      }
      return AV_PIX_FMT_NONE;
-@@ -247,6 +248,9 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
-     case AV_PIX_FMT_VUYX:
+@@ -254,6 +255,10 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc, uint16_t *shi
          *fourcc = MFX_FOURCC_AYUV;
+         *shift = 0;
          return AV_PIX_FMT_VUYX;
 +    case AV_PIX_FMT_XV30:
 +        *fourcc = MFX_FOURCC_Y410;
++        *shift = 0;
 +        return AV_PIX_FMT_XV30;
  #endif
      default:
          return AVERROR(ENOSYS);
-@@ -291,6 +295,10 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -298,6 +303,10 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          surface->Data.A = frame->data[0] + 3;
          break;
  
@@ -67,19 +68,19 @@ index 0254a394bd..912d58965a 100644
                                                      AV_PIX_FMT_NONE }, \
      .hw_configs     = qsv_hw_configs, \
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 3234264e1c..853e549236 100644
+index ff956de1f4..6938c71c27 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -123,6 +123,8 @@ static const struct {
      // the SDK only delares support for AYUV
      { AV_PIX_FMT_VUYX,
-                        MFX_FOURCC_AYUV },
+                        MFX_FOURCC_AYUV, 0 },
 +    { AV_PIX_FMT_XV30,
-+                       MFX_FOURCC_Y410 },
++                       MFX_FOURCC_Y410, 0 },
  #endif
  };
  
-@@ -1514,6 +1516,9 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
+@@ -1524,6 +1526,9 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
          // use the value from the frame.
          surface->Data.A = frame->data[0] + 3;
          break;
