@@ -1,0 +1,25 @@
+From bfabdc4629068ed6e955233befcb737e841a1322 Mon Sep 17 00:00:00 2001
+From: Kizna1ver <jianyuliucsu@gmail.com>
+Date: Wed, 14 Sep 2022 17:21:54 +0800
+Subject: [PATCH 2/3] dnn/vf_dnn_detect.c: add AV_PIX_FMT_VAAPI format support.
+
+---
+ libavfilter/vf_dnn_detect.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavfilter/vf_dnn_detect.c b/libavfilter/vf_dnn_detect.c
+index 7e133f6af5..51e08f4ed9 100644
+--- a/libavfilter/vf_dnn_detect.c
++++ b/libavfilter/vf_dnn_detect.c
+@@ -341,7 +341,7 @@ static const enum AVPixelFormat pix_fmts[] = {
+     AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAYF32,
+     AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
+     AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
+-    AV_PIX_FMT_NV12,
++    AV_PIX_FMT_NV12, AV_PIX_FMT_VAAPI,
+     AV_PIX_FMT_NONE
+ };
+ 
+-- 
+2.25.1
+
