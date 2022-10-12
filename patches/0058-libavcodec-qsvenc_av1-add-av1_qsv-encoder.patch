@@ -1,13 +1,14 @@
-From 92577a37f1b76d7e1f19741d90255147f48264d2 Mon Sep 17 00:00:00 2001
+From c98ed7cfe329581c0fcc7b5ecd3d8fffb8d88fb0 Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 8 Apr 2021 13:09:47 +0800
-Subject: [PATCH] libavcodec/qsvenc_av1: add av1_qsv encoder
+Subject: [PATCH 1/2] libavcodec/qsvenc_av1: add av1_qsv encoder
 
-It is available when libvpl is enabled
+It is available only when libvpl is enabled. MSDK doesn't support av1
+encoding.
 
 sample command:
-ffmpeg -f rawvideo -pix_fmt yuv420p -s 1920x1080 -i input.yuv -c:v
-av1_qsv -low_power 1 -async_depth 1 -q 50 output.ivf
+ffmpeg -f rawvideo -pix_fmt yuv420p -s 1920x1080 -i input.yuv \
+-c:v av1_qsv -low_power 1 output.ivf
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
@@ -15,17 +16,17 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  configure               |   4 +
  libavcodec/Makefile     |   1 +
  libavcodec/allcodecs.c  |   1 +
- libavcodec/qsvenc.c     | 199 ++++++++++++++++++++++++++++-
+ libavcodec/qsvenc.c     | 194 +++++++++++++++++++++++++++++++++++++++-
  libavcodec/qsvenc.h     |   7 +-
- libavcodec/qsvenc_av1.c | 270 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 478 insertions(+), 4 deletions(-)
+ libavcodec/qsvenc_av1.c | 154 +++++++++++++++++++++++++++++++
+ 6 files changed, 357 insertions(+), 4 deletions(-)
  create mode 100644 libavcodec/qsvenc_av1.c
 
 diff --git a/configure b/configure
-index 9e51abd0d3..80b5610c96 100755
+index ab6ff27249..2ed493e7c1 100755
 --- a/configure
 +++ b/configure
-@@ -3261,6 +3261,8 @@ vp9_qsv_encoder_select="qsvenc"
+@@ -3268,6 +3268,8 @@ vp9_qsv_encoder_select="qsvenc"
  vp9_v4l2m2m_decoder_deps="v4l2_m2m vp9_v4l2_m2m"
  wmv3_crystalhd_decoder_select="crystalhd"
  av1_qsv_decoder_select="qsvdec"
@@ -34,7 +35,7 @@ index 9e51abd0d3..80b5610c96 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6623,6 +6625,8 @@ elif enabled libvpl; then
+@@ -6640,6 +6642,8 @@ elif enabled libvpl; then
  # is extracted from "vpl >= 2.6"
      check_pkg_config libmfx "vpl >= 2.6" "mfxvideo.h mfxdispatcher.h" MFXLoad || \
              die "ERROR: libvpl >= 2.6 not found"
@@ -44,10 +45,10 @@ index 9e51abd0d3..80b5610c96 100755
  
  if enabled libmfx; then
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 0b46bc0173..ecef7e79fc 100644
+index 37b63cadc2..77deaafe98 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -243,6 +243,7 @@ OBJS-$(CONFIG_AURA_DECODER)            += cyuv.o
+@@ -244,6 +244,7 @@ OBJS-$(CONFIG_AURA_DECODER)            += cyuv.o
  OBJS-$(CONFIG_AURA2_DECODER)           += aura.o
  OBJS-$(CONFIG_AV1_DECODER)             += av1dec.o
  OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
@@ -56,10 +57,10 @@ index 0b46bc0173..ecef7e79fc 100644
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index 5d58a5d9f0..9ac8f998fd 100644
+index cfeb01ac1c..57e53437dc 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -823,6 +823,7 @@ extern const FFCodec ff_libaom_av1_decoder;
+@@ -827,6 +827,7 @@ extern const FFCodec ff_libaom_av1_decoder;
  extern const FFCodec ff_av1_decoder;
  extern const FFCodec ff_av1_cuvid_decoder;
  extern const FFCodec ff_av1_qsv_decoder;
@@ -68,7 +69,7 @@ index 5d58a5d9f0..9ac8f998fd 100644
  extern const FFCodec ff_libopenh264_decoder;
  extern const FFCodec ff_h264_amf_encoder;
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 0c621e183d..59838b7cf1 100644
+index d87ab55618..124d2c16fc 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
 @@ -82,6 +82,14 @@ static const struct profile_names vp9_profiles[] = {
@@ -98,7 +99,7 @@ index 0c621e183d..59838b7cf1 100644
      default:
          return "unknown";
      }
-@@ -438,6 +451,93 @@ static void dump_video_mjpeg_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -438,6 +451,88 @@ static void dump_video_mjpeg_param(AVCodecContext *avctx, QSVEncContext *q)
             info->FrameInfo.FrameRateExtD, info->FrameInfo.FrameRateExtN);
  }
  
@@ -115,13 +116,12 @@ index 0c621e183d..59838b7cf1 100644
 +    av_log(avctx, AV_LOG_VERBOSE, "profile: %s; level: %"PRIu16"\n",
 +           print_profile(avctx->codec_id, info->CodecProfile), info->CodecLevel);
 +
-+    av_log(avctx, AV_LOG_VERBOSE, "GopPicSize: %"PRIu16"; GopRefDist: %"PRIu16"; GopOptFlag: ",
-+           info->GopPicSize, info->GopRefDist);
-+    if (info->GopOptFlag & MFX_GOP_CLOSED)
-+        av_log(avctx, AV_LOG_VERBOSE, "closed ");
-+    if (info->GopOptFlag & MFX_GOP_STRICT)
-+        av_log(avctx, AV_LOG_VERBOSE, "strict ");
-+    av_log(avctx, AV_LOG_VERBOSE, "; IdrInterval: %"PRIu16"\n", info->IdrInterval);
++    av_log(avctx, AV_LOG_VERBOSE,
++           "GopPicSize: %"PRIu16"; GopRefDist: %"PRIu16"; GopOptFlag:%s%s; IdrInterval: %"PRIu16"\n",
++           info->GopPicSize, info->GopRefDist,
++           info->GopOptFlag & MFX_GOP_CLOSED ? " closed" : "",
++           info->GopOptFlag & MFX_GOP_STRICT ? " strict" : "",
++           info->IdrInterval);
 +
 +    av_log(avctx, AV_LOG_VERBOSE, "TargetUsage: %"PRIu16"; RateControlMethod: %s\n",
 +           info->TargetUsage, print_ratecontrol(info->RateControlMethod));
@@ -147,8 +147,7 @@ index 0c621e183d..59838b7cf1 100644
 +           co2->IntRefType, co2->IntRefCycleSize,
 +           co2->IntRefQPDelta, co3->IntRefCycleDist);
 +
-+    av_log(avctx, AV_LOG_VERBOSE, "MaxFrameSize: %d; ", co2->MaxFrameSize);
-+    av_log(avctx, AV_LOG_VERBOSE, "\n");
++    av_log(avctx, AV_LOG_VERBOSE, "MaxFrameSize: %d;\n", co2->MaxFrameSize);
 +
 +    av_log(avctx, AV_LOG_VERBOSE,
 +           "BitrateLimit: %s; MBBRC: %s; ExtBRC: %s\n",
@@ -157,21 +156,18 @@ index 0c621e183d..59838b7cf1 100644
 +
 +    av_log(avctx, AV_LOG_VERBOSE, "VDENC: %s\n", print_threestate(info->LowPower));
 +
-+    av_log(avctx, AV_LOG_VERBOSE, "BRefType: ");
 +    switch (co2->BRefType) {
-+    case MFX_B_REF_OFF:     av_log(avctx, AV_LOG_VERBOSE, "off");       break;
-+    case MFX_B_REF_PYRAMID: av_log(avctx, AV_LOG_VERBOSE, "pyramid");   break;
-+    default:                av_log(avctx, AV_LOG_VERBOSE, "auto");      break;
++    case MFX_B_REF_OFF:     av_log(avctx, AV_LOG_VERBOSE, "BRefType: off\n");       break;
++    case MFX_B_REF_PYRAMID: av_log(avctx, AV_LOG_VERBOSE, "BRefType: pyramid\n");   break;
++    default:                av_log(avctx, AV_LOG_VERBOSE, "BRefType: auto\n");      break;
 +    }
 +
-+    av_log(avctx, AV_LOG_VERBOSE, "; PRefType: ");
 +    switch (co3->PRefType) {
-+    case MFX_P_REF_DEFAULT: av_log(avctx, AV_LOG_VERBOSE, "default");   break;
-+    case MFX_P_REF_SIMPLE:  av_log(avctx, AV_LOG_VERBOSE, "simple");    break;
-+    case MFX_P_REF_PYRAMID: av_log(avctx, AV_LOG_VERBOSE, "pyramid");   break;
-+    default:                av_log(avctx, AV_LOG_VERBOSE, "unknown");   break;
++    case MFX_P_REF_DEFAULT: av_log(avctx, AV_LOG_VERBOSE, "PRefType: default\n");   break;
++    case MFX_P_REF_SIMPLE:  av_log(avctx, AV_LOG_VERBOSE, "PRefType: simple\n");    break;
++    case MFX_P_REF_PYRAMID: av_log(avctx, AV_LOG_VERBOSE, "PRefType: pyramid\n");   break;
++    default:                av_log(avctx, AV_LOG_VERBOSE, "PRefType: unknown\n");   break;
 +    }
-+    av_log(avctx, AV_LOG_VERBOSE, "\n");
 +
 +    av_log(avctx, AV_LOG_VERBOSE,
 +           "MinQPI: %"PRIu8"; MaxQPI: %"PRIu8"; MinQPP: %"PRIu8"; MaxQPP: %"PRIu8"; MinQPB: %"PRIu8"; MaxQPB: %"PRIu8"\n",
@@ -192,7 +188,7 @@ index 0c621e183d..59838b7cf1 100644
  static int select_rc_mode(AVCodecContext *avctx, QSVEncContext *q)
  {
      const char *rc_desc;
-@@ -748,15 +848,22 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -751,15 +846,22 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
      case MFX_RATECONTROL_CQP:
          quant = avctx->global_quality / FF_QP2LAMBDA;
  
@@ -218,7 +214,7 @@ index 0c621e183d..59838b7cf1 100644
          break;
  #if QSV_HAVE_AVBR
      case MFX_RATECONTROL_AVBR:
-@@ -900,6 +1007,18 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -904,6 +1006,18 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
              q->extco2.Header.BufferId = MFX_EXTBUFF_CODING_OPTION2;
              q->extco2.Header.BufferSz = sizeof(q->extco2);
  
@@ -237,7 +233,7 @@ index 0c621e183d..59838b7cf1 100644
              q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extco2;
          }
  
-@@ -977,6 +1096,27 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -981,6 +1095,27 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
          q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extvp9param;
      }
  
@@ -265,7 +261,7 @@ index 0c621e183d..59838b7cf1 100644
      if (avctx->codec_id == AV_CODEC_ID_HEVC) {
          q->exthevctiles.Header.BufferId = MFX_EXTBUFF_HEVC_TILES;
          q->exthevctiles.Header.BufferSz = sizeof(q->exthevctiles);
-@@ -1099,6 +1239,56 @@ static int qsv_retrieve_enc_vp9_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1103,6 +1238,56 @@ static int qsv_retrieve_enc_vp9_params(AVCodecContext *avctx, QSVEncContext *q)
      return 0;
  }
  
@@ -322,7 +318,7 @@ index 0c621e183d..59838b7cf1 100644
  static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
  {
      AVCPBProperties *cpb_props;
-@@ -1445,6 +1635,9 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1449,6 +1634,9 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
      case AV_CODEC_ID_VP9:
          ret = qsv_retrieve_enc_vp9_params(avctx, q);
          break;
@@ -333,7 +329,7 @@ index 0c621e183d..59838b7cf1 100644
          ret = qsv_retrieve_enc_params(avctx, q);
          break;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index f0ff049753..8931f8db2e 100644
+index 3c7af417cc..f477b5dab6 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
 @@ -39,6 +39,7 @@
@@ -366,10 +362,10 @@ index f0ff049753..8931f8db2e 100644
      mfxExtBuffer **extparam;
 diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
 new file mode 100644
-index 0000000000..ad3e5fd85e
+index 0000000000..6abad91a19
 --- /dev/null
 +++ b/libavcodec/qsvenc_av1.c
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,154 @@
 +/*
 + * Intel MediaSDK QSV based AV1 encoder
 + *
@@ -398,8 +394,6 @@ index 0000000000..ad3e5fd85e
 +
 +#include "libavutil/common.h"
 +#include "libavutil/opt.h"
-+#include "libavcodec/av1_parse.h"
-+#include "av1.h"
 +
 +#include "avcodec.h"
 +#include "codec_internal.h"
@@ -411,10 +405,6 @@ index 0000000000..ad3e5fd85e
 +    AVClass *class;
 +    AVBSFContext *extra_data_bsf;
 +    QSVEncContext qsv;
-+    AVFifo *packet_fifo;
-+    int64_t parsed_packet_offset;
-+    AVPacket output_pkt;
-+    int64_t last_pts;
 +} QSVAV1EncContext;
 +
 +static av_cold int qsv_enc_init(AVCodecContext *avctx)
@@ -439,106 +429,7 @@ index 0000000000..ad3e5fd85e
 +           return ret;
 +    }
 +
-+    q->packet_fifo = av_fifo_alloc2(1, sizeof(AVPacket), AV_FIFO_FLAG_AUTO_GROW);
-+    if (!q->packet_fifo)
-+        return AVERROR(ENOMEM);
-+
 +    return ff_qsv_enc_init(avctx, &q->qsv);
-+}
-+
-+static int read_tu(const uint8_t *buf, int size, int64_t *offset)
-+{
-+    const uint8_t *end = buf + size;
-+    int64_t obu_size;
-+    int start_pos, type, temporal_id, spatial_id;
-+
-+    *offset = 0;
-+    while (buf < end) {
-+        int len = parse_obu_header(buf, end - buf, &obu_size, &start_pos,
-+                                   &type, &temporal_id, &spatial_id);
-+        if (len < 0)
-+            return len;
-+
-+        *offset += len;
-+        switch (type) {
-+        case AV1_OBU_FRAME_HEADER:
-+            // Find show_existing_frame flag
-+            if (0b10000000 & *(buf + start_pos))
-+                return 1;
-+        case AV1_OBU_FRAME:
-+            // Find show_frame flag
-+            if (0b00010000 & *(buf + start_pos))
-+                return 1;
-+        default:
-+            break;
-+        }
-+        buf += len;
-+    }
-+    return 0;
-+}
-+
-+static int qsv_reorder_bitstream(AVCodecContext *avctx, QSVAV1EncContext *q,
-+                                 AVPacket *pkt, int *got_packet)
-+{
-+    int ret = 0;
-+    int64_t offset = 0;
-+    QSVEncContext *enc_ctx = &q->qsv;
-+    AVPacket pkt_tmp, *output_pkt = &q->output_pkt;
-+    if (!output_pkt->data) {
-+        ret = av_new_packet(output_pkt,
-+                            enc_ctx->packet_size * enc_ctx->param.mfx.NumRefFrame);
-+        if (ret < 0)
-+            return ret;
-+        output_pkt->size = 0;
-+    }
-+
-+    if (*got_packet) {
-+        av_packet_move_ref(&pkt_tmp, pkt);
-+        ret = av_fifo_write(q->packet_fifo, &pkt_tmp, 1);
-+        if (ret < 0)
-+            return ret;
-+    }
-+    *got_packet = 0;
-+
-+    while (av_fifo_can_read(q->packet_fifo) && !*got_packet) {
-+        ret = av_fifo_peek(q->packet_fifo, &pkt_tmp, 1, 0);
-+        if (ret < 0)
-+            return ret;
-+        ret = read_tu(pkt_tmp.data + q->parsed_packet_offset,
-+                      pkt_tmp.size - q->parsed_packet_offset, &offset);
-+        if (ret < 0)
-+            return ret;
-+        // Copy parsed data to output_pkt
-+        memcpy(output_pkt->data + output_pkt->size,
-+               pkt_tmp.data + q->parsed_packet_offset, offset);
-+        output_pkt->size += offset;
-+        // If find show_frame, return output_pkt
-+        if (ret == 1) {
-+            ret = av_packet_copy_props(output_pkt, &pkt_tmp);
-+            if (ret < 0)
-+                return ret;
-+            av_packet_move_ref(pkt, output_pkt);
-+            // Timestamp need to be calculated because pkt is reorded.
-+            if (pkt->pts <= q->last_pts) {
-+                int64_t duration = av_rescale_q(1,
-+                        (AVRational){avctx->framerate.den, avctx->framerate.num},
-+                        avctx->time_base);
-+                q->last_pts = pkt->dts = pkt->pts = q->last_pts + duration;
-+            } else
-+                q->last_pts = pkt->dts = pkt->pts;
-+            *got_packet = 1;
-+        }
-+        q->parsed_packet_offset += offset;
-+        // If finish parsing one packet, realease it.
-+        if (q->parsed_packet_offset == pkt_tmp.size) {
-+            q->parsed_packet_offset = 0;
-+            ret = av_fifo_read(q->packet_fifo, &pkt_tmp, 1);
-+            if (ret < 0)
-+                return ret;
-+            av_packet_unref(&pkt_tmp);
-+        }
-+    }
-+    return 0;
 +}
 +
 +static int qsv_enc_frame(AVCodecContext *avctx, AVPacket *pkt,
@@ -548,10 +439,6 @@ index 0000000000..ad3e5fd85e
 +    int ret;
 +
 +    ret = ff_qsv_encode(avctx, &q->qsv, pkt, frame, got_packet);
-+    if (ret < 0)
-+        return ret;
-+
-+    ret = qsv_reorder_bitstream(avctx, q, pkt, got_packet);
 +    if (ret < 0)
 +        return ret;
 +
@@ -577,15 +464,8 @@ index 0000000000..ad3e5fd85e
 +static av_cold int qsv_enc_close(AVCodecContext *avctx)
 +{
 +    QSVAV1EncContext *q = avctx->priv_data;
-+    AVPacket pkt;
 +
 +    av_bsf_free(&q->extra_data_bsf);
-+    av_packet_unref(&q->output_pkt);
-+    while(av_fifo_can_read(q->packet_fifo)) {
-+        av_fifo_read(q->packet_fifo, &pkt, 1);
-+        av_packet_unref(&pkt);
-+    }
-+    av_fifo_freep2(&q->packet_fifo);
 +
 +    return ff_qsv_enc_close(avctx, &q->qsv);
 +}
