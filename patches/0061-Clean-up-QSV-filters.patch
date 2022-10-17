@@ -1,27 +1,27 @@
-From 714fd52c15e698da557aace704c4b8fd629e88be Mon Sep 17 00:00:00 2001
+From 0a9f1bc4c7fec8cb29068141b2a74bfda38821cd Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 28 Apr 2021 09:25:11 +0800
-Subject: [PATCH] Clean-up QSV filters
+Subject: [PATCH 31/49] Clean-up QSV filters
 
 This is the combination of
 https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=4467
 ---
  libavfilter/Makefile             |   4 +-
- libavfilter/qsvvpp.c             |  65 ++-
+ libavfilter/qsvvpp.c             |  70 +++-
  libavfilter/qsvvpp.h             |  11 +-
- libavfilter/vf_deinterlace_qsv.c | 605 ----------------------------
+ libavfilter/vf_deinterlace_qsv.c | 610 ----------------------------
  libavfilter/vf_overlay_qsv.c     |  11 +-
  libavfilter/vf_scale_qsv.c       | 671 -------------------------------
  libavfilter/vf_vpp_qsv.c         | 479 ++++++++++++++--------
- 7 files changed, 358 insertions(+), 1488 deletions(-)
+ 7 files changed, 363 insertions(+), 1493 deletions(-)
  delete mode 100644 libavfilter/vf_deinterlace_qsv.c
  delete mode 100644 libavfilter/vf_scale_qsv.c
 
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index c026f8f809..43ba9607ca 100644
+index ff2a06c262..c9e1416f2e 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -252,7 +252,7 @@ OBJS-$(CONFIG_DECONVOLVE_FILTER)             += vf_convolve.o framesync.o
+@@ -256,7 +256,7 @@ OBJS-$(CONFIG_DECONVOLVE_FILTER)             += vf_convolve.o framesync.o
  OBJS-$(CONFIG_DEDOT_FILTER)                  += vf_dedot.o
  OBJS-$(CONFIG_DEFLATE_FILTER)                += vf_neighbor.o
  OBJS-$(CONFIG_DEFLICKER_FILTER)              += vf_deflicker.o
@@ -30,7 +30,7 @@ index c026f8f809..43ba9607ca 100644
  OBJS-$(CONFIG_DEINTERLACE_VAAPI_FILTER)      += vf_deinterlace_vaapi.o vaapi_vpp.o
  OBJS-$(CONFIG_DEJUDDER_FILTER)               += vf_dejudder.o
  OBJS-$(CONFIG_DELOGO_FILTER)                 += vf_delogo.o
-@@ -438,7 +438,7 @@ OBJS-$(CONFIG_SCALE_FILTER)                  += vf_scale.o scale_eval.o
+@@ -442,7 +442,7 @@ OBJS-$(CONFIG_SCALE_FILTER)                  += vf_scale.o scale_eval.o
  OBJS-$(CONFIG_SCALE_CUDA_FILTER)             += vf_scale_cuda.o scale_eval.o \
                                                  vf_scale_cuda.ptx.o cuda/load_helper.o
  OBJS-$(CONFIG_SCALE_NPP_FILTER)              += vf_scale_npp.o scale_eval.o
@@ -40,10 +40,10 @@ index c026f8f809..43ba9607ca 100644
  OBJS-$(CONFIG_SCALE_VULKAN_FILTER)           += vf_scale_vulkan.o vulkan.o vulkan_filter.o
  OBJS-$(CONFIG_SCALE2REF_FILTER)              += vf_scale.o scale_eval.o
 diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
-index 3ea2169a06..eb835dadfb 100644
+index bf719b2a29..de25319287 100644
 --- a/libavfilter/qsvvpp.c
 +++ b/libavfilter/qsvvpp.c
-@@ -318,6 +318,14 @@ static int fill_frameinfo_by_link(mfxFrameInfo *frameinfo, AVFilterLink *link)
+@@ -324,6 +324,14 @@ static int fill_frameinfo_by_link(mfxFrameInfo *frameinfo, AVFilterLink *link)
      frameinfo->CropH          = link->h;
      frameinfo->FrameRateExtN  = link->frame_rate.num;
      frameinfo->FrameRateExtD  = link->frame_rate.den;
@@ -58,7 +58,7 @@ index 3ea2169a06..eb835dadfb 100644
      frameinfo->AspectRatioW   = link->sample_aspect_ratio.num ? link->sample_aspect_ratio.num : 1;
      frameinfo->AspectRatioH   = link->sample_aspect_ratio.den ? link->sample_aspect_ratio.den : 1;
  
-@@ -666,16 +674,13 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
+@@ -672,16 +680,13 @@ static int init_vpp_session(AVFilterContext *avctx, QSVVPPContext *s)
      return 0;
  }
  
@@ -78,7 +78,7 @@ index 3ea2169a06..eb835dadfb 100644
      s->filter_frame  = param->filter_frame;
      if (!s->filter_frame)
          s->filter_frame = ff_filter_frame;
-@@ -746,14 +751,13 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
+@@ -752,14 +757,13 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
      s->got_frame = 0;
  
      /** keep fifo size at least 1. Even when async_depth is 0, fifo is used. */
@@ -95,7 +95,7 @@ index 3ea2169a06..eb835dadfb 100644
  
      if (IS_SYSTEM_MEMORY(s->in_mem_mode))
          s->vpp_param.IOPattern |= MFX_IOPATTERN_IN_SYSTEM_MEMORY;
-@@ -784,27 +788,26 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
+@@ -790,27 +794,26 @@ int ff_qsvvpp_create(AVFilterContext *avctx, QSVVPPContext **vpp, QSVVPPParam *p
      } else if (ret > 0)
          ff_qsvvpp_print_warning(avctx, ret, "Warning When creating qsvvpp");
  
@@ -129,7 +129,7 @@ index 3ea2169a06..eb835dadfb 100644
      /* release all the resources */
      clear_frame_list(&s->in_frame_list);
      clear_frame_list(&s->out_frame_list);
-@@ -815,7 +818,6 @@ int ff_qsvvpp_free(QSVVPPContext **vpp)
+@@ -821,7 +824,6 @@ int ff_qsvvpp_free(QSVVPPContext **vpp)
  #endif
      av_freep(&s->frame_infos);
      av_fifo_freep2(&s->async_fifo);
@@ -137,7 +137,7 @@ index 3ea2169a06..eb835dadfb 100644
  
      return 0;
  }
-@@ -827,7 +829,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -833,7 +835,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
      QSVAsyncFrame     aframe;
      mfxSyncPoint      sync;
      QSVFrame         *in_frame, *out_frame;
@@ -147,7 +147,7 @@ index 3ea2169a06..eb835dadfb 100644
  
      while (s->eof && av_fifo_read(s->async_fifo, &aframe, 1) >= 0) {
          if (MFXVideoCORE_SyncOperation(s->session, aframe.sync, 1000) < 0)
-@@ -873,8 +876,19 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -879,8 +882,24 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
                  return AVERROR(EAGAIN);
              break;
          }
@@ -166,10 +166,15 @@ index 3ea2169a06..eb835dadfb 100644
 +        out_frame->frame->pts = av_rescale_q(in_frame->frame->pts - dpts,
 +                                             inlink->time_base,
 +                                             outlink->time_base);
++
++        if (outlink->frame_rate.num && outlink->frame_rate.den)
++            out_frame->frame->duration = av_rescale_q(1, av_inv_q(outlink->frame_rate), outlink->time_base);
++        else
++            out_frame->frame->duration = 0;
  
          out_frame->queued++;
          aframe = (QSVAsyncFrame){ sync, out_frame };
-@@ -884,8 +898,13 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -890,8 +909,13 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
              av_fifo_read(s->async_fifo, &aframe, 1);
  
              do {
@@ -185,7 +190,7 @@ index 3ea2169a06..eb835dadfb 100644
  
              filter_ret = s->filter_frame(outlink, aframe.frame->frame);
              if (filter_ret < 0) {
-@@ -899,6 +918,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
+@@ -905,6 +929,8 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
          }
      } while(ret == MFX_ERR_MORE_SURFACE);
  
@@ -239,10 +244,10 @@ index a8cfcc565a..a180273664 100644
  int ff_qsvvpp_filter_frame(QSVVPPContext *vpp, AVFilterLink *inlink, AVFrame *frame);
 diff --git a/libavfilter/vf_deinterlace_qsv.c b/libavfilter/vf_deinterlace_qsv.c
 deleted file mode 100644
-index 3065d6ac95..0000000000
+index 98ed7283ad..0000000000
 --- a/libavfilter/vf_deinterlace_qsv.c
 +++ /dev/null
-@@ -1,605 +0,0 @@
+@@ -1,610 +0,0 @@
 -/*
 - * This file is part of FFmpeg.
 - *
@@ -760,6 +765,11 @@ index 3065d6ac95..0000000000
 -    if (out->pts == s->last_pts)
 -        out->pts++;
 -    s->last_pts = out->pts;
+-
+-    if (outlink->frame_rate.num && outlink->frame_rate.den)
+-        out->duration = av_rescale_q(1, av_inv_q(outlink->frame_rate), outlink->time_base);
+-    else
+-        out->duration = 0;
 -
 -    ret = ff_filter_frame(outlink, out);
 -    if (ret < 0)
@@ -2290,5 +2300,5 @@ index 4a053f9145..dd8c1307f1 100644
 +
 +DEFINE_QSV_FILTER(qsvdeint, deinterlace, "deinterlacing", FILTER_PIXFMTS_ARRAY(qsvdeint_pix_fmts));
 -- 
-2.32.0
+2.17.1
 
