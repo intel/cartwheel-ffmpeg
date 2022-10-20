@@ -1,0 +1,254 @@
+From ccd30d71a63f8f9d8fc93bdd8aab04fce693e5de Mon Sep 17 00:00:00 2001
+From: zihengchang <zihengx.chang@intel.com>
+Date: Thu, 20 Oct 2022 10:06:37 +0800
+Subject: [PATCH 1/1] avfilter/vf_xcam: add xcam video filter hardware codec
+
+Signed-off-by: Ziheng Chang <zihengx.chang@intel.com>
+---
+ libavfilter/vf_xcam.c | 113 +++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 96 insertions(+), 17 deletions(-)
+
+diff --git a/libavfilter/vf_xcam.c b/libavfilter/vf_xcam.c
+index ab1074c4b3..143d2dc526 100644
+--- a/libavfilter/vf_xcam.c
++++ b/libavfilter/vf_xcam.c
+@@ -28,10 +28,13 @@
+ #include "libavutil/opt.h"
+ #include "framesync.h"
+ #include "internal.h"
++#include "libavutil/hwcontext.h"
++#include "libavutil/hwcontext_drm.h"
+ 
+ typedef struct XCamVideoFilterBuf {
+     XCamVideoBuffer buf;
+     AVFrame *frame;
++    AVDRMFrameDescriptor drm_desc;
+ } XCamVideoFilterBuf;
+ 
+ typedef struct XCAMContext {
+@@ -49,6 +52,7 @@ typedef struct XCAMContext {
+ 
+     XCamVideoFilterBuf **inbufs;
+     XCamVideoFilterBuf *outbuf;
++    AVFrame **frame_drm;
+ 
+     FFFrameSync fs;
+ } XCAMContext;
+@@ -64,6 +68,12 @@ static void xcambuf_unmap(XCamVideoBuffer *buf)
+     return;
+ }
+ 
++static int xcambuf_get_fd(XCamVideoBuffer *buf)
++{
++    XCamVideoFilterBuf *avfilter_buf = (XCamVideoFilterBuf *)(buf);
++    return avfilter_buf->drm_desc.objects->fd;
++}
++
+ static uint32_t avfmt_to_v4l2fmt(AVFilterContext *ctx, int avfmt)
+ {
+     uint32_t v4l2fmt = 0;
+@@ -71,6 +81,8 @@ static uint32_t avfmt_to_v4l2fmt(AVFilterContext *ctx, int avfmt)
+         v4l2fmt = V4L2_PIX_FMT_YUV420;
+     else if (avfmt == AV_PIX_FMT_NV12)
+         v4l2fmt = V4L2_PIX_FMT_NV12;
++    else if (avfmt == AV_PIX_FMT_VAAPI)
++        v4l2fmt = V4L2_PIX_FMT_NV12;
+     else
+         av_log(ctx, AV_LOG_ERROR, "unsupported pixel format %d\n", avfmt);
+ 
+@@ -93,16 +105,34 @@ static int set_parameters(AVFilterContext *ctx, const AVFilterLink *inlink, cons
+     return 0;
+ }
+ 
+-static int init_xcambuf_info(XCAMContext *s, XCamVideoBuffer *buf, AVFrame *frame)
++static int init_xcambuf_info(XCAMContext *s, XCamVideoFilterBuf *bufs, AVFrame *frame, AVFrame *frame_drm)
+ {
+     XCamReturn ret = xcam_video_buffer_info_reset(
+-        &buf->info, s->v4l2_fmt, frame->width, frame->height, frame->linesize[0], frame->height, 0);
++        &bufs->buf.info, s->v4l2_fmt, frame->width, frame->height, frame->linesize[0], frame->height, 0);
+     if (ret != XCAM_RETURN_NO_ERROR)
+         return AVERROR(EINVAL);
+ 
+     for (int i = 0; frame->linesize[i]; i++) {
+-        buf->info.offsets[i] = frame->data[i] - frame->data[0];
+-        buf->info.strides[i] = frame->linesize[i];
++        bufs->buf.info.offsets[i] = frame->data[i] - frame->data[0];
++        bufs->buf.info.strides[i] = frame->linesize[i];
++    }
++
++    bufs->frame = frame;
++    if (frame->format == AV_PIX_FMT_VAAPI) {
++        bufs->buf.mem_type = XCAM_MEM_TYPE_GPU;
++        frame_drm->format = AV_PIX_FMT_DRM_PRIME;
++        ret = av_hwframe_map (frame_drm, frame, 0);
++        if (ret < 0) {
++            av_frame_free(&frame_drm);
++            return AVERROR(EINVAL);
++        }
++
++        AVDRMFrameDescriptor drm_desc = *(AVDRMFrameDescriptor *)frame_drm->data[0];
++        bufs->drm_desc = drm_desc;
++        bufs->buf.info.offsets[0] = drm_desc.layers[0].planes[0].offset;
++        bufs->buf.info.modifiers[0] = drm_desc.objects[0].format_modifier;
++        bufs->buf.info.fourcc = drm_desc.layers[0].format;
++        bufs->buf.info.strides[0] = drm_desc.layers[0].planes->pitch;
+     }
+ 
+     return 0;
+@@ -114,17 +144,17 @@ static int xcam_execute(FFFrameSync *fs)
+     XCAMContext *s = fs->opaque;
+     AVFilterLink *outlink;
+     AVFrame *outframe, *frame;
++    int ret;
+ 
+     XCamVideoFilterBuf **inbufs = s->inbufs;
+     XCamVideoFilterBuf *outbuf = s->outbuf;
+ 
+     for (int i = 0; i < ctx->nb_inputs; i++) {
+-        int error = ff_framesync_get_frame(&s->fs, i, &frame, 0);
+-        if (error < 0)
+-            return error;
+-        if (init_xcambuf_info(s, &inbufs[i]->buf, frame) != 0)
++        int ret = ff_framesync_get_frame(&s->fs, i, &frame, 0);
++        if (ret < 0)
++            return ret;
++        if (init_xcambuf_info(s, inbufs[i], frame, s->frame_drm[i]) != 0)
+             return AVERROR(EINVAL);
+-        inbufs[i]->frame = frame;
+     }
+ 
+     outlink = ctx->outputs[0];
+@@ -132,16 +162,22 @@ static int xcam_execute(FFFrameSync *fs)
+         av_frame_free(&frame);
+         return AVERROR(ENOMEM);
+     }
++
++    ret = av_frame_copy_props(outframe, frame);
++    if (ret < 0)
++        return ret;
++
+     outframe->pts = av_rescale_q(s->fs.pts, s->fs.time_base, outlink->time_base);
+ 
+-    if (init_xcambuf_info(s, &outbuf->buf, outframe) != 0)
++    if (init_xcambuf_info(s, outbuf, outframe, s->frame_drm[s->nb_inputs]) != 0)
+         return AVERROR(EINVAL);
+-    outbuf->frame = outframe;
+ 
+     if (xcam_handle_execute(s->handle, (XCamVideoBuffer **)inbufs, (XCamVideoBuffer **)&outbuf) != XCAM_RETURN_NO_ERROR) {
+         av_log(ctx, AV_LOG_ERROR, "execute xcam handler failed\n");
+         return AVERROR(EINVAL);
+     }
++    for (int i = 0; i <= s->nb_inputs; i++)
++        av_frame_unref(s->frame_drm[i]);
+ 
+     return ff_filter_frame(outlink, outframe);
+ }
+@@ -151,9 +187,9 @@ static int xcam_query_formats(AVFilterContext *ctx)
+     XCAMContext *s = ctx->priv;
+     AVFilterFormats *formats = NULL;
+ 
+-    static const enum AVPixelFormat nv12_fmts[] = {AV_PIX_FMT_NV12, AV_PIX_FMT_NONE};
++    static const enum AVPixelFormat nv12_fmts[] = {AV_PIX_FMT_NV12, AV_PIX_FMT_VAAPI, AV_PIX_FMT_NONE};
+     static const enum AVPixelFormat yuv420_fmts[] = {AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE};
+-    static const enum AVPixelFormat auto_fmts[] = {AV_PIX_FMT_NV12, AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE};
++    static const enum AVPixelFormat auto_fmts[] = {AV_PIX_FMT_NV12, AV_PIX_FMT_YUV420P, AV_PIX_FMT_VAAPI, AV_PIX_FMT_NONE};
+ 
+     const enum AVPixelFormat *pix_fmts = NULL;
+     if (!av_strcasecmp(s->fmt, "nv12"))
+@@ -188,6 +224,35 @@ static int xcam_config_output(AVFilterLink *outlink)
+         outlink->h = inlink->h;
+     }
+ 
++    if (inlink->hw_frames_ctx) {
++        AVHWFramesContext *frames_ctx = (AVHWFramesContext *)inlink->hw_frames_ctx->data;
++        AVBufferRef *device_ref;
++        AVBufferRef *output_frames_ref = NULL;
++        AVHWFramesContext *output_frames = NULL;
++
++        device_ref      = frames_ctx->device_ref;
++        av_buffer_unref(&outlink->hw_frames_ctx);
++        output_frames_ref = av_hwframe_ctx_alloc(device_ref);
++        if (!output_frames_ref) {
++            ret = AVERROR(ENOMEM);
++            return ret;
++        }
++
++        output_frames = (AVHWFramesContext*)output_frames_ref->data;
++        output_frames->format    = inlink->format;
++        output_frames->sw_format = frames_ctx->sw_format;
++        output_frames->width     = outlink->w;
++        output_frames->height    = outlink->h;
++        ret = av_hwframe_ctx_init(output_frames_ref);
++        if (ret < 0) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to initialise output "
++                "frames: %d.\n", ret);
++            av_buffer_unref(&output_frames_ref);
++            return ret;
++        }
++        outlink->hw_frames_ctx = output_frames_ref;
++    }
++
+     set_parameters(ctx, inlink, outlink);
+     if (xcam_handle_init(s->handle) != XCAM_RETURN_NO_ERROR) {
+         av_log(ctx, AV_LOG_ERROR, "init xcam handler failed\n");
+@@ -222,18 +287,27 @@ static av_cold int xcam_init(AVFilterContext *ctx)
+         return AVERROR(EINVAL);
+     }
+ 
+-    s->inbufs = av_mallocz_array(s->nb_inputs + 1, sizeof(XCamVideoFilterBuf *));
++    s->frame_drm = av_calloc(s->nb_inputs + 1, sizeof(AVFrame *));
++    for (int i = 0; i < s->nb_inputs + 1; i++) {
++        s->frame_drm[i] = av_frame_alloc();
++        if (!s->frame_drm[i])
++            return AVERROR(ENOMEM);
++    }
++
++    s->inbufs = av_calloc(s->nb_inputs + 1, sizeof(XCamVideoFilterBuf *));
+     for (int i = 0; i < s->nb_inputs; i++) {
+-        s->inbufs[i] = av_mallocz_array(1, sizeof(XCamVideoFilterBuf));
++        s->inbufs[i] = av_calloc(1, sizeof(XCamVideoFilterBuf));
+         if (!s->inbufs[i])
+             return AVERROR(ENOMEM);
+         s->inbufs[i]->buf.map = xcambuf_map;
+         s->inbufs[i]->buf.unmap = xcambuf_unmap;
++        s->inbufs[i]->buf.get_fd = xcambuf_get_fd;
+     }
+ 
+-    s->outbuf = av_mallocz_array(1, sizeof(XCamVideoFilterBuf));
++    s->outbuf = av_calloc(1, sizeof(XCamVideoFilterBuf));
+     s->outbuf->buf.map = xcambuf_map;
+     s->outbuf->buf.unmap = xcambuf_unmap;
++    s->outbuf->buf.get_fd = xcambuf_get_fd;
+ 
+     for (int i = 0; i < s->nb_inputs; i++) {
+         AVFilterPad pad = { .type = AVMEDIA_TYPE_VIDEO };
+@@ -261,7 +335,10 @@ static av_cold void xcam_uninit(AVFilterContext *ctx)
+             av_freep(&s->inbufs[i]);
+         if (ctx->input_pads)
+             av_freep(&ctx->input_pads[i].name);
++        if (s->frame_drm[i])
++            av_frame_free(&s->frame_drm[i]);
+     }
++    av_frame_free(&s->frame_drm[s->nb_inputs]);
+     av_freep(&s->inbufs);
+     av_freep(&s->outbuf);
+ 
+@@ -296,6 +373,7 @@ static const AVOption xcam_options[] = {
+         CONST_STRING("waveletnr", "wavelet denoising",         "name"),
+         CONST_STRING("dvs",       "digital video stabilizer",  "name"),
+         CONST_STRING("defog",     "fog removal",               "name"),
++        CONST_STRING("device",    "node name",                 "name"),
+     { "params", "private parameters for each handle, usage: params=help=1 field0=value0 field1=value1 ...",
+         OFFSET(params), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, FLAGS },
+     { NULL }
+@@ -321,5 +399,6 @@ AVFilter ff_vf_xcam = {
+     FILTER_OUTPUTS(xcam_outputs),
+     .activate              = xcam_activate,
+     .uninit                = xcam_uninit,
+-    .flags                 = AVFILTER_FLAG_DYNAMIC_INPUTS
++    .flags                 = AVFILTER_FLAG_DYNAMIC_INPUTS,
++    .flags_internal        = FF_FILTER_FLAG_HWFRAME_AWARE
+ };
+-- 
+2.25.1
+
