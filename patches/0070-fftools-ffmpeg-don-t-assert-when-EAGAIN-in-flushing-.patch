@@ -1,7 +1,7 @@
-From a334465ce9ce02d013fbb5d088ebc0a4bf5c49d1 Mon Sep 17 00:00:00 2001
+From 6bf806918027147a1d54c23109582b976295a40d Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 21 Jun 2022 13:49:48 +0800
-Subject: [PATCH 70/77] fftools/ffmpeg: don't assert when EAGAIN in flushing
+Subject: [PATCH 37/46] fftools/ffmpeg: don't assert when EAGAIN in flushing
  encoder
 
 When flush encoder, there may have cached frames/packets in encoder
@@ -14,10 +14,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
-index e7384f052a..a69524bf88 100644
+index e57486fd4a..c59e01cff0 100644
 --- a/fftools/ffmpeg.c
 +++ b/fftools/ffmpeg.c
-@@ -928,7 +928,8 @@ static int encode_frame(OutputFile *of, OutputStream *ost, AVFrame *frame)
+@@ -864,7 +864,8 @@ static int encode_frame(OutputFile *of, OutputStream *ost, AVFrame *frame)
              fprintf(ost->logfile, "%s", enc->stats_out);
  
          if (ret == AVERROR(EAGAIN)) {
@@ -26,7 +26,7 @@ index e7384f052a..a69524bf88 100644
 +                continue;
              return 0;
          } else if (ret == AVERROR_EOF) {
-             output_packet(of, pkt, ost, 1);
+             of_output_packet(of, pkt, ost, 1);
 -- 
-2.17.1
+2.34.1
 
