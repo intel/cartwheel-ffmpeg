@@ -1,7 +1,7 @@
-From 23ea85fe5ac6d3521114946b16c0c7b6745e7ccb Mon Sep 17 00:00:00 2001
+From b246b2387b0b5b1437f3fa35f0fb57a012dffd6f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 16 Jun 2022 10:04:18 +0800
-Subject: [PATCH 71/77] lavc/vaapi: support av1 encode
+Subject: [PATCH 38/46] lavc/vaapi: support av1 encode
 
 example cmd:
 CQP:
@@ -39,19 +39,19 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  create mode 100644 libavcodec/vaapi_encode_av1.c
 
 diff --git a/configure b/configure
-index afa7baf444..562c4d336c 100755
+index f910361d68..d291165f46 100755
 --- a/configure
 +++ b/configure
-@@ -3257,6 +3257,8 @@ wmv3_crystalhd_decoder_select="crystalhd"
+@@ -3276,6 +3276,8 @@ wmv3_crystalhd_decoder_select="crystalhd"
  av1_qsv_decoder_select="qsvdec"
  av1_qsv_encoder_select="qsvenc"
- av1_qsv_encoder_deps="libvpl MFX_EXTBUFF_AV1_BITSTREAM_PARAM"
+ av1_qsv_encoder_deps="libvpl"
 +av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
 +av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6947,6 +6949,7 @@ if enabled vaapi; then
+@@ -6990,6 +6992,7 @@ if enabled vaapi; then
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
      check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
@@ -60,10 +60,10 @@ index afa7baf444..562c4d336c 100755
  
  if enabled_all opencl libdrm ; then
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 0a869dceb2..953713d55e 100644
+index 53dd02fd28..c999546e3f 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3816,6 +3816,20 @@ Average variable bitrate.
+@@ -3926,6 +3926,20 @@ Average variable bitrate.
  Each encoder also has its own specific options:
  @table @option
  
@@ -85,10 +85,10 @@ index 0a869dceb2..953713d55e 100644
  @option{profile} sets the value of @emph{profile_idc} and the @emph{constraint_set*_flag}s.
  @option{level} sets the value of @emph{level_idc}.
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 04d06b5370..437ae85239 100644
+index 7761620de7..53684845c6 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -242,6 +242,7 @@ OBJS-$(CONFIG_AURA2_DECODER)           += aura.o
+@@ -245,6 +245,7 @@ OBJS-$(CONFIG_AURA2_DECODER)           += aura.o
  OBJS-$(CONFIG_AV1_DECODER)             += av1dec.o
  OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
  OBJS-$(CONFIG_AV1_QSV_ENCODER)         += qsvenc_av1.o
@@ -96,7 +96,7 @@ index 04d06b5370..437ae85239 100644
  OBJS-$(CONFIG_AVRN_DECODER)            += avrndec.o
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
-@@ -1274,6 +1275,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
+@@ -1285,6 +1286,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
  TESTPROGS-$(CONFIG_HEVC_METADATA_BSF)     += h265_levels
  TESTPROGS-$(CONFIG_RANGECODER)            += rangecoder
  TESTPROGS-$(CONFIG_SNOW_ENCODER)          += snowenc
@@ -105,10 +105,10 @@ index 04d06b5370..437ae85239 100644
  TESTOBJS = dctref.o
  
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index d252b4658f..ca95ea4578 100644
+index 4f1d66cb0c..9c3416bde3 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -817,6 +817,7 @@ extern const FFCodec ff_av1_decoder;
+@@ -829,6 +829,7 @@ extern const FFCodec ff_av1_decoder;
  extern const FFCodec ff_av1_cuvid_decoder;
  extern const FFCodec ff_av1_qsv_decoder;
  extern const FFCodec ff_av1_qsv_encoder;
@@ -418,7 +418,7 @@ index 0000000000..8a980d42c1
 +    return 0;
 +}
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index f1a7c47cb3..98ee68a091 100644
+index 9a58661b51..38241f9bbb 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -650,15 +650,58 @@ fail_at_end:
@@ -634,7 +634,7 @@ index f1a7c47cb3..98ee68a091 100644
  }
  
  
-@@ -2773,6 +2877,7 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
+@@ -2772,6 +2876,7 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
  
      av_freep(&ctx->codec_sequence_params);
      av_freep(&ctx->codec_picture_params);
@@ -1859,5 +1859,5 @@ index aa199e0308..0d1fc96299 100644
  fate-iirfilter: libavcodec/tests/iirfilter$(EXESUF)
  fate-iirfilter: CMD = run libavcodec/tests/iirfilter$(EXESUF)
 -- 
-2.17.1
+2.34.1
 

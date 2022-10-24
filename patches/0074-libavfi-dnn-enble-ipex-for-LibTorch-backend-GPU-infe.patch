@@ -1,7 +1,7 @@
-From d8a6ed12218e7823eeeaa604073ce5c425091ad1 Mon Sep 17 00:00:00 2001
+From 24fcedf83436b4f595e4c46bf431bae73f116dc0 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 11 Apr 2022 23:20:19 +0800
-Subject: [PATCH 74/77] libavfi/dnn: enble ipex for LibTorch backend GPU
+Subject: [PATCH 41/46] libavfi/dnn: enble ipex for LibTorch backend GPU
  inference support
 
 IPEX has not been officially released, this patch should be in cartwheel
@@ -14,17 +14,17 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  2 files changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index 81e6588813..0e32361d3d 100755
+index de4a915101..eb941c2930 100755
 --- a/configure
 +++ b/configure
-@@ -6645,7 +6645,7 @@ enabled libopus           && {
+@@ -6688,7 +6688,7 @@ enabled libopus           && {
  }
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
 -enabled libtorch          && add_cppflags -D_GLIBCXX_USE_CXX11_ABI=0 && check_cxxflags -std=c++14 && require_cpp libtorch torch/torch.h "torch::Tensor" -ltorch -lc10 -ltorch_cpu -lstdc++ -lpthread
 +enabled libtorch          && add_cppflags -D_GLIBCXX_USE_CXX11_ABI=0 && check_cxxflags -std=c++14 && require_cpp libtorch torch/torch.h "torch::Tensor" -ltorch -lc10 -ltorch_cpu -lstdc++ -lpthread -Wl,--no-as-needed -lipex_gpu_core -Wl,--as-needed
  enabled librabbitmq       && require_pkg_config librabbitmq "librabbitmq >= 0.7.1" amqp.h amqp_new_connection
- enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.4.0" rav1e.h rav1e_context_new
+ enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.5.0" rav1e.h rav1e_context_new
  enabled librist           && require_pkg_config librist "librist >= 0.2.7" librist/librist.h rist_receiver_create
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
 index 69556dd96c..fde0a022ae 100644
@@ -65,5 +65,5 @@ index 69556dd96c..fde0a022ae 100644
              if (th_model->model->frame_post_proc != NULL) {
                  th_model->model->frame_post_proc(task->out_frame, &outputs, th_model->model->filter_ctx);
 -- 
-2.17.1
+2.34.1
 

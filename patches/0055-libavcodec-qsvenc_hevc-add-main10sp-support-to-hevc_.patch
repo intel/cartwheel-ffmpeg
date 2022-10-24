@@ -1,7 +1,7 @@
-From 217677e6b0a20d50376a219179c0b37e035fd94c Mon Sep 17 00:00:00 2001
+From 23e574e913b4d2ccb3386cbe9516877a772ec46d Mon Sep 17 00:00:00 2001
 From: "Chen,Wenbin" <wenbin.chen@intel.com>
 Date: Thu, 26 Aug 2021 16:52:50 +0800
-Subject: [PATCH 55/77] libavcodec/qsvenc_hevc: add main10sp support to
+Subject: [PATCH 25/46] libavcodec/qsvenc_hevc: add main10sp support to
  hevc_qsv
 
 Main10sp is a combination of Main10 and one_pic_only flag.
@@ -19,10 +19,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 39 insertions(+), 3 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index a2d830e7b862..d87ab5561814 100644
+index 0995722858..bf6e39dc2a 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -185,6 +185,7 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -198,6 +198,7 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
      mfxExtCodingOption3 *co3 = NULL;
      mfxExtHEVCTiles *exthevctiles = NULL;
      const char *tmp_str = NULL;
@@ -30,7 +30,7 @@ index a2d830e7b862..d87ab5561814 100644
  
      if (q->co2_idx > 0)
          co2 = (mfxExtCodingOption2*)coding_opts[q->co2_idx];
-@@ -195,6 +196,8 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -208,6 +209,8 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
      if (q->exthevctiles_idx > 0)
          exthevctiles = (mfxExtHEVCTiles *)coding_opts[q->exthevctiles_idx];
  
@@ -39,7 +39,7 @@ index a2d830e7b862..d87ab5561814 100644
      av_log(avctx, AV_LOG_VERBOSE, "profile: %s; level: %"PRIu16"\n",
             print_profile(avctx->codec_id, info->CodecProfile), info->CodecLevel);
  
-@@ -344,6 +347,12 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -357,6 +360,12 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
          av_log(avctx, AV_LOG_VERBOSE, "NumTileColumns: %"PRIu16"; NumTileRows: %"PRIu16"\n",
                 exthevctiles->NumTileColumns, exthevctiles->NumTileRows);
      }
@@ -52,7 +52,7 @@ index a2d830e7b862..d87ab5561814 100644
  }
  
  static void dump_video_vp9_param(AVCodecContext *avctx, QSVEncContext *q,
-@@ -980,6 +989,18 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1115,6 +1124,18 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
          q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->exthevctiles;
      }
  
@@ -71,7 +71,7 @@ index a2d830e7b862..d87ab5561814 100644
      q->extvsi.VideoFullRange = (avctx->color_range == AVCOL_RANGE_JPEG);
      q->extvsi.ColourDescriptionPresent = 0;
  
-@@ -1122,12 +1143,16 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1307,12 +1328,16 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
           .Header.BufferSz = sizeof(hevc_tile_buf),
      };
  
@@ -90,7 +90,7 @@ index a2d830e7b862..d87ab5561814 100644
      ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&extradata;
      ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&co;
  
-@@ -1149,6 +1174,10 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1334,6 +1359,10 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
          q->exthevctiles_idx = ext_buf_num;
          ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&hevc_tile_buf;
      }
@@ -102,27 +102,27 @@ index a2d830e7b862..d87ab5561814 100644
      q->param.ExtParam    = ext_buffers;
      q->param.NumExtParam = ext_buf_num;
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index d77bc0aee1e6..3c7af417ccc7 100644
+index eb79db9871..f477b5dab6 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
-@@ -153,6 +153,7 @@ typedef struct QSVEncContext {
+@@ -154,6 +154,7 @@ typedef struct QSVEncContext {
      mfxExtMultiFrameControl extmfc;
  #endif
      mfxExtHEVCTiles exthevctiles;
 +    mfxExtHEVCParam exthevcparam;
      mfxExtVP9Param  extvp9param;
- 
- #if QSV_HAVE_OPAQUE
-@@ -163,7 +164,7 @@ typedef struct QSVEncContext {
+ #if QSV_HAVE_EXT_AV1_PARAM
+     mfxExtAV1TileParam extav1tileparam;
+@@ -168,7 +169,7 @@ typedef struct QSVEncContext {
  
      mfxExtVideoSignalInfo extvsi;
  
--    mfxExtBuffer  *extparam_internal[5 + (QSV_HAVE_MF * 2)];
-+    mfxExtBuffer  *extparam_internal[6 + (QSV_HAVE_MF * 2)];
+-    mfxExtBuffer  *extparam_internal[5 + (QSV_HAVE_MF * 2) + QSV_HAVE_EXT_AV1_PARAM * 2];
++    mfxExtBuffer  *extparam_internal[6 + (QSV_HAVE_MF * 2) + QSV_HAVE_EXT_AV1_PARAM * 2];
      int         nb_extparam_internal;
  
      mfxExtBuffer **extparam;
-@@ -280,6 +281,9 @@ typedef struct QSVEncContext {
+@@ -285,6 +286,9 @@ typedef struct QSVEncContext {
      int old_rc_max_rate;
      // This is used for SEI Timing reset
      int old_pic_timing_sei;
@@ -133,7 +133,7 @@ index d77bc0aee1e6..3c7af417ccc7 100644
  
  int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index a5bf9159547f..f831ac79114f 100644
+index 2a3f34b915..22cdb86532 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -276,6 +276,9 @@ static const AVOption options[] = {
@@ -147,5 +147,5 @@ index a5bf9159547f..f831ac79114f 100644
  };
  
 -- 
-2.37.2
+2.34.1
 
