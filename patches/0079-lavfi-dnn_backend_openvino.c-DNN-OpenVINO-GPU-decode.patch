@@ -1,15 +1,15 @@
-From e6427806ea24633b85a0cc2989b134f4e6e4f3a5 Mon Sep 17 00:00:00 2001
+From 4217ced62eeaa9a2dc52f5a7836f828b7ef4a67f Mon Sep 17 00:00:00 2001
 From: Kizna1ver <jianyuliucsu@gmail.com>
 Date: Tue, 13 Sep 2022 14:56:13 +0800
-Subject: [PATCH 1/3] lavfi/dnn_backend_openvino.c: DNN OpenVINO GPU decode &
+Subject: [PATCH] lavfi/dnn_backend_openvino.c: DNN OpenVINO GPU decode &
  inference support
 
 ---
- libavfilter/dnn/dnn_backend_openvino.c | 190 ++++++++++++++++++++-----
- 1 file changed, 155 insertions(+), 35 deletions(-)
+ libavfilter/dnn/dnn_backend_openvino.c | 182 ++++++++++++++++++++-----
+ 1 file changed, 151 insertions(+), 31 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index 744824f672..a80ba8d2c6 100644
+index 744824f672..ab380c3b9c 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
 @@ -31,6 +31,10 @@
@@ -121,26 +121,6 @@ index 744824f672..a80ba8d2c6 100644
      lltask = ff_queue_peek_front(ov_model->lltask_queue);
      av_assert0(lltask);
      task = lltask->task;
--
--    status = ie_infer_request_get_blob(request->infer_request, task->input_name, &input_blob);
--    if (status != OK) {
--        av_log(ctx, AV_LOG_ERROR, "Failed to get input blob with name %s\n", task->input_name);
--        return DNN_GENERIC_ERROR;
--    }
--
--    status |= ie_blob_get_dims(input_blob, &dims);
--    status |= ie_blob_get_precision(input_blob, &precision);
--    if (status != OK) {
--        ie_blob_free(&input_blob);
--        av_log(ctx, AV_LOG_ERROR, "Failed to get input blob dims/precision\n");
--        return DNN_GENERIC_ERROR;
--    }
--
--    status = ie_blob_get_buffer(input_blob, &blob_buffer);
--    if (status != OK) {
--        ie_blob_free(&input_blob);
--        av_log(ctx, AV_LOG_ERROR, "Failed to get input blob buffer\n");
--        return DNN_GENERIC_ERROR;
 +    if (ov_model->va_context) {
 +#if CONFIG_VAAPI
 +        if (fill_vaapi_blob(ov_model, task, request) == DNN_GENERIC_ERROR) {
@@ -160,7 +140,12 @@ index 744824f672..a80ba8d2c6 100644
 +            av_log(ctx, AV_LOG_ERROR, "Failed to get input blob with name %s\n", task->input_name);
 +            return DNN_GENERIC_ERROR;
 +        }
-+ 
+ 
+-    status = ie_infer_request_get_blob(request->infer_request, task->input_name, &input_blob);
+-    if (status != OK) {
+-        av_log(ctx, AV_LOG_ERROR, "Failed to get input blob with name %s\n", task->input_name);
+-        return DNN_GENERIC_ERROR;
+-    }
 +        status |= ie_blob_get_dims(input_blob, &dims);
 +        status |= ie_blob_get_precision(input_blob, &precision);
 +        if (status != OK) {
@@ -168,14 +153,26 @@ index 744824f672..a80ba8d2c6 100644
 +            av_log(ctx, AV_LOG_ERROR, "Failed to get input blob dims/precision\n");
 +            return DNN_GENERIC_ERROR;
 +        }
-+ 
+ 
+-    status |= ie_blob_get_dims(input_blob, &dims);
+-    status |= ie_blob_get_precision(input_blob, &precision);
+-    if (status != OK) {
+-        ie_blob_free(&input_blob);
+-        av_log(ctx, AV_LOG_ERROR, "Failed to get input blob dims/precision\n");
+-        return DNN_GENERIC_ERROR;
+-    }
 +        status = ie_blob_get_buffer(input_blob, &blob_buffer);
 +        if (status != OK) {
 +            ie_blob_free(&input_blob);
 +            av_log(ctx, AV_LOG_ERROR, "Failed to get input blob buffer\n");
 +            return DNN_GENERIC_ERROR;
 +        }
-+ 
+ 
+-    status = ie_blob_get_buffer(input_blob, &blob_buffer);
+-    if (status != OK) {
+-        ie_blob_free(&input_blob);
+-        av_log(ctx, AV_LOG_ERROR, "Failed to get input blob buffer\n");
+-        return DNN_GENERIC_ERROR;
 +        // DNNData is set to input format of origin model to enable openvino preprocess
 +        input.height = dims.dims[2];
 +        input.width = dims.dims[3];
@@ -186,7 +183,7 @@ index 744824f672..a80ba8d2c6 100644
 +        // change to be an option when necessary.
 +        input.order = DCO_BGR_PACKED;
      }
--
+ 
 -    input.height = dims.dims[2];
 -    input.width = dims.dims[3];
 -    input.channels = dims.dims[1];
@@ -196,7 +193,6 @@ index 744824f672..a80ba8d2c6 100644
 -    // change to be an option when necessary.
 -    input.order = DCO_BGR_PACKED;
 -
-+ 
      for (int i = 0; i < ctx->options.batch_size; ++i) {
          lltask = ff_queue_pop_front(ov_model->lltask_queue);
          if (!lltask) {
@@ -273,5 +269,5 @@ index 744824f672..a80ba8d2c6 100644
              av_log(ctx, AV_LOG_ERROR, "Failed init OpenVINO exectuable network or inference request\n");
              return ret;
 -- 
-2.25.1
+2.34.1
 
