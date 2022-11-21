@@ -1,4 +1,4 @@
-From a7a8a5ebcf5a8a541745263e10042d4d0f5bd4bb Mon Sep 17 00:00:00 2001
+From 56df4fa5e150547fc8eb4d4a5d8a33694936dd72 Mon Sep 17 00:00:00 2001
 From: Yinhang Liu <yinhangx.liu@intel.com>
 Date: Thu, 30 Jul 2020 13:33:37 +0800
 Subject: [PATCH 67/77] avfilter/vf_xcam: add xcam video filter
@@ -54,7 +54,7 @@ Reviewed-by: Zong Wei <wei.zong@intel.com>
  create mode 100644 libavfilter/vf_xcam.c
 
 diff --git a/configure b/configure
-index 6511f92333..afa7baf444 100755
+index 58a5f992e42f..55d713c8260c 100755
 --- a/configure
 +++ b/configure
 @@ -293,6 +293,7 @@ External library support:
@@ -65,7 +65,7 @@ index 6511f92333..afa7baf444 100755
    --enable-libxcb          enable X11 grabbing using XCB [autodetect]
    --enable-libxcb-shm      enable X11 grabbing shm communication [autodetect]
    --enable-libxcb-xfixes   enable X11 grabbing mouse rendering [autodetect]
-@@ -1876,6 +1877,7 @@ EXTERNAL_LIBRARY_LIST="
+@@ -1877,6 +1878,7 @@ EXTERNAL_LIBRARY_LIST="
      libvorbis
      libvpx
      libwebp
@@ -73,7 +73,7 @@ index 6511f92333..afa7baf444 100755
      libxml2
      libzimg
      libzmq
-@@ -3764,6 +3766,7 @@ scale_vaapi_filter_deps="vaapi"
+@@ -3776,6 +3778,7 @@ scale_vaapi_filter_deps="vaapi"
  scale_vulkan_filter_deps="vulkan spirv_compiler"
  vpp_qsv_filter_deps="libmfx"
  vpp_qsv_filter_select="qsvvpp"
@@ -81,8 +81,8 @@ index 6511f92333..afa7baf444 100755
  xfade_opencl_filter_deps="opencl"
  yadif_cuda_filter_deps="ffnvcodec"
  yadif_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
-@@ -6703,6 +6706,8 @@ enabled libx265           && require_pkg_config libx265 x265 x265.h x265_api_get
-                              require_cpp_condition libx265 x265.h "X265_BUILD >= 70"
+@@ -6734,6 +6737,8 @@ enabled libx265           && require_pkg_config libx265 x265 x265.h x265_api_get
+                              require_cpp_condition libx265 x265.h "X265_BUILD >= 89"
  enabled libxavs           && require libxavs "stdint.h xavs.h" xavs_encoder_encode "-lxavs $pthreads_extralibs $libm_extralibs"
  enabled libxavs2          && require_pkg_config libxavs2 "xavs2 >= 1.3.0" "stdint.h xavs2.h" xavs2_api_get
 +enabled libxcam           && { check_pkg_config libxcam "libxcam >= 1.4.0" "capi/xcam_handle.h" xcam_create_handle ||
@@ -91,10 +91,10 @@ index 6511f92333..afa7baf444 100755
  enabled libzimg           && require_pkg_config libzimg "zimg >= 2.7.0" zimg.h zimg_get_api_version
  enabled libzmq            && require_pkg_config libzmq "libzmq >= 4.2.1" zmq.h zmq_ctx_new
 diff --git a/doc/filters.texi b/doc/filters.texi
-index 40f21fb34c..ecabd3a965 100644
+index ecf8dfa47aa5..72456953a3cd 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -24248,6 +24248,85 @@ can be @var{first} or @var{all}. Default is @var{all}.
+@@ -24513,6 +24513,85 @@ can be @var{first} or @var{all}. Default is @var{all}.
  
  The @code{xcorrelate} filter also supports the @ref{framesync} options.
  
@@ -181,10 +181,10 @@ index 40f21fb34c..ecabd3a965 100644
  
  Apply cross fade from one input video stream to another input video stream.
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index 9aae41cf29..e0f2be0164 100644
+index 6006a624e69a..68e5d3bdf948 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -533,6 +533,7 @@ OBJS-$(CONFIG_W3FDIF_FILTER)                 += vf_w3fdif.o
+@@ -538,6 +538,7 @@ OBJS-$(CONFIG_W3FDIF_FILTER)                 += vf_w3fdif.o
  OBJS-$(CONFIG_WAVEFORM_FILTER)               += vf_waveform.o
  OBJS-$(CONFIG_WEAVE_FILTER)                  += vf_weave.o
  OBJS-$(CONFIG_XBR_FILTER)                    += vf_xbr.o
@@ -193,10 +193,10 @@ index 9aae41cf29..e0f2be0164 100644
  OBJS-$(CONFIG_XFADE_FILTER)                  += vf_xfade.o
  OBJS-$(CONFIG_XFADE_OPENCL_FILTER)           += vf_xfade_opencl.o opencl.o opencl/xfade.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 5ebacfde27..8fa955504d 100644
+index e0598e998641..6c8b6b474398 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -504,6 +504,7 @@ extern const AVFilter ff_vf_w3fdif;
+@@ -507,6 +507,7 @@ extern const AVFilter ff_vf_w3fdif;
  extern const AVFilter ff_vf_waveform;
  extern const AVFilter ff_vf_weave;
  extern const AVFilter ff_vf_xbr;
@@ -206,7 +206,7 @@ index 5ebacfde27..8fa955504d 100644
  extern const AVFilter ff_vf_xfade_opencl;
 diff --git a/libavfilter/vf_xcam.c b/libavfilter/vf_xcam.c
 new file mode 100644
-index 0000000000..ab1074c4b3
+index 000000000000..ab1074c4b31e
 --- /dev/null
 +++ b/libavfilter/vf_xcam.c
 @@ -0,0 +1,325 @@
@@ -536,5 +536,5 @@ index 0000000000..ab1074c4b3
 +    .flags                 = AVFILTER_FLAG_DYNAMIC_INPUTS
 +};
 -- 
-2.17.1
+2.37.3
 
