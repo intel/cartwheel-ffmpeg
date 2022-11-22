@@ -1,4 +1,4 @@
-From 51e5cd838fc995454700e84cdc61d86e6e7864c4 Mon Sep 17 00:00:00 2001
+From 09e36618db236816cb45f8ca86508f5664eae688 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:41 +0800
 Subject: [PATCH 65/77] examples: seperate vaapi_decode from hw_decode
@@ -21,27 +21,27 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  create mode 100644 doc/examples/vaapi_decode.c
 
 diff --git a/configure b/configure
-index 32e7c9059b..6511f92333 100755
+index b0563f0165a0..f1461a7a254e 100755
 --- a/configure
 +++ b/configure
-@@ -1745,6 +1745,7 @@ EXAMPLE_LIST="
+@@ -1746,6 +1746,7 @@ EXAMPLE_LIST="
      scaling_video_example
      transcode_aac_example
      transcoding_example
 +    vaapi_decode_example
      vaapi_encode_example
      vaapi_transcode_example
- "
-@@ -3790,6 +3791,7 @@ resampling_audio_example_deps="avutil swresample"
+     qsv_transcode_example
+@@ -3803,6 +3804,7 @@ resampling_audio_example_deps="avutil swresample"
  scaling_video_example_deps="avutil swscale"
  transcode_aac_example_deps="avcodec avformat swresample"
  transcoding_example_deps="avfilter avcodec avformat avutil"
 +vaapi_decode_example_deps="avcodec avformat avutil"
  vaapi_encode_example_deps="avcodec avutil h264_vaapi_encoder"
  vaapi_transcode_example_deps="avcodec avformat avutil h264_vaapi_encoder"
- 
+ qsv_transcode_example_deps="avcodec avformat avutil h264_qsv_encoder"
 diff --git a/doc/examples/Makefile b/doc/examples/Makefile
-index 81bfd34d5d..f1b18028c5 100644
+index f937fbefda58..a5401a9e47c2 100644
 --- a/doc/examples/Makefile
 +++ b/doc/examples/Makefile
 @@ -19,6 +19,7 @@ EXAMPLES-$(CONFIG_RESAMPLING_AUDIO_EXAMPLE)  += resampling_audio
@@ -51,10 +51,10 @@ index 81bfd34d5d..f1b18028c5 100644
 +EXAMPLES-$(CONFIG_VAAPI_DECODE_EXAMPLE)      += vaapi_decode
  EXAMPLES-$(CONFIG_VAAPI_ENCODE_EXAMPLE)      += vaapi_encode
  EXAMPLES-$(CONFIG_VAAPI_TRANSCODE_EXAMPLE)   += vaapi_transcode
- 
+ EXAMPLES-$(CONFIG_QSV_TRANSCODE_EXAMPLE)     += qsv_transcode
 diff --git a/doc/examples/vaapi_decode.c b/doc/examples/vaapi_decode.c
 new file mode 100644
-index 0000000000..a9c8d48240
+index 000000000000..a9c8d48240db
 --- /dev/null
 +++ b/doc/examples/vaapi_decode.c
 @@ -0,0 +1,296 @@
@@ -355,5 +355,5 @@ index 0000000000..a9c8d48240
 +    return 0;
 +}
 -- 
-2.17.1
+2.37.3
 
