@@ -1,7 +1,7 @@
-From 83ba8da42b917043fd94896ec392261ea467cce6 Mon Sep 17 00:00:00 2001
+From 43be57d65e4d6c07c67ff84d818d130303f489dc Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 2 Jun 2022 14:00:57 +0800
-Subject: [PATCH 37/49] avcodec/qsvenc: make QSV encoder encode VAAPI and D3D11
+Subject: [PATCH 34/45] avcodec/qsvenc: make QSV encoder encode VAAPI and D3D11
  frames directly
 
 QSV encoder is able to encode frames with VAAPI or D3D11 pixel format
@@ -20,10 +20,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  6 files changed, 62 insertions(+), 7 deletions(-)
 
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index 53a756d92d..48a4866f39 100644
+index 4d3b4b8ccd..dad58c9603 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -644,7 +644,9 @@ static int check_enc_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -661,7 +661,9 @@ static int is_strict_gop(QSVEncContext *q) {
  
  static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
  {
@@ -34,7 +34,7 @@ index 53a756d92d..48a4866f39 100644
                                     avctx->sw_pix_fmt : avctx->pix_fmt;
      const AVPixFmtDescriptor *desc;
      int ret;
-@@ -710,7 +712,9 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
+@@ -727,7 +729,9 @@ static int init_video_param_jpeg(AVCodecContext *avctx, QSVEncContext *q)
  
  static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
  {
@@ -45,7 +45,7 @@ index 53a756d92d..48a4866f39 100644
                                     avctx->sw_pix_fmt : avctx->pix_fmt;
      const AVPixFmtDescriptor *desc;
      float quant;
-@@ -1525,7 +1529,31 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1548,7 +1552,31 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
  
      if (avctx->hw_frames_ctx) {
          AVHWFramesContext    *frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
@@ -78,7 +78,7 @@ index 53a756d92d..48a4866f39 100644
  
          if (!iopattern) {
  #if QSV_HAVE_OPAQUE
-@@ -1750,10 +1778,25 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+@@ -1821,10 +1849,25 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
      if (ret < 0)
          return ret;
  
@@ -108,7 +108,7 @@ index 53a756d92d..48a4866f39 100644
  
          qf->surface = *(mfxFrameSurface1*)qf->frame->data[3];
  
-@@ -2434,6 +2477,8 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+@@ -2529,6 +2572,8 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
  
  const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[] = {
      HW_CONFIG_ENCODER_FRAMES(QSV,  QSV),
@@ -118,12 +118,12 @@ index 53a756d92d..48a4866f39 100644
      HW_CONFIG_ENCODER_DEVICE(P010, QSV),
      NULL,
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
-index 11aaabbd1b..f6778a2345 100644
+index bbdedc3335..0974d8c5ef 100644
 --- a/libavcodec/qsvenc_h264.c
 +++ b/libavcodec/qsvenc_h264.c
 @@ -198,6 +198,8 @@ const FFCodec ff_h264_qsv_encoder = {
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HYBRID,
      .p.pix_fmts     = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
-                                                     AV_PIX_FMT_P010,
                                                      AV_PIX_FMT_QSV,
 +                                                    AV_PIX_FMT_VAAPI,
 +                                                    AV_PIX_FMT_D3D11,
@@ -131,10 +131,10 @@ index 11aaabbd1b..f6778a2345 100644
      .p.priv_class   = &class,
      .defaults       = qsv_enc_defaults,
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index 22cdb86532..8c772208f3 100644
+index c307f2dfb3..46385f5f9b 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
-@@ -316,6 +316,8 @@ const FFCodec ff_hevc_qsv_encoder = {
+@@ -400,6 +400,8 @@ const FFCodec ff_hevc_qsv_encoder = {
                                                      AV_PIX_FMT_YUYV422,
                                                      AV_PIX_FMT_Y210,
                                                      AV_PIX_FMT_QSV,
