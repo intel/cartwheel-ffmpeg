@@ -1,4 +1,4 @@
-From 28733758442d2f93fee3f4a8fd12412e8721e76d Mon Sep 17 00:00:00 2001
+From 5a238bf14f83205162f724c44be780c29b8ff155 Mon Sep 17 00:00:00 2001
 From: Wenbinc-Bin <wenbin.chen@intel.com>
 Date: Mon, 18 Jan 2021 16:22:29 +0800
 Subject: [PATCH 21/45] libavcodec/qsvdec.c: extract frame packing arrangement
@@ -16,7 +16,7 @@ Sigend-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 157 insertions(+)
 
 diff --git a/libavcodec/qsv_internal.h b/libavcodec/qsv_internal.h
-index 5119ef4dff..97980afca1 100644
+index 5119ef4dffa6..97980afca1b2 100644
 --- a/libavcodec/qsv_internal.h
 +++ b/libavcodec/qsv_internal.h
 @@ -57,6 +57,8 @@
@@ -29,7 +29,7 @@ index 5119ef4dff..97980afca1 100644
      (MFX_VERSION_MAJOR > (MAJOR) ||         \
       MFX_VERSION_MAJOR == (MAJOR) && MFX_VERSION_MINOR >= (MINOR))
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 92bfea196e..95c39771b3 100644
+index 92bfea196e47..d14c01ec36ce 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -42,13 +42,16 @@
@@ -67,7 +67,7 @@ index 92bfea196e..95c39771b3 100644
  
  #endif
  
-+static int h264_decode_fpa(H264SEIFramePacking *fpa, AVFrame *frame)
++static int h264_decode_fpa(H2645SEIFramePacking *fpa, AVFrame *frame)
 +{
 +    if (!fpa || !frame) {
 +        return AVERROR(EINVAL);
@@ -152,7 +152,7 @@ index 92bfea196e..95c39771b3 100644
 +
 +    switch (q->payload.Type) {
 +    case SEI_TYPE_FRAME_PACKING_ARRANGEMENT:
-+        ret = h264_decode_fpa(&q->sei.frame_packing, frame);
++        ret = h264_decode_fpa(&q->sei.common.frame_packing, frame);
 +        break;
 +    default:
 +        break;
@@ -232,5 +232,5 @@ index 92bfea196e..95c39771b3 100644
  
  static int qsv_process_data(AVCodecContext *avctx, QSVContext *q,
 -- 
-2.25.1
+2.37.3
 
