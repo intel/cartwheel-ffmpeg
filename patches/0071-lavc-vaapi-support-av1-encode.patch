@@ -1,7 +1,7 @@
-From 0f8034dcdf89bc2c6946d6eb9d4ed839cfe8a4d2 Mon Sep 17 00:00:00 2001
+From e5cc69fd4e11f1d9e96ec4b4c6fd6953a34d7b09 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 16 Jun 2022 10:04:18 +0800
-Subject: [PATCH 38/46] lavc/vaapi: support av1 encode
+Subject: [PATCH 41/49] lavc/vaapi: support av1 encode
 
 example cmd:
 CQP:
@@ -39,10 +39,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  create mode 100644 libavcodec/vaapi_encode_av1.c
 
 diff --git a/configure b/configure
-index c429609f14..673b03b45f 100755
+index 72e836a378..2445fe8ebc 100755
 --- a/configure
 +++ b/configure
-@@ -3266,6 +3266,8 @@ wmv3_crystalhd_decoder_select="crystalhd"
+@@ -3260,6 +3260,8 @@ wmv3_crystalhd_decoder_select="crystalhd"
  av1_qsv_decoder_select="qsvdec"
  av1_qsv_encoder_select="qsvenc"
  av1_qsv_encoder_deps="libvpl"
@@ -51,7 +51,7 @@ index c429609f14..673b03b45f 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6976,6 +6978,7 @@ if enabled vaapi; then
+@@ -6967,6 +6969,7 @@ if enabled vaapi; then
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
      check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
@@ -85,18 +85,18 @@ index b8051cda3f..3363a2d4ef 100644
  @option{profile} sets the value of @emph{profile_idc} and the @emph{constraint_set*_flag}s.
  @option{level} sets the value of @emph{level_idc}.
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 94dc75a1b2..9d6e75c6df 100644
+index 3ab448dd49..b696d6b287 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -247,6 +247,7 @@ OBJS-$(CONFIG_AV1_DECODER)             += av1dec.o
- OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
+@@ -252,6 +252,7 @@ OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
+ OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
  OBJS-$(CONFIG_AV1_NVENC_ENCODER)       += nvenc_av1.o nvenc.o
  OBJS-$(CONFIG_AV1_QSV_ENCODER)         += qsvenc_av1.o
 +OBJS-$(CONFIG_AV1_VAAPI_ENCODER)       += vaapi_encode_av1.o av1_profile_level.o
  OBJS-$(CONFIG_AVRN_DECODER)            += avrndec.o
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
-@@ -1286,6 +1287,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
+@@ -1297,6 +1298,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
  TESTPROGS-$(CONFIG_HEVC_METADATA_BSF)     += h265_levels
  TESTPROGS-$(CONFIG_RANGECODER)            += rangecoder
  TESTPROGS-$(CONFIG_SNOW_ENCODER)          += snowenc
@@ -105,10 +105,10 @@ index 94dc75a1b2..9d6e75c6df 100644
  TESTOBJS = dctref.o
  
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index f5ec3bc6e1..54cb833f09 100644
+index b009848a44..e15fc634b9 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -830,6 +830,7 @@ extern const FFCodec ff_av1_cuvid_decoder;
+@@ -832,6 +832,7 @@ extern const FFCodec ff_av1_mediacodec_decoder;
  extern const FFCodec ff_av1_nvenc_encoder;
  extern const FFCodec ff_av1_qsv_decoder;
  extern const FFCodec ff_av1_qsv_encoder;
