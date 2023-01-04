@@ -1,7 +1,7 @@
-From e5cc69fd4e11f1d9e96ec4b4c6fd6953a34d7b09 Mon Sep 17 00:00:00 2001
+From c89723286d9c6ec01fd127cd8a9ce02bd0b32e1f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 16 Jun 2022 10:04:18 +0800
-Subject: [PATCH 41/49] lavc/vaapi: support av1 encode
+Subject: [PATCH] lavc/vaapi: support av1 encode
 
 example cmd:
 CQP:
@@ -684,7 +684,7 @@ index 359f954fff..68256ad8a6 100644
      // Whether the driver support vaSyncBuffer
 diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
 new file mode 100644
-index 0000000000..c520535362
+index 0000000000..079ddff2be
 --- /dev/null
 +++ b/libavcodec/vaapi_encode_av1.c
 @@ -0,0 +1,1154 @@
@@ -1295,7 +1295,7 @@ index 0000000000..c520535362
 +    sh->max_frame_width_minus_1   = avctx->width - 1;
 +    sh->max_frame_height_minus_1  = avctx->height - 1;
 +    sh->enable_order_hint         = 1;
-+    sh->order_hint_bits_minus_1   = av_log2(avctx->gop_size);
++    sh->order_hint_bits_minus_1   = av_clip(av_log2(avctx->gop_size), 0, 7);
 +    sh->seq_tier[0]               = priv->tier;
 +    sh->use_128x128_superblock    = priv->enable_128x128_superblock;
 +
