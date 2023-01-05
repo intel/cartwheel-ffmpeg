@@ -1,0 +1,45 @@
+From 160619a1732dffcda5a89721f6c616bfbbbb0491 Mon Sep 17 00:00:00 2001
+From: Sil Vilerino <sivileri@microsoft.com>
+Date: Wed, 4 Jan 2023 09:26:08 -0500
+Subject: [PATCH 46/46] vaapi_encode_av1: Fix build error C2099: initializer is
+ not a constant
+
+Signed-off-by: Sil Vilerino <sivileri@microsoft.com>
+---
+ libavcodec/av1.h              | 3 +++
+ libavcodec/vaapi_encode_av1.c | 4 ++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/av1.h b/libavcodec/av1.h
+index 8704bc41c1..7ec0ff9ce0 100644
+--- a/libavcodec/av1.h
++++ b/libavcodec/av1.h
+@@ -80,6 +80,9 @@ enum {
+     AV1_MAX_TILE_ROWS  = 64,
+     AV1_MAX_TILE_COLS  = 64,
+ 
++    AV1_LOG2_MAX_TILE_ROWS  = 6,
++    AV1_LOG2_MAX_TILE_COLS  = 6,
++
+     AV1_NUM_REF_FRAMES       = 8,
+     AV1_REFS_PER_FRAME       = 7,
+     AV1_TOTAL_REFS_PER_FRAME = 8,
+diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
+index c520535362..b5574fd331 100644
+--- a/libavcodec/vaapi_encode_av1.c
++++ b/libavcodec/vaapi_encode_av1.c
+@@ -1102,9 +1102,9 @@ static const AVOption vaapi_encode_av1_options[] = {
+ #undef LEVEL
+ 
+     { "tile_cols_log2", "Log2 of columns number for tiled encoding",
+-      OFFSET(tile_cols_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, av_log2(AV1_MAX_TILE_COLS), FLAGS },
++      OFFSET(tile_cols_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, AV1_LOG2_MAX_TILE_COLS, FLAGS },
+     { "tile_rows_log2", "Log2 of rows number for tiled encoding",
+-      OFFSET(tile_rows_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, av_log2(AV1_MAX_TILE_ROWS), FLAGS },
++      OFFSET(tile_rows_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, AV1_LOG2_MAX_TILE_ROWS, FLAGS },
+     { "tile_groups", "Number of tile groups for encoding",
+       OFFSET(tile_groups), AV_OPT_TYPE_INT, { .i64 = 1 }, 1, AV1_MAX_TILE_ROWS * AV1_MAX_TILE_COLS, FLAGS },
+ 
+-- 
+2.38.1.vfs.0.0
+
