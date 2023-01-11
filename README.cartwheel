@@ -10,7 +10,7 @@ To improve upstream patch quality and reduce patchset rebase efforts, we use the
 1. Got approval from one maintainer
 1. Wait for 1 more workday to see any objections. If it's an urgent issue, please ask another reviewer + 1 for you.
 1. Close PR1, and send it to the community, ping the community with some frequency if it's no response.
-1. If the community has no response in 4 weeks or it’s an urgent issue, send PR2 to https://github.com/intel-media-ci/cartwheel-ffmpeg
+1. If the community has no response in 4 weeks or it’s an urgent issue, send PR2 to https://github.com/intel/cartwheel-ffmpeg
 1. Provide upstream patch link, ping maintainers for merging
 1. Ping community until the patch merged in upstream
 
@@ -23,7 +23,7 @@ To improve upstream patch quality and reduce patchset rebase efforts, we use the
 
 ## clone
 ```shell
-$ git clone https://github.com/intel-media-ci/cartwheel-ffmpeg --recursive
+$ git clone https://github.com/intel/cartwheel-ffmpeg --recursive
 ```
 
 ## apply patches
