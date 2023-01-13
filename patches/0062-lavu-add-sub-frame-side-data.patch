@@ -1,4 +1,4 @@
-From abc5280e49ba7247d514a3da9679df990a7b1216 Mon Sep 17 00:00:00 2001
+From d7c29c50ccdc31f3790198624dcf94000bce7694 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:38 +0800
 Subject: [PATCH 62/77] lavu: add sub frame side data
@@ -23,10 +23,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  create mode 100644 libavutil/sub_frame_metadata.h
 
 diff --git a/libavutil/Makefile b/libavutil/Makefile
-index 9435a0bfb0..e1652b0eac 100644
+index 29b06665f502..0e01c1c2164d 100644
 --- a/libavutil/Makefile
 +++ b/libavutil/Makefile
-@@ -90,6 +90,7 @@ HEADERS = adler32.h                                                     \
+@@ -91,6 +91,7 @@ HEADERS = adler32.h                                                     \
            tea.h                                                         \
            tx.h                                                          \
            film_grain_params.h                                           \
@@ -34,7 +34,7 @@ index 9435a0bfb0..e1652b0eac 100644
  
  ARCH_HEADERS = bswap.h                                                  \
                 intmath.h                                                \
-@@ -181,6 +182,7 @@ OBJS = adler32.o                                                        \
+@@ -183,6 +184,7 @@ OBJS = adler32.o                                                        \
         version.o                                                        \
         video_enc_params.o                                               \
         film_grain_params.o                                              \
@@ -43,10 +43,10 @@ index 9435a0bfb0..e1652b0eac 100644
  
  OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
 diff --git a/libavutil/frame.c b/libavutil/frame.c
-index 4c16488c66..f323291a4c 100644
+index fa9b11aa5430..2d2f5a7760f6 100644
 --- a/libavutil/frame.c
 +++ b/libavutil/frame.c
-@@ -315,7 +315,9 @@ static int frame_copy_props(AVFrame *dst, const AVFrame *src, int force_copy)
+@@ -325,7 +325,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
          if (   sd_src->type == AV_FRAME_DATA_PANSCAN
              && (src->width != dst->width || src->height != dst->height))
              continue;
@@ -57,22 +57,22 @@ index 4c16488c66..f323291a4c 100644
              sd_dst = av_frame_new_side_data(dst, sd_src->type,
                                              sd_src->size);
              if (!sd_dst) {
-@@ -824,6 +826,7 @@ const char *av_frame_side_data_name(enum AVFrameSideDataType type)
-     case AV_FRAME_DATA_DETECTION_BBOXES:            return "Bounding boxes for object detection and classification";
+@@ -832,6 +834,7 @@ const char *av_frame_side_data_name(enum AVFrameSideDataType type)
      case AV_FRAME_DATA_DOVI_RPU_BUFFER:             return "Dolby Vision RPU Data";
      case AV_FRAME_DATA_DOVI_METADATA:               return "Dolby Vision Metadata";
+     case AV_FRAME_DATA_AMBIENT_VIEWING_ENVIRONMENT: return "Ambient viewing environment";
 +    case AV_FRAME_DATA_SUB_FRAME:                   return "Sub frame Metadata";
      }
      return NULL;
  }
 diff --git a/libavutil/frame.h b/libavutil/frame.h
-index 33fac2054c..9ae1286100 100644
+index bbe909ee2dad..f5bbad1655b6 100644
 --- a/libavutil/frame.h
 +++ b/libavutil/frame.h
-@@ -209,6 +209,11 @@ enum AVFrameSideDataType {
-      * volume transform - CUVA 005.1-2021.
+@@ -214,6 +214,11 @@ enum AVFrameSideDataType {
+      * Ambient viewing environment metadata, as defined by H.274.
       */
-     AV_FRAME_DATA_DYNAMIC_HDR_VIVID,
+     AV_FRAME_DATA_AMBIENT_VIEWING_ENVIRONMENT,
 +
 +    /**
 +     * Sub frame of a target frame, as described by AVFrame.
@@ -83,7 +83,7 @@ index 33fac2054c..9ae1286100 100644
  enum AVActiveFormatDescription {
 diff --git a/libavutil/sub_frame_metadata.c b/libavutil/sub_frame_metadata.c
 new file mode 100644
-index 0000000000..82ea32383f
+index 000000000000..82ea32383fa2
 --- /dev/null
 +++ b/libavutil/sub_frame_metadata.c
 @@ -0,0 +1,61 @@
@@ -150,7 +150,7 @@ index 0000000000..82ea32383f
 +}
 diff --git a/libavutil/sub_frame_metadata.h b/libavutil/sub_frame_metadata.h
 new file mode 100644
-index 0000000000..621fb31e42
+index 000000000000..621fb31e4226
 --- /dev/null
 +++ b/libavutil/sub_frame_metadata.h
 @@ -0,0 +1,35 @@
@@ -190,5 +190,5 @@ index 0000000000..621fb31e42
 +
 +#endif /* AVUTIL_SUB_FRAME_METADATA_H */
 -- 
-2.17.1
+2.38.1
 
