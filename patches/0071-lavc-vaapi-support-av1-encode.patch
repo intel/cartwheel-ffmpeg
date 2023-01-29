@@ -1,7 +1,7 @@
-From c89723286d9c6ec01fd127cd8a9ce02bd0b32e1f Mon Sep 17 00:00:00 2001
+From dfd8c2250550dda572f1b2c22cb94954e920ce20 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 16 Jun 2022 10:04:18 +0800
-Subject: [PATCH] lavc/vaapi: support av1 encode
+Subject: [PATCH 37/45] lavc/vaapi: support av1 encode
 
 example cmd:
 CQP:
@@ -39,19 +39,19 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  create mode 100644 libavcodec/vaapi_encode_av1.c
 
 diff --git a/configure b/configure
-index 72e836a378..2445fe8ebc 100755
+index 3b46305ba6..311f9d7f49 100755
 --- a/configure
 +++ b/configure
-@@ -3260,6 +3260,8 @@ wmv3_crystalhd_decoder_select="crystalhd"
- av1_qsv_decoder_select="qsvdec"
+@@ -3261,6 +3261,8 @@ av1_qsv_decoder_select="qsvdec"
  av1_qsv_encoder_select="qsvenc"
  av1_qsv_encoder_deps="libvpl"
+ av1_amf_encoder_deps="amf"
 +av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
 +av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6967,6 +6969,7 @@ if enabled vaapi; then
+@@ -6970,6 +6972,7 @@ if enabled vaapi; then
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
      check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
@@ -60,10 +60,10 @@ index 72e836a378..2445fe8ebc 100755
  
  if enabled_all opencl libdrm ; then
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index b8051cda3f..3363a2d4ef 100644
+index 727f12a59d..f792d6981e 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3971,6 +3971,20 @@ Average variable bitrate.
+@@ -3981,6 +3981,20 @@ Average variable bitrate.
  Each encoder also has its own specific options:
  @table @option
  
@@ -85,10 +85,10 @@ index b8051cda3f..3363a2d4ef 100644
  @option{profile} sets the value of @emph{profile_idc} and the @emph{constraint_set*_flag}s.
  @option{level} sets the value of @emph{level_idc}.
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 3ab448dd49..b696d6b287 100644
+index f0ffd0b961..660daf332a 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -252,6 +252,7 @@ OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
+@@ -253,6 +253,7 @@ OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
  OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
  OBJS-$(CONFIG_AV1_NVENC_ENCODER)       += nvenc_av1.o nvenc.o
  OBJS-$(CONFIG_AV1_QSV_ENCODER)         += qsvenc_av1.o
@@ -96,7 +96,7 @@ index 3ab448dd49..b696d6b287 100644
  OBJS-$(CONFIG_AVRN_DECODER)            += avrndec.o
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
-@@ -1297,6 +1298,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
+@@ -1303,6 +1304,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
  TESTPROGS-$(CONFIG_HEVC_METADATA_BSF)     += h265_levels
  TESTPROGS-$(CONFIG_RANGECODER)            += rangecoder
  TESTPROGS-$(CONFIG_SNOW_ENCODER)          += snowenc
@@ -105,13 +105,13 @@ index 3ab448dd49..b696d6b287 100644
  TESTOBJS = dctref.o
  
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index b009848a44..e15fc634b9 100644
+index f30047e17a..b68c9420b9 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -832,6 +832,7 @@ extern const FFCodec ff_av1_mediacodec_decoder;
- extern const FFCodec ff_av1_nvenc_encoder;
+@@ -835,6 +835,7 @@ extern const FFCodec ff_av1_nvenc_encoder;
  extern const FFCodec ff_av1_qsv_decoder;
  extern const FFCodec ff_av1_qsv_encoder;
+ extern const FFCodec ff_av1_amf_encoder;
 +extern const FFCodec ff_av1_vaapi_encoder;
  extern const FFCodec ff_libopenh264_encoder;
  extern const FFCodec ff_libopenh264_decoder;
@@ -1843,10 +1843,10 @@ index 0000000000..079ddff2be
 +    .p.wrapper_name = "vaapi",
 +};
 diff --git a/tests/fate/libavcodec.mak b/tests/fate/libavcodec.mak
-index aa199e0308..0d1fc96299 100644
+index 8f56fae3a8..95efa6ccda 100644
 --- a/tests/fate/libavcodec.mak
 +++ b/tests/fate/libavcodec.mak
-@@ -56,6 +56,11 @@ fate-h265-levels: libavcodec/tests/h265_levels$(EXESUF)
+@@ -66,6 +66,11 @@ fate-h265-levels: libavcodec/tests/h265_levels$(EXESUF)
  fate-h265-levels: CMD = run libavcodec/tests/h265_levels$(EXESUF)
  fate-h265-levels: REF = /dev/null
  
