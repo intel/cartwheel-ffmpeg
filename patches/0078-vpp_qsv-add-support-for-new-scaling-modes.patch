@@ -1,4 +1,4 @@
-From c4dc608b837851a734ec0c4ad5ed4abe873cad03 Mon Sep 17 00:00:00 2001
+From 2f4751bb1bc66ba5629a80f6147c3d6bf9cfceab Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Thu, 28 Jul 2022 11:16:08 +0800
 Subject: [PATCH 42/45] vpp_qsv: add support for new scaling modes
@@ -9,10 +9,10 @@ It is for oneVPL only
  1 file changed, 27 insertions(+), 2 deletions(-)
 
 diff --git a/libavfilter/vf_vpp_qsv.c b/libavfilter/vf_vpp_qsv.c
-index 40439e359f..4256cdbd25 100644
+index 7d9c612358..684ee611a3 100644
 --- a/libavfilter/vf_vpp_qsv.c
 +++ b/libavfilter/vf_vpp_qsv.c
-@@ -503,8 +503,15 @@ static int config_output(AVFilterLink *outlink)
+@@ -504,8 +504,15 @@ static int config_output(AVFilterLink *outlink)
  
      if (inlink->w != outlink->w || inlink->h != outlink->h || in_format != vpp->out_format) {
          if (QSV_RUNTIME_VERSION_ATLEAST(mfx_version, 1, 19)) {
@@ -29,7 +29,7 @@ index 40439e359f..4256cdbd25 100644
          } else
              av_log(ctx, AV_LOG_WARNING, "The QSV VPP Scale & format conversion "
                     "option is not supported with this MSDK version.\n");
-@@ -675,10 +682,19 @@ static const AVOption vpp_options[] = {
+@@ -679,10 +686,19 @@ static const AVOption vpp_options[] = {
      { "height", "Output video height(0=input video height, -1=keep input video aspect)", OFFSET(oh), AV_OPT_TYPE_STRING, { .str="w*ch/cw" }, 0, 255, .flags = FLAGS },
      { "format", "Output pixel format", OFFSET(output_format_str), AV_OPT_TYPE_STRING, { .str = "same" }, .flags = FLAGS },
      { "async_depth", "Internal parallelization depth, the higher the value the higher the latency.", OFFSET(qsv.async_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
@@ -48,9 +48,9 @@ index 40439e359f..4256cdbd25 100644
 +    { "ve",        "ve",                    0,    AV_OPT_TYPE_CONST,  { .i64 = 5},  INT_MIN, INT_MAX, FLAGS, "scale mode"},
 +#endif
  
-     { NULL }
- };
-@@ -727,9 +743,18 @@ static const AVOption qsvscale_options[] = {
+     { "rate", "Generate output at frame rate or field rate, available only for deinterlace mode",
+       OFFSET(field_rate), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS, "rate" },
+@@ -743,9 +759,18 @@ static const AVOption qsvscale_options[] = {
      { "cy",     "set the y crop area expression",       OFFSET(cy), AV_OPT_TYPE_STRING, { .str = "(ih-oh)/2" }, .flags = FLAGS },
      { "format", "Output pixel format", OFFSET(output_format_str), AV_OPT_TYPE_STRING, { .str = "same" }, .flags = FLAGS },
  
@@ -70,5 +70,5 @@ index 40439e359f..4256cdbd25 100644
      { "async_depth", "Internal parallelization depth, the higher the value the higher the latency.", OFFSET(qsv.async_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
  
 -- 
-2.25.1
+2.17.1
 
