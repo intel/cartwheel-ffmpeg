@@ -1,7 +1,7 @@
-From dfd8c2250550dda572f1b2c22cb94954e920ce20 Mon Sep 17 00:00:00 2001
+From 3aa5de8e6a51f75c049da5cfd331526078f72bde Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Thu, 16 Jun 2022 10:04:18 +0800
-Subject: [PATCH 37/45] lavc/vaapi: support av1 encode
+Subject: [PATCH] lavc/vaapi: support av1 encode
 
 example cmd:
 CQP:
@@ -24,6 +24,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  doc/encoders.texi              |   14 +
  libavcodec/Makefile            |    2 +
  libavcodec/allcodecs.c         |    1 +
+ libavcodec/av1.h               |    3 +
  libavcodec/av1_profile_level.c |   92 +++
  libavcodec/av1_profile_level.h |   58 ++
  libavcodec/tests/.gitignore    |    1 +
@@ -32,17 +33,17 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  libavcodec/vaapi_encode.h      |   15 +
  libavcodec/vaapi_encode_av1.c  | 1154 ++++++++++++++++++++++++++++++++
  tests/fate/libavcodec.mak      |    5 +
- 12 files changed, 1599 insertions(+), 25 deletions(-)
+ 13 files changed, 1602 insertions(+), 25 deletions(-)
  create mode 100644 libavcodec/av1_profile_level.c
  create mode 100644 libavcodec/av1_profile_level.h
  create mode 100644 libavcodec/tests/av1_levels.c
  create mode 100644 libavcodec/vaapi_encode_av1.c
 
 diff --git a/configure b/configure
-index 3b46305ba6..311f9d7f49 100755
+index eeb8458ad7..37d7d26995 100755
 --- a/configure
 +++ b/configure
-@@ -3261,6 +3261,8 @@ av1_qsv_decoder_select="qsvdec"
+@@ -3262,6 +3262,8 @@ av1_qsv_decoder_select="qsvdec"
  av1_qsv_encoder_select="qsvenc"
  av1_qsv_encoder_deps="libvpl"
  av1_amf_encoder_deps="amf"
@@ -51,7 +52,7 @@ index 3b46305ba6..311f9d7f49 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -6970,6 +6972,7 @@ if enabled vaapi; then
+@@ -6974,6 +6976,7 @@ if enabled vaapi; then
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
      check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
@@ -85,10 +86,10 @@ index 727f12a59d..f792d6981e 100644
  @option{profile} sets the value of @emph{profile_idc} and the @emph{constraint_set*_flag}s.
  @option{level} sets the value of @emph{level_idc}.
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index f0ffd0b961..660daf332a 100644
+index 1fb963f820..9db56a9dd4 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -253,6 +253,7 @@ OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
+@@ -255,6 +255,7 @@ OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
  OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
  OBJS-$(CONFIG_AV1_NVENC_ENCODER)       += nvenc_av1.o nvenc.o
  OBJS-$(CONFIG_AV1_QSV_ENCODER)         += qsvenc_av1.o
@@ -96,7 +97,7 @@ index f0ffd0b961..660daf332a 100644
  OBJS-$(CONFIG_AVRN_DECODER)            += avrndec.o
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
-@@ -1303,6 +1304,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
+@@ -1309,6 +1310,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
  TESTPROGS-$(CONFIG_HEVC_METADATA_BSF)     += h265_levels
  TESTPROGS-$(CONFIG_RANGECODER)            += rangecoder
  TESTPROGS-$(CONFIG_SNOW_ENCODER)          += snowenc
@@ -105,10 +106,10 @@ index f0ffd0b961..660daf332a 100644
  TESTOBJS = dctref.o
  
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index f30047e17a..b68c9420b9 100644
+index ff82423a88..ac442868bf 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -835,6 +835,7 @@ extern const FFCodec ff_av1_nvenc_encoder;
+@@ -836,6 +836,7 @@ extern const FFCodec ff_av1_nvenc_encoder;
  extern const FFCodec ff_av1_qsv_decoder;
  extern const FFCodec ff_av1_qsv_encoder;
  extern const FFCodec ff_av1_amf_encoder;
@@ -116,6 +117,20 @@ index f30047e17a..b68c9420b9 100644
  extern const FFCodec ff_libopenh264_encoder;
  extern const FFCodec ff_libopenh264_decoder;
  extern const FFCodec ff_h264_amf_encoder;
+diff --git a/libavcodec/av1.h b/libavcodec/av1.h
+index 8704bc41c1..7ec0ff9ce0 100644
+--- a/libavcodec/av1.h
++++ b/libavcodec/av1.h
+@@ -80,6 +80,9 @@ enum {
+     AV1_MAX_TILE_ROWS  = 64,
+     AV1_MAX_TILE_COLS  = 64,
+ 
++    AV1_LOG2_MAX_TILE_ROWS  = 6,
++    AV1_LOG2_MAX_TILE_COLS  = 6,
++
+     AV1_NUM_REF_FRAMES       = 8,
+     AV1_REFS_PER_FRAME       = 7,
+     AV1_TOTAL_REFS_PER_FRAME = 8,
 diff --git a/libavcodec/av1_profile_level.c b/libavcodec/av1_profile_level.c
 new file mode 100644
 index 0000000000..ea7f45c076
@@ -418,7 +433,7 @@ index 0000000000..8a980d42c1
 +    return 0;
 +}
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 9a58661b51..38241f9bbb 100644
+index 6787b90e8d..0271111047 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -650,15 +650,58 @@ fail_at_end:
@@ -541,7 +556,7 @@ index 9a58661b51..38241f9bbb 100644
  
      for (buf = buf_list; buf; buf = buf->next) {
          av_log(avctx, AV_LOG_DEBUG, "Output buffer: %u bytes "
-@@ -709,6 +795,24 @@ static int vaapi_encode_output(AVCodecContext *avctx,
+@@ -717,6 +803,24 @@ static int vaapi_encode_output(AVCodecContext *avctx,
  
      av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
             pic->display_order, pic->encode_order);
@@ -566,7 +581,7 @@ index 9a58661b51..38241f9bbb 100644
      return 0;
  
  fail_mapped:
-@@ -1225,9 +1329,12 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
+@@ -1233,9 +1337,12 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
              }
          }
  
@@ -582,7 +597,7 @@ index 9a58661b51..38241f9bbb 100644
          // More frames can be buffered
          if (av_fifo_can_write(ctx->encode_fifo) && !ctx->end_of_stream)
              return AVERROR(EAGAIN);
-@@ -1237,8 +1344,15 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
+@@ -1245,8 +1352,15 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
      } else {
          pic = NULL;
          err = vaapi_encode_pick_next(avctx, &pic);
@@ -599,7 +614,7 @@ index 9a58661b51..38241f9bbb 100644
          av_assert0(pic);
  
          pic->encode_order = ctx->encode_order++;
-@@ -1251,29 +1365,19 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
+@@ -1259,29 +1373,19 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
      }
  
      err = vaapi_encode_output(avctx, pic, pkt);
@@ -634,7 +649,7 @@ index 9a58661b51..38241f9bbb 100644
  }
  
  
-@@ -2772,6 +2876,7 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
+@@ -2780,6 +2884,7 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
  
      av_freep(&ctx->codec_sequence_params);
      av_freep(&ctx->codec_picture_params);
@@ -684,7 +699,7 @@ index 359f954fff..68256ad8a6 100644
      // Whether the driver support vaSyncBuffer
 diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
 new file mode 100644
-index 0000000000..079ddff2be
+index 0000000000..fe6e0a0418
 --- /dev/null
 +++ b/libavcodec/vaapi_encode_av1.c
 @@ -0,0 +1,1154 @@
@@ -1792,9 +1807,9 @@ index 0000000000..079ddff2be
 +#undef LEVEL
 +
 +    { "tile_cols_log2", "Log2 of columns number for tiled encoding",
-+      OFFSET(tile_cols_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, av_log2(AV1_MAX_TILE_COLS), FLAGS },
++      OFFSET(tile_cols_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, AV1_LOG2_MAX_TILE_COLS, FLAGS },
 +    { "tile_rows_log2", "Log2 of rows number for tiled encoding",
-+      OFFSET(tile_rows_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, av_log2(AV1_MAX_TILE_ROWS), FLAGS },
++      OFFSET(tile_rows_log2), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, AV1_LOG2_MAX_TILE_ROWS, FLAGS },
 +    { "tile_groups", "Number of tile groups for encoding",
 +      OFFSET(tile_groups), AV_OPT_TYPE_INT, { .i64 = 1 }, 1, AV1_MAX_TILE_ROWS * AV1_MAX_TILE_COLS, FLAGS },
 +
@@ -1859,5 +1874,5 @@ index 8f56fae3a8..95efa6ccda 100644
  fate-iirfilter: libavcodec/tests/iirfilter$(EXESUF)
  fate-iirfilter: CMD = run libavcodec/tests/iirfilter$(EXESUF)
 -- 
-2.25.1
+2.37.2
 
