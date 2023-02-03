@@ -1,7 +1,7 @@
-From 2f4751bb1bc66ba5629a80f6147c3d6bf9cfceab Mon Sep 17 00:00:00 2001
+From 23f840f8b3833cd7b70bfd1ab507daa9a9dd87d4 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Thu, 28 Jul 2022 11:16:08 +0800
-Subject: [PATCH 42/45] vpp_qsv: add support for new scaling modes
+Subject: [PATCH 41/44] vpp_qsv: add support for new scaling modes
 
 It is for oneVPL only
 ---
@@ -9,7 +9,7 @@ It is for oneVPL only
  1 file changed, 27 insertions(+), 2 deletions(-)
 
 diff --git a/libavfilter/vf_vpp_qsv.c b/libavfilter/vf_vpp_qsv.c
-index 7d9c612358..684ee611a3 100644
+index 010b69943a..516225d03c 100644
 --- a/libavfilter/vf_vpp_qsv.c
 +++ b/libavfilter/vf_vpp_qsv.c
 @@ -504,8 +504,15 @@ static int config_output(AVFilterLink *outlink)
@@ -50,8 +50,8 @@ index 7d9c612358..684ee611a3 100644
  
      { "rate", "Generate output at frame rate or field rate, available only for deinterlace mode",
        OFFSET(field_rate), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS, "rate" },
-@@ -743,9 +759,18 @@ static const AVOption qsvscale_options[] = {
-     { "cy",     "set the y crop area expression",       OFFSET(cy), AV_OPT_TYPE_STRING, { .str = "(ih-oh)/2" }, .flags = FLAGS },
+@@ -732,9 +748,18 @@ static const AVOption qsvscale_options[] = {
+     { "h",      "Output video height(0=input video height, -1=keep input video aspect)", OFFSET(oh), AV_OPT_TYPE_STRING, { .str = "ih"   }, .flags = FLAGS },
      { "format", "Output pixel format", OFFSET(output_format_str), AV_OPT_TYPE_STRING, { .str = "same" }, .flags = FLAGS },
  
 +#if QSV_ONEVPL
@@ -67,8 +67,8 @@ index 7d9c612358..684ee611a3 100644
 +    { "ve",        "ve",                    0,             AV_OPT_TYPE_CONST,  { .i64 = 5},  INT_MIN, INT_MAX, FLAGS, "mode"},
 +#endif
  
-     { "async_depth", "Internal parallelization depth, the higher the value the higher the latency.", OFFSET(qsv.async_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
- 
+     { NULL },
+ };
 -- 
 2.17.1
 
