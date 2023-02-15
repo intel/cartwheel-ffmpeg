@@ -1,7 +1,7 @@
-From 09e36618db236816cb45f8ca86508f5664eae688 Mon Sep 17 00:00:00 2001
+From 72e6ac27bf10fd30273130c2e171e81c34cbe37c Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:41 +0800
-Subject: [PATCH 65/77] examples: seperate vaapi_decode from hw_decode
+Subject: [PATCH] examples: seperate vaapi_decode from hw_decode
 
 Now vaapi_decode can be used to test vaapi decode and vaapi decode
 with sub frame.
@@ -21,33 +21,33 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  create mode 100644 doc/examples/vaapi_decode.c
 
 diff --git a/configure b/configure
-index b0563f0165a0..f1461a7a254e 100755
+index 932805ccf3c1..11d74cb60fdf 100755
 --- a/configure
 +++ b/configure
-@@ -1746,6 +1746,7 @@ EXAMPLE_LIST="
-     scaling_video_example
+@@ -1731,6 +1731,7 @@ EXAMPLE_LIST="
+     show_metadata_example
      transcode_aac_example
-     transcoding_example
+     transcode_example
 +    vaapi_decode_example
      vaapi_encode_example
      vaapi_transcode_example
      qsv_transcode_example
-@@ -3803,6 +3804,7 @@ resampling_audio_example_deps="avutil swresample"
- scaling_video_example_deps="avutil swscale"
+@@ -3795,6 +3796,7 @@ scale_video_example_deps="avutil swscale"
+ show_metadata_example_deps="avformat avutil"
  transcode_aac_example_deps="avcodec avformat swresample"
- transcoding_example_deps="avfilter avcodec avformat avutil"
+ transcode_example_deps="avfilter avcodec avformat avutil"
 +vaapi_decode_example_deps="avcodec avformat avutil"
  vaapi_encode_example_deps="avcodec avutil h264_vaapi_encoder"
  vaapi_transcode_example_deps="avcodec avformat avutil h264_vaapi_encoder"
  qsv_transcode_example_deps="avcodec avformat avutil h264_qsv_encoder"
 diff --git a/doc/examples/Makefile b/doc/examples/Makefile
-index f937fbefda58..a5401a9e47c2 100644
+index 4efed6b11d8e..583c98e54e6e 100644
 --- a/doc/examples/Makefile
 +++ b/doc/examples/Makefile
-@@ -19,6 +19,7 @@ EXAMPLES-$(CONFIG_RESAMPLING_AUDIO_EXAMPLE)  += resampling_audio
- EXAMPLES-$(CONFIG_SCALING_VIDEO_EXAMPLE)     += scaling_video
+@@ -19,6 +19,7 @@ EXAMPLES-$(CONFIG_SCALE_VIDEO_EXAMPLE)       += scale_video
+ EXAMPLES-$(CONFIG_SHOW_METADATA_EXAMPLE)     += show_metadata
  EXAMPLES-$(CONFIG_TRANSCODE_AAC_EXAMPLE)     += transcode_aac
- EXAMPLES-$(CONFIG_TRANSCODING_EXAMPLE)       += transcoding
+ EXAMPLES-$(CONFIG_TRANSCODE_EXAMPLE)         += transcode
 +EXAMPLES-$(CONFIG_VAAPI_DECODE_EXAMPLE)      += vaapi_decode
  EXAMPLES-$(CONFIG_VAAPI_ENCODE_EXAMPLE)      += vaapi_encode
  EXAMPLES-$(CONFIG_VAAPI_TRANSCODE_EXAMPLE)   += vaapi_transcode
@@ -355,5 +355,5 @@ index 000000000000..a9c8d48240db
 +    return 0;
 +}
 -- 
-2.37.3
+2.38.1
 
