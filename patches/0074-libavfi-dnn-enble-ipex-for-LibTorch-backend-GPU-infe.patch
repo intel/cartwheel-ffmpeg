@@ -1,4 +1,4 @@
-From 24fcedf83436b4f595e4c46bf431bae73f116dc0 Mon Sep 17 00:00:00 2001
+From 60cf718b40d6d13a3b7e00e8de11b7aa9118d031 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 11 Apr 2022 23:20:19 +0800
 Subject: [PATCH 41/46] libavfi/dnn: enble ipex for LibTorch backend GPU
@@ -14,10 +14,10 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  2 files changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index de4a915101..eb941c2930 100755
+index 4ac5bf1519..3d97f4bcf5 100755
 --- a/configure
 +++ b/configure
-@@ -6688,7 +6688,7 @@ enabled libopus           && {
+@@ -6677,7 +6677,7 @@ enabled libopus           && {
  }
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
@@ -65,5 +65,5 @@ index 69556dd96c..fde0a022ae 100644
              if (th_model->model->frame_post_proc != NULL) {
                  th_model->model->frame_post_proc(task->out_frame, &outputs, th_model->model->filter_ctx);
 -- 
-2.34.1
+2.25.1
 

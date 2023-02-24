@@ -1,4 +1,4 @@
-From bf1b0f05c272a3594fcaaccbc04c379a250048ca Mon Sep 17 00:00:00 2001
+From a6f74132191b197938047f3d0193c8813065615d Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Wed, 29 Jun 2022 07:46:44 +0000
 Subject: [PATCH 75/77] lavf/dnn: enable libtorch backend support FRVSR model
@@ -128,5 +128,5 @@ index fde0a022ae..cefbca068d 100644
      outputs.channels = 3;
  
 -- 
-2.17.1
+2.25.1
 
