@@ -1,7 +1,7 @@
-From b06846ca9b3b9973e886244e7ecb1cda50f75afe Mon Sep 17 00:00:00 2001
+From bd451c9f8996da61aaaa3364be1d4a938d521e96 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:40 +0800
-Subject: [PATCH 64/77] lavc/hevc_vaapi: enable sub frame support
+Subject: [PATCH] lavc/hevc_vaapi: enable sub frame support
 
 Intel HW provide a feature that allows decoder output another scaled
 frame beside original frame. And the scaled frame will attach to main
@@ -39,7 +39,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  5 files changed, 153 insertions(+), 6 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 252c3f9f3a..84cbe7aee3 100644
+index ab8c12e364..58b5e4c44d 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -160,6 +160,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
@@ -53,7 +53,7 @@ index 252c3f9f3a..84cbe7aee3 100644
      vas = vaBeginPicture(ctx->hwctx->display, ctx->va_context,
                           pic->output_surface);
      if (vas != VA_STATUS_SUCCESS) {
-@@ -468,6 +472,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -461,6 +465,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
      AVHWDeviceContext    *device = (AVHWDeviceContext*)device_ref->data;
      AVVAAPIDeviceContext *hwctx = device->hwctx;
  
@@ -63,7 +63,7 @@ index 252c3f9f3a..84cbe7aee3 100644
      codec_desc = avcodec_descriptor_get(avctx->codec_id);
      if (!codec_desc) {
          err = AVERROR(EINVAL);
-@@ -546,8 +553,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -539,8 +546,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
          }
      }
  
@@ -88,7 +88,7 @@ index 252c3f9f3a..84cbe7aee3 100644
                           va_config);
      if (vas != VA_STATUS_SUCCESS) {
          av_log(avctx, AV_LOG_ERROR, "Failed to create decode "
-@@ -592,10 +614,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -585,10 +607,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
  
      if (frames_ref) {
          AVHWFramesContext *frames = (AVHWFramesContext *)frames_ref->data;
@@ -137,7 +137,7 @@ index 6beda14e52..fbac7e7a8e 100644
  
  typedef struct VAAPIDecodeContext {
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 44ae11edbd..ef2bc58671 100644
+index 0e5da15e53..b99486fda4 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -38,6 +38,7 @@ typedef struct VAAPIDecodePictureHEVC {
@@ -148,18 +148,18 @@ index 44ae11edbd..ef2bc58671 100644
      const uint8_t *last_buffer;
      size_t         last_size;
  
-@@ -126,9 +127,9 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+@@ -127,9 +128,9 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
      VAAPIDecodePictureHEVC *pic = h->ref->hwaccel_picture_private;
      const HEVCSPS          *sps = h->ps.sps;
      const HEVCPPS          *pps = h->ps.pps;
 -
      const ScalingList *scaling_list = NULL;
-     int pic_param_size, num_comps, pre_palette_size, err, i;
+     int pic_param_size, err, i;
 +    AVFrameSideData *sd;
  
-     VAPictureParameterBufferHEVC *pic_param = (VAPictureParameterBufferHEVC *)&pic->pic_param;
- 
-@@ -328,6 +329,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+ #if VA_CHECK_VERSION(1, 2, 0)
+     int num_comps, pre_palette_size;
+@@ -333,6 +334,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
              goto fail;
      }
  
@@ -196,7 +196,7 @@ index 44ae11edbd..ef2bc58671 100644
  
  fail:
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index fb94da0338..a1969ac9e3 100644
+index 90c2c191d9..79ac0b49c9 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -49,8 +49,7 @@
@@ -218,7 +218,7 @@ index fb94da0338..a1969ac9e3 100644
  } VAAPIFramesContext;
  
  typedef struct VAAPIMapping {
-@@ -524,7 +525,7 @@ static AVBufferRef *vaapi_pool_alloc(void *opaque, size_t size)
+@@ -530,7 +531,7 @@ static AVBufferRef *vaapi_pool_alloc(void *opaque, size_t size)
      return ref;
  }
  
@@ -227,7 +227,7 @@ index fb94da0338..a1969ac9e3 100644
  {
      AVVAAPIFramesContext  *avfc = hwfc->hwctx;
      VAAPIFramesContext     *ctx = hwfc->internal->priv;
-@@ -676,17 +677,57 @@ fail:
+@@ -682,17 +683,57 @@ fail:
      return err;
  }
  
@@ -285,7 +285,7 @@ index fb94da0338..a1969ac9e3 100644
      frame->buf[0] = av_buffer_pool_get(hwfc->pool);
      if (!frame->buf[0])
          return AVERROR(ENOMEM);
-@@ -696,6 +737,21 @@ static int vaapi_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame)
+@@ -702,6 +743,21 @@ static int vaapi_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame)
      frame->width   = hwfc->width;
      frame->height  = hwfc->height;
  
@@ -348,5 +348,5 @@ index 0b2e071cb3..aea0ec9263 100644
  
  /**
 -- 
-2.17.1
+2.25.1
 
