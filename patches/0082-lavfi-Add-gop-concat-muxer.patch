@@ -1,4 +1,4 @@
-From 45a5bb91ae1645a960023f6628317b9ac442966d Mon Sep 17 00:00:00 2001
+From 5a19efffcc96ad0c6188d866bab5b40dfb68c871 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Fri, 2 Sep 2022 16:45:03 +0800
 Subject: [PATCH] lavfi: Add gop concat muxer
@@ -49,10 +49,10 @@ ffmpeg -ignore_ts -init_hw_device qsv=hw0:hw_any,child_device=/dev/dri/renderD12
  create mode 100644 libavformat/gopconcatenc.c
 
 diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
-index d721a5e721..762c18b010 100644
+index 6e445427761d..92c02e482a43 100644
 --- a/fftools/ffmpeg.c
 +++ b/fftools/ffmpeg.c
-@@ -3473,6 +3473,8 @@ static OutputStream *choose_output(void)
+@@ -2295,6 +2295,8 @@ static OutputStream *choose_output(void)
  {
      int64_t opts_min = INT64_MAX;
      OutputStream *ost_min = NULL;
@@ -61,8 +61,8 @@ index d721a5e721..762c18b010 100644
  
      for (OutputStream *ost = ost_iter(NULL); ost; ost = ost_iter(ost)) {
          int64_t opts;
-@@ -3491,11 +3493,28 @@ static OutputStream *choose_output(void)
-         if (!ost->initialized && !ost->inputs_done)
+@@ -2313,11 +2315,28 @@ static OutputStream *choose_output(void)
+         if (!ost->initialized && !ost->inputs_done && !ost->finished)
              return ost->unavailable ? NULL : ost;
  
 -        if (!ost->finished && opts < opts_min) {
@@ -94,10 +94,10 @@ index d721a5e721..762c18b010 100644
  }
  
 diff --git a/fftools/ffmpeg.h b/fftools/ffmpeg.h
-index 4d4433f5ba..54d2131530 100644
+index 17076f018d6b..29f82fb06ff0 100644
 --- a/fftools/ffmpeg.h
 +++ b/fftools/ffmpeg.h
-@@ -742,6 +742,7 @@ extern int qp_hist;
+@@ -754,6 +754,7 @@ extern int64_t stats_period;
  extern int stdin_interaction;
  extern AVIOContext *progress_avio;
  extern float max_error_rate;
@@ -106,10 +106,10 @@ index 4d4433f5ba..54d2131530 100644
  extern char *filter_nbthreads;
  extern int filter_complex_nbthreads;
 diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
-index 055275d813..b170561e88 100644
+index aa9aa0e9b45a..253299ab9e33 100644
 --- a/fftools/ffmpeg_opt.c
 +++ b/fftools/ffmpeg_opt.c
-@@ -88,6 +88,7 @@ int filter_complex_nbthreads = 0;
+@@ -87,6 +87,7 @@ int filter_complex_nbthreads = 0;
  int vstats_version = 2;
  int auto_conversion_filters = 1;
  int64_t stats_period = 500000;
@@ -117,7 +117,7 @@ index 055275d813..b170561e88 100644
  
  
  static int file_overwrite     = 0;
-@@ -1770,6 +1771,8 @@ const OptionDef options[] = {
+@@ -1779,6 +1780,8 @@ const OptionDef options[] = {
          "initialise hardware device", "args" },
      { "filter_hw_device", HAS_ARG | OPT_EXPERT, { .func_arg = opt_filter_hw_device },
          "set hardware device used when filtering", "device" },
@@ -127,7 +127,7 @@ index 055275d813..b170561e88 100644
      { NULL, },
  };
 diff --git a/libavformat/Makefile b/libavformat/Makefile
-index 47bbbbfb2a..ffdbc2cc86 100644
+index 048649689b17..fa0cf28a737d 100644
 --- a/libavformat/Makefile
 +++ b/libavformat/Makefile
 @@ -224,6 +224,7 @@ OBJS-$(CONFIG_FSB_DEMUXER)               += fsb.o
@@ -139,7 +139,7 @@ index 47bbbbfb2a..ffdbc2cc86 100644
  OBJS-$(CONFIG_GSM_MUXER)                 += rawenc.o
  OBJS-$(CONFIG_GXF_DEMUXER)               += gxf.o
 diff --git a/libavformat/allformats.c b/libavformat/allformats.c
-index cb5b69e9cd..de5e369055 100644
+index cb5b69e9cd6c..de5e36905541 100644
 --- a/libavformat/allformats.c
 +++ b/libavformat/allformats.c
 @@ -189,6 +189,7 @@ extern const AVInputFormat  ff_gdv_demuxer;
@@ -152,7 +152,7 @@ index cb5b69e9cd..de5e369055 100644
  extern const AVInputFormat  ff_gxf_demuxer;
 diff --git a/libavformat/gopconcatenc.c b/libavformat/gopconcatenc.c
 new file mode 100644
-index 0000000000..8dceaddb03
+index 000000000000..8dceaddb0392
 --- /dev/null
 +++ b/libavformat/gopconcatenc.c
 @@ -0,0 +1,344 @@
@@ -501,5 +501,5 @@ index 0000000000..8dceaddb03
 +
 +};
 -- 
-2.25.1
+2.38.1
 
