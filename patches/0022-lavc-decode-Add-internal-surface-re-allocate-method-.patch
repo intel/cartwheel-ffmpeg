@@ -1,7 +1,7 @@
-From 47af5a751eae68fcdab06119ceb7a32bc05cf99c Mon Sep 17 00:00:00 2001
+From cca37d9969d37bc9cc191e4cf8819b83351327d4 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 2 Jan 2020 11:12:15 +0800
-Subject: [PATCH 22/77] lavc/decode: Add internal surface re-allocate method
+Subject: [PATCH 02/29] lavc/decode: Add internal surface re-allocate method
  for hwaccel
 
 Add HWACCEL_CAP_INTERNAL_ALLOC flag to indicate hwaccels are able to
@@ -14,10 +14,10 @@ Signed-off-by: Linjie Fu <linjie.fu@intel.com>
  2 files changed, 37 insertions(+)
 
 diff --git a/libavcodec/decode.c b/libavcodec/decode.c
-index bfa82199ae..69169d29ea 100644
+index 0e4aa65889..d51849e97e 100644
 --- a/libavcodec/decode.c
 +++ b/libavcodec/decode.c
-@@ -1117,6 +1117,33 @@ static const AVCodecHWConfigInternal *get_hw_config(AVCodecContext *avctx, enum
+@@ -1186,6 +1186,33 @@ static const AVCodecHWConfigInternal *get_hw_config(AVCodecContext *avctx, enum
      return hw_config;
  }
  
@@ -51,7 +51,7 @@ index bfa82199ae..69169d29ea 100644
  int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
  {
      const AVPixFmtDescriptor *desc;
-@@ -1143,6 +1170,15 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
+@@ -1212,6 +1239,15 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
          return AV_PIX_FMT_NONE;
  
      for (;;) {
@@ -65,20 +65,20 @@ index bfa82199ae..69169d29ea 100644
 +        }
 +
          // Remove the previous hwaccel, if there was one.
-         hwaccel_uninit(avctx);
+         ff_hwaccel_uninit(avctx);
  
 diff --git a/libavcodec/hwconfig.h b/libavcodec/hwconfig.h
-index 721424912c..7405c66c07 100644
+index e8c6186151..9b0170a543 100644
 --- a/libavcodec/hwconfig.h
 +++ b/libavcodec/hwconfig.h
-@@ -24,6 +24,7 @@
- 
+@@ -25,6 +25,7 @@
  
  #define HWACCEL_CAP_ASYNC_SAFE      (1 << 0)
-+#define HWACCEL_CAP_INTERNAL_ALLOC  (1 << 1)
+ #define HWACCEL_CAP_THREAD_SAFE     (1 << 1)
++#define HWACCEL_CAP_INTERNAL_ALLOC  (1 << 2)
  
  
  typedef struct AVCodecHWConfigInternal {
 -- 
-2.17.1
+2.34.1
 
