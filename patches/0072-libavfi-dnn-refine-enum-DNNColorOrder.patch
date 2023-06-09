@@ -1,7 +1,7 @@
-From 16bfd255cadfa391a3d22bb8e9eb72cb44abefff Mon Sep 17 00:00:00 2001
+From e64c5cb1ea0b84aab955b9dddfbd9a506a92772f Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 29 Nov 2021 23:49:36 +0800
-Subject: [PATCH 72/77] libavfi/dnn: refine enum DNNColorOrder
+Subject: [PATCH 20/41] libavfi/dnn: refine enum DNNColorOrder
 
 Change the DCO_RGB and DCO_BGR color order in DNNColorOrder to
 DCO_RGB_PACKED and DCO_GBR_PACKED for following RGB planar support.
@@ -15,10 +15,10 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  4 files changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index b67f288336..2563632239 100644
+index 46cbe8270e..ca72071cc6 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
-@@ -158,7 +158,7 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
+@@ -157,7 +157,7 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
      input.dt = precision_to_datatype(precision);
      // all models in openvino open model zoo use BGR as input,
      // change to be an option when necessary.
@@ -28,13 +28,13 @@ index b67f288336..2563632239 100644
      for (int i = 0; i < ctx->options.batch_size; ++i) {
          lltask = ff_queue_pop_front(ov_model->lltask_queue);
 diff --git a/libavfilter/dnn/dnn_backend_tf.c b/libavfilter/dnn/dnn_backend_tf.c
-index 3b5084b67b..e639b3cecd 100644
+index b521de7fbe..6ce377d1d9 100644
 --- a/libavfilter/dnn/dnn_backend_tf.c
 +++ b/libavfilter/dnn/dnn_backend_tf.c
-@@ -294,7 +294,7 @@ static int get_input_tf(void *model, DNNData *input, const char *input_name)
- 
-     tf_output.index = 0;
-     input->dt = TF_OperationOutputType(tf_output);
+@@ -297,7 +297,7 @@ static int get_input_tf(void *model, DNNData *input, const char *input_name)
+         av_log(ctx, AV_LOG_ERROR, "Unsupported output type %d in model\n", dt);
+         return AVERROR(EINVAL);
+     }
 -    input->order = DCO_RGB;
 +    input->order = DCO_RGB_PACKED;
  
@@ -57,7 +57,7 @@ index 7961bf6b95..532b089002 100644
          default:
              av_assert0(!"unsupported data pixel format.\n");
 diff --git a/libavfilter/dnn_interface.h b/libavfilter/dnn_interface.h
-index ef8d7ae66f..d94baa90c4 100644
+index 20c6a0a896..fe8bdc2df1 100644
 --- a/libavfilter/dnn_interface.h
 +++ b/libavfilter/dnn_interface.h
 @@ -38,8 +38,8 @@ typedef enum {DNN_FLOAT = 1, DNN_UINT8 = 4} DNNDataType;
@@ -72,5 +72,5 @@ index ef8d7ae66f..d94baa90c4 100644
  
  typedef enum {
 -- 
-2.25.1
+2.34.1
 

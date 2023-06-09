@@ -1,18 +1,18 @@
-From 4217ced62eeaa9a2dc52f5a7836f828b7ef4a67f Mon Sep 17 00:00:00 2001
+From 9a85f4287ce06dc9a4121366b0f75ddc0a648fc5 Mon Sep 17 00:00:00 2001
 From: Kizna1ver <jianyuliucsu@gmail.com>
 Date: Tue, 13 Sep 2022 14:56:13 +0800
-Subject: [PATCH] lavfi/dnn_backend_openvino.c: DNN OpenVINO GPU decode &
+Subject: [PATCH 24/41] lavfi/dnn_backend_openvino.c: DNN OpenVINO GPU decode &
  inference support
 
 ---
- libavfilter/dnn/dnn_backend_openvino.c | 182 ++++++++++++++++++++-----
- 1 file changed, 151 insertions(+), 31 deletions(-)
+ libavfilter/dnn/dnn_backend_openvino.c | 183 ++++++++++++++++++++-----
+ 1 file changed, 151 insertions(+), 32 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index 744824f672..ab380c3b9c 100644
+index ca72071cc6..5378c16234 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
-@@ -31,6 +31,10 @@
+@@ -30,6 +30,10 @@
  #include "libavutil/opt.h"
  #include "libavutil/avstring.h"
  #include "libavutil/detection_bbox.h"
@@ -23,7 +23,7 @@ index 744824f672..ab380c3b9c 100644
  #include "../internal.h"
  #include "safe_queue.h"
  #include <c_api/ie_c_api.h>
-@@ -55,6 +59,7 @@ typedef struct OVModel{
+@@ -54,6 +58,7 @@ typedef struct OVModel{
      ie_core_t *core;
      ie_network_t *network;
      ie_executable_network_t *exe_network;
@@ -31,7 +31,7 @@ index 744824f672..ab380c3b9c 100644
      SafeQueue *request_queue;   // holds OVRequestItem
      Queue *task_queue;          // holds TaskItem
      Queue *lltask_queue;     // holds LastLevelTaskItem
-@@ -114,6 +119,85 @@ static int get_datatype_size(DNNDataType dt)
+@@ -113,6 +118,85 @@ static int get_datatype_size(DNNDataType dt)
      }
  }
  
@@ -117,7 +117,7 @@ index 744824f672..ab380c3b9c 100644
  static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
  {
      dimensions_t dims;
-@@ -129,37 +213,52 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
+@@ -128,37 +212,52 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
      lltask = ff_queue_peek_front(ov_model->lltask_queue);
      av_assert0(lltask);
      task = lltask->task;
@@ -196,7 +196,7 @@ index 744824f672..ab380c3b9c 100644
      for (int i = 0; i < ctx->options.batch_size; ++i) {
          lltask = ff_queue_pop_front(ov_model->lltask_queue);
          if (!lltask) {
-@@ -168,6 +267,9 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
+@@ -167,6 +266,9 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
          request->lltasks[i] = lltask;
          request->lltask_count = i + 1;
          task = lltask->task;
@@ -206,10 +206,11 @@ index 744824f672..ab380c3b9c 100644
          switch (ov_model->model->func_type) {
          case DFT_PROCESS_FRAME:
              if (task->do_ioproc) {
-@@ -293,9 +395,11 @@ static void infer_completion_callback(void *args)
+@@ -331,10 +433,11 @@ static void dnn_free_model_ov(DNNModel **model)
      }
  }
  
+-
 -static int init_model_ov(OVModel *ov_model, const char *input_name, const char *output_name)
 +static int init_model_ov(OVModel *ov_model, const DNNExecBaseParams *exec_params)
  {
@@ -219,7 +220,7 @@ index 744824f672..ab380c3b9c 100644
      OVContext *ctx = &ov_model->ctx;
      IEStatusCode status;
      ie_available_devices_t a_dev;
-@@ -363,8 +467,16 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+@@ -402,8 +505,16 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
              goto err;
          }
      }
@@ -238,7 +239,7 @@ index 744824f672..ab380c3b9c 100644
      if (status != OK) {
          av_log(ctx, AV_LOG_ERROR, "Failed to load OpenVINO model network\n");
          status = ie_core_get_available_devices(ov_model->core, &a_dev);
-@@ -687,11 +799,19 @@ static int get_output_ov(void *model, const char *input_name, int input_width, i
+@@ -726,11 +837,19 @@ static int get_output_ov(void *model, const char *input_name, int input_width, i
      }
  
      if (!ov_model->exe_network) {
@@ -259,7 +260,7 @@ index 744824f672..ab380c3b9c 100644
      }
  
      ret = ff_dnn_fill_gettingoutput_task(&task, &exec_params, ov_model, input_height, input_width, ctx);
-@@ -824,7 +944,7 @@ int ff_dnn_execute_model_ov(const DNNModel *model, DNNExecBaseParams *exec_param
+@@ -863,7 +982,7 @@ static int dnn_execute_model_ov(const DNNModel *model, DNNExecBaseParams *exec_p
      }
  
      if (!ov_model->exe_network) {
