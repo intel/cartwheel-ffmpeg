@@ -1,7 +1,7 @@
-From 8d79094eae388db9b39e911b09195e865f583437 Mon Sep 17 00:00:00 2001
+From afb12a991e85329a077b4ad732c540b79aa262ec Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Fri, 14 May 2021 16:08:10 +0800
-Subject: [PATCH 40/46] libavfi/dnn: add LibTorch as one of DNN backend
+Subject: [PATCH 21/41] libavfi/dnn: add LibTorch as one of DNN backend
 
 PyTorch is an open source machine learning framework that accelerates
 the path from research prototyping to production deployment. Official
@@ -27,19 +27,17 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
  configure                             |   7 +-
  libavfilter/dnn/Makefile              |   1 +
- libavfilter/dnn/dnn_backend_torch.cpp | 564 ++++++++++++++++++++++++++
- libavfilter/dnn/dnn_backend_torch.h   |  47 +++
- libavfilter/dnn/dnn_interface.c       |  12 +
+ libavfilter/dnn/dnn_backend_torch.cpp | 571 ++++++++++++++++++++++++++
+ libavfilter/dnn/dnn_interface.c       |   5 +
  libavfilter/dnn/dnn_io_proc.c         | 118 +++++-
  libavfilter/dnn_filter_common.c       |  31 +-
  libavfilter/dnn_interface.h           |   3 +-
  libavfilter/vf_dnn_processing.c       |   3 +
- 9 files changed, 772 insertions(+), 14 deletions(-)
+ 8 files changed, 725 insertions(+), 14 deletions(-)
  create mode 100644 libavfilter/dnn/dnn_backend_torch.cpp
- create mode 100644 libavfilter/dnn/dnn_backend_torch.h
 
 diff --git a/configure b/configure
-index 367ef6579d6e..700982e9fad9 100755
+index 1ba65e6ec0..2df6980d25 100755
 --- a/configure
 +++ b/configure
 @@ -280,6 +280,7 @@ External library support:
@@ -50,7 +48,7 @@ index 367ef6579d6e..700982e9fad9 100755
    --enable-libtwolame      enable MP2 encoding via libtwolame [no]
    --enable-libuavs3d       enable AVS3 decoding via libuavs3d [no]
    --enable-libv4l2         enable libv4l2/v4l-utils [no]
-@@ -1842,6 +1843,7 @@ EXTERNAL_LIBRARY_LIST="
+@@ -1881,6 +1882,7 @@ EXTERNAL_LIBRARY_LIST="
      libopus
      libplacebo
      libpulse
@@ -58,7 +56,7 @@ index 367ef6579d6e..700982e9fad9 100755
      librabbitmq
      librav1e
      librist
-@@ -2721,7 +2723,7 @@ dct_select="rdft"
+@@ -2768,7 +2770,7 @@ dct_select="rdft"
  deflate_wrapper_deps="zlib"
  dirac_parse_select="golomb"
  dovi_rpu_select="golomb"
@@ -67,7 +65,7 @@ index 367ef6579d6e..700982e9fad9 100755
  dnn_deps="avformat swscale"
  error_resilience_select="me_cmp"
  faandct_deps="faan"
-@@ -6679,6 +6681,7 @@ enabled libopus           && {
+@@ -6771,6 +6773,7 @@ enabled libopus           && {
  }
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
@@ -75,7 +73,7 @@ index 367ef6579d6e..700982e9fad9 100755
  enabled librabbitmq       && require_pkg_config librabbitmq "librabbitmq >= 0.7.1" amqp.h amqp_new_connection
  enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.5.0" rav1e.h rav1e_context_new
  enabled librist           && require_pkg_config librist "librist >= 0.2.7" librist/librist.h rist_receiver_create
-@@ -7139,6 +7142,8 @@ check_disable_warning -Wno-pointer-sign
+@@ -7231,6 +7234,8 @@ check_disable_warning -Wno-pointer-sign
  check_disable_warning -Wno-unused-const-variable
  check_disable_warning -Wno-bool-operation
  check_disable_warning -Wno-char-subscripts
@@ -85,7 +83,7 @@ index 367ef6579d6e..700982e9fad9 100755
  check_disable_warning_headers(){
      warning_flag=-W${1#-Wno-}
 diff --git a/libavfilter/dnn/Makefile b/libavfilter/dnn/Makefile
-index 5d5697ea427f..3d09927c98a9 100644
+index 5d5697ea42..3d09927c98 100644
 --- a/libavfilter/dnn/Makefile
 +++ b/libavfilter/dnn/Makefile
 @@ -6,5 +6,6 @@ OBJS-$(CONFIG_DNN)                           += dnn/dnn_backend_common.o
@@ -97,10 +95,10 @@ index 5d5697ea427f..3d09927c98a9 100644
  OBJS-$(CONFIG_DNN)                           += $(DNN-OBJS-yes)
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
 new file mode 100644
-index 000000000000..69556dd96c50
+index 0000000000..9fefe7245f
 --- /dev/null
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -0,0 +1,564 @@
+@@ -0,0 +1,571 @@
 +/*
 + * Copyright (c) 2022
 + *
@@ -128,7 +126,6 @@ index 000000000000..69556dd96c50
 +
 +#include <torch/torch.h>
 +#include <torch/script.h>
-+#include "dnn_backend_torch.h"
 +
 +extern "C" {
 +#include "dnn_io_proc.h"
@@ -296,7 +293,7 @@ index 000000000000..69556dd96c50
 +    return request;
 +}
 +
-+DNNModel *ff_dnn_load_model_th(const char *model_filename, DNNFunctionType func_type, const char *options, AVFilterContext *filter_ctx)
++static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType func_type, const char *options, AVFilterContext *filter_ctx)
 +{
 +    DNNModel *model = NULL;
 +    THModel *th_model = NULL;
@@ -565,7 +562,7 @@ index 000000000000..69556dd96c50
 +    return ret;
 +}
 +
-+int ff_dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_params)
++static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_params)
 +{
 +    THModel *th_model = (THModel *)model->model;
 +    THContext *ctx = &th_model->ctx;
@@ -614,7 +611,7 @@ index 000000000000..69556dd96c50
 +}
 +
 +
-+int ff_dnn_flush_th(const DNNModel *model)
++static int dnn_flush_th(const DNNModel *model)
 +{
 +    THModel *th_model = (THModel *)model->model;
 +    THRequestItem *request;
@@ -632,13 +629,13 @@ index 000000000000..69556dd96c50
 +    return execute_model_th(request, th_model->lltask_queue);
 +}
 +
-+DNNAsyncStatusType ff_dnn_get_result_th(const DNNModel *model, AVFrame **in, AVFrame **out)
++static DNNAsyncStatusType dnn_get_result_th(const DNNModel *model, AVFrame **in, AVFrame **out)
 +{
 +    THModel *th_model = (THModel *)model->model;
 +    return ff_dnn_get_result_common(th_model->task_queue, in, out);
 +}
 +
-+void ff_dnn_free_model_th(DNNModel **model)
++static void dnn_free_model_th(DNNModel **model)
 +{
 +    THModel *th_model;
 +    if(*model) {
@@ -665,91 +662,39 @@ index 000000000000..69556dd96c50
 +    av_freep(&th_model);
 +    av_freep(model);
 +}
-diff --git a/libavfilter/dnn/dnn_backend_torch.h b/libavfilter/dnn/dnn_backend_torch.h
-new file mode 100644
-index 000000000000..5d6a08f85fa7
---- /dev/null
-+++ b/libavfilter/dnn/dnn_backend_torch.h
-@@ -0,0 +1,47 @@
-+/*
-+ * Copyright (c) 2022
-+ *
-+ * This file is part of FFmpeg.
-+ *
-+ * FFmpeg is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * FFmpeg is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with FFmpeg; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-+ */
 +
-+/**
-+ * @file
-+ * DNN inference functions interface for Torch backend.
-+ */
-+
-+#ifndef AVFILTER_DNN_DNN_BACKEND_TORCH_H
-+#define AVFILTER_DNN_DNN_BACKEND_TORCH_H
-+
-+
-+#ifdef __cplusplus
-+extern "C" {
-+#endif
-+#include "../dnn_interface.h"
-+
-+DNNModel *ff_dnn_load_model_th(const char *model_filename, DNNFunctionType func_type, const char *options, AVFilterContext *filter_ctx);
-+
-+int ff_dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_params);
-+DNNAsyncStatusType ff_dnn_get_result_th(const DNNModel *model, AVFrame **in, AVFrame **out);
-+int ff_dnn_flush_th(const DNNModel *model);
-+
-+void ff_dnn_free_model_th(DNNModel **model);
-+
-+#ifdef __cplusplus
-+}
-+#endif
-+
-+#endif
++const DNNModule ff_dnn_backend_torch = {
++    .load_model     = dnn_load_model_th,
++    .execute_model  = dnn_execute_model_th,
++    .get_result     = dnn_get_result_th,
++    .flush          = dnn_flush_th,
++    .free_model     = dnn_free_model_th,
++};
 diff --git a/libavfilter/dnn/dnn_interface.c b/libavfilter/dnn/dnn_interface.c
-index 5b1695a1dd28..1f3a3359ec26 100644
+index e843826aa6..b9f71aea53 100644
 --- a/libavfilter/dnn/dnn_interface.c
 +++ b/libavfilter/dnn/dnn_interface.c
-@@ -26,6 +26,7 @@
- #include "../dnn_interface.h"
- #include "dnn_backend_tf.h"
- #include "dnn_backend_openvino.h"
-+#include "dnn_backend_torch.h"
- #include "libavutil/mem.h"
+@@ -28,6 +28,7 @@
  
- DNNModule *ff_get_dnn_module(DNNBackendType backend_type)
-@@ -62,6 +63,17 @@ DNNModule *ff_get_dnn_module(DNNBackendType backend_type)
-         return NULL;
+ extern const DNNModule ff_dnn_backend_openvino;
+ extern const DNNModule ff_dnn_backend_tf;
++extern const DNNModule ff_dnn_backend_torch;
+ 
+ const DNNModule *ff_get_dnn_module(DNNBackendType backend_type, void *log_ctx)
+ {
+@@ -40,6 +41,10 @@ const DNNModule *ff_get_dnn_module(DNNBackendType backend_type, void *log_ctx)
+     case DNN_OV:
+         return &ff_dnn_backend_openvino;
      #endif
-         break;
-+    case DNN_TH:
 +    #if (CONFIG_LIBTORCH == 1)
-+        dnn_module->load_model = &ff_dnn_load_model_th;
-+        dnn_module->execute_model = &ff_dnn_execute_model_th;
-+        dnn_module->get_result = &ff_dnn_get_result_th;
-+        dnn_module->flush = &ff_dnn_flush_th;
-+        dnn_module->free_model = &ff_dnn_free_model_th;
-+    #else
-+        av_freep(&dnn_module);
++    case DNN_TH:
++        return &ff_dnn_backend_torch;
 +    #endif
-+        break;
      default:
-         av_log(NULL, AV_LOG_ERROR, "Module backend_type is not supported or enabled.\n");
-         av_freep(&dnn_module);
+         av_log(log_ctx, AV_LOG_ERROR,
+                 "Module backend_type %d is not supported or enabled.\n",
 diff --git a/libavfilter/dnn/dnn_io_proc.c b/libavfilter/dnn/dnn_io_proc.c
-index 532b0890025e..5c5017db1aeb 100644
+index 532b089002..5c5017db1a 100644
 --- a/libavfilter/dnn/dnn_io_proc.c
 +++ b/libavfilter/dnn/dnn_io_proc.c
 @@ -24,10 +24,21 @@
@@ -934,7 +879,7 @@ index 532b0890025e..5c5017db1aeb 100644
  
      av_assert0(!"unsupported data type.\n");
 diff --git a/libavfilter/dnn_filter_common.c b/libavfilter/dnn_filter_common.c
-index 5083e3de198b..a4e1147fb93e 100644
+index d175c91914..03e0595b47 100644
 --- a/libavfilter/dnn_filter_common.c
 +++ b/libavfilter/dnn_filter_common.c
 @@ -53,19 +53,31 @@ static char **separate_output_names(const char *expr, const char *val_sep, int *
@@ -976,7 +921,7 @@ index 5083e3de198b..a4e1147fb93e 100644
 +        }
      }
  
-     ctx->dnn_module = ff_get_dnn_module(ctx->backend_type);
+     ctx->dnn_module = ff_get_dnn_module(ctx->backend_type, filter_ctx);
 @@ -113,8 +125,9 @@ int ff_dnn_get_input(DnnContext *ctx, DNNData *input)
  
  int ff_dnn_get_output(DnnContext *ctx, int input_width, int input_height, int *output_width, int *output_height)
@@ -989,7 +934,7 @@ index 5083e3de198b..a4e1147fb93e 100644
  
  int ff_dnn_execute_model(DnnContext *ctx, AVFrame *in_frame, AVFrame *out_frame)
 diff --git a/libavfilter/dnn_interface.h b/libavfilter/dnn_interface.h
-index 05b526ffb95f..de8bc2e7d5c8 100644
+index fe8bdc2df1..151666fb12 100644
 --- a/libavfilter/dnn_interface.h
 +++ b/libavfilter/dnn_interface.h
 @@ -32,7 +32,7 @@
@@ -1010,13 +955,13 @@ index 05b526ffb95f..de8bc2e7d5c8 100644
  
  typedef enum {
 diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
-index 18ecf111fe44..d3a8daf8ec9e 100644
+index 95c3e0b99b..3b45890fb7 100644
 --- a/libavfilter/vf_dnn_processing.c
 +++ b/libavfilter/vf_dnn_processing.c
 @@ -51,6 +51,9 @@ static const AVOption dnn_processing_options[] = {
  #endif
  #if (CONFIG_LIBOPENVINO == 1)
-     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = 2 },    0, 0, FLAGS, "backend" },
+     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
 +#endif
 +#if (CONFIG_LIBTORCH == 1)
 +    { "torch",       "torch backend flag",         0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
@@ -1024,5 +969,5 @@ index 18ecf111fe44..d3a8daf8ec9e 100644
      DNN_COMMON_OPTIONS
      { NULL }
 -- 
-2.38.1
+2.34.1
 

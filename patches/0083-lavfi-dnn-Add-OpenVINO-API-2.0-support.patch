@@ -1,7 +1,7 @@
-From 68ad58047ae94e37591cb53d7df1c31f58d87870 Mon Sep 17 00:00:00 2001
+From ef39ab8c90b8e52925882700e362db49701ae364 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Thu, 22 Dec 2022 10:52:27 +0800
-Subject: [PATCH] lavfi/dnn: Add OpenVINO API 2.0 support
+Subject: [PATCH 28/41] lavfi/dnn: Add OpenVINO API 2.0 support
 
 OpenVINO API 2.0 was released in March 2022, which introduced new features.
 This commit implements current OpenVINO features with new 2.0 APIs. And will
@@ -13,22 +13,20 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
  configure                               |    4 +-
  libavfilter/dnn/Makefile                |    1 +
- libavfilter/dnn/dnn_backend_openvino2.c | 1029 +++++++++++++++++++++++
- libavfilter/dnn/dnn_backend_openvino2.h |   40 +
- libavfilter/dnn/dnn_interface.c         |   13 +
+ libavfilter/dnn/dnn_backend_openvino2.c | 1036 +++++++++++++++++++++++
+ libavfilter/dnn/dnn_interface.c         |    5 +
  libavfilter/dnn_interface.h             |    2 +-
  libavfilter/vf_dnn_classify.c           |    3 +
  libavfilter/vf_dnn_detect.c             |    8 +-
  libavfilter/vf_dnn_processing.c         |    3 +
- 9 files changed, 1100 insertions(+), 3 deletions(-)
+ 8 files changed, 1059 insertions(+), 3 deletions(-)
  create mode 100644 libavfilter/dnn/dnn_backend_openvino2.c
- create mode 100644 libavfilter/dnn/dnn_backend_openvino2.h
 
 diff --git a/configure b/configure
-index 1eafb889a0..b8688df7c8 100755
+index b8d858908b..5a187cc66c 100755
 --- a/configure
 +++ b/configure
-@@ -1838,6 +1838,7 @@ EXTERNAL_LIBRARY_LIST="
+@@ -1879,6 +1879,7 @@ EXTERNAL_LIBRARY_LIST="
      libopenjpeg
      libopenmpt
      libopenvino
@@ -36,7 +34,7 @@ index 1eafb889a0..b8688df7c8 100755
      libopus
      libplacebo
      libpulse
-@@ -2720,7 +2721,7 @@ dct_select="rdft"
+@@ -2770,7 +2771,7 @@ dct_select="rdft"
  deflate_wrapper_deps="zlib"
  dirac_parse_select="golomb"
  dovi_rpu_select="golomb"
@@ -45,10 +43,10 @@ index 1eafb889a0..b8688df7c8 100755
  dnn_deps="avformat swscale"
  error_resilience_select="me_cmp"
  faandct_deps="faan"
-@@ -6666,6 +6667,7 @@ enabled libopenjpeg       && { check_pkg_config libopenjpeg "libopenjp2 >= 2.1.0
-                                { require_pkg_config libopenjpeg "libopenjp2 >= 2.1.0" openjpeg.h opj_version -DOPJ_STATIC && add_cppflags -DOPJ_STATIC; } }
+@@ -6763,6 +6764,7 @@ enabled libopenjpeg       && { check_pkg_config libopenjpeg "libopenjp2 >= 2.1.0
  enabled libopenmpt        && require_pkg_config libopenmpt "libopenmpt >= 0.2.6557" libopenmpt/libopenmpt.h openmpt_module_create -lstdc++ && append libopenmpt_extralibs "-lstdc++"
- enabled libopenvino       && require libopenvino c_api/ie_c_api.h ie_c_api_version -linference_engine_c_api
+ enabled libopenvino       && { check_pkg_config libopenvino openvino c_api/ie_c_api.h ie_c_api_version ||
+                                require libopenvino c_api/ie_c_api.h ie_c_api_version -linference_engine_c_api; }
 +enabled libopenvino2      && require_pkg_config libopenvino2 openvino openvino/c/openvino.h OK
  enabled libopus           && {
      enabled libopus_decoder && {
@@ -67,10 +65,10 @@ index 3d09927c98..a78158c5dd 100644
  OBJS-$(CONFIG_DNN)                           += $(DNN-OBJS-yes)
 diff --git a/libavfilter/dnn/dnn_backend_openvino2.c b/libavfilter/dnn/dnn_backend_openvino2.c
 new file mode 100644
-index 0000000000..6605954e4c
+index 0000000000..70af0b4a7c
 --- /dev/null
 +++ b/libavfilter/dnn/dnn_backend_openvino2.c
-@@ -0,0 +1,1029 @@
+@@ -0,0 +1,1036 @@
 +/*
 + * Copyright (c) 2023
 + *
@@ -97,7 +95,6 @@ index 0000000000..6605954e4c
 + */
 +
 +#include "dnn_backend_common.h"
-+#include "dnn_backend_openvino2.h"
 +#include "dnn_io_proc.h"
 +#include "libavutil/avassert.h"
 +#include "libavutil/avstring.h"
@@ -418,6 +415,55 @@ index 0000000000..6605954e4c
 +    }
 +}
 +
++static void dnn_free_model_ov2(DNNModel **model)
++{
++    if (*model){
++        OV2Model *ov2_model = (*model)->model;
++        while (ff_safe_queue_size(ov2_model->request_queue) != 0) {
++            OV2RequestItem *item = ff_safe_queue_pop_front(ov2_model->request_queue);
++            if (item && item->infer_request) {
++                ov_infer_request_free(item->infer_request);
++            }
++            av_freep(&item->lltasks);
++            av_freep(&item);
++        }
++        ff_safe_queue_destroy(ov2_model->request_queue);
++
++        while (ff_queue_size(ov2_model->lltask_queue) != 0) {
++            LastLevelTaskItem *item = ff_queue_pop_front(ov2_model->lltask_queue);
++            av_freep(&item);
++        }
++        ff_queue_destroy(ov2_model->lltask_queue);
++
++        while (ff_queue_size(ov2_model->task_queue) != 0) {
++            TaskItem *item = ff_queue_pop_front(ov2_model->task_queue);
++            av_frame_free(&item->in_frame);
++            av_frame_free(&item->out_frame);
++            av_freep(&item);
++        }
++        ff_queue_destroy(ov2_model->task_queue);
++
++        if (ov2_model->preprocess)
++            ov_preprocess_prepostprocessor_free(ov2_model->preprocess);
++        if (ov2_model->input_info)
++            ov_preprocess_input_info_free(ov2_model->input_info);
++        if (ov2_model->output_info)
++            ov_preprocess_output_info_free(ov2_model->output_info);
++        if (ov2_model->input_port)
++            ov_output_const_port_free(ov2_model->input_port);
++        if (ov2_model->output_port)
++            ov_output_const_port_free(ov2_model->output_port);
++        if (ov2_model->compiled_model)
++            ov_compiled_model_free(ov2_model->compiled_model);
++        if (ov2_model->ov_model)
++            ov_model_free(ov2_model->ov_model);
++        if (ov2_model->core)
++            ov_core_free(ov2_model->core);
++        av_freep(&ov2_model);
++        av_freep(model);
++    }
++}
++
 +static int init_model_ov2(OV2Model *ov2_model, const char *input_name, const char*output_name)
 +{
 +    int ret = 0;
@@ -573,7 +619,7 @@ index 0000000000..6605954e4c
 +
 +
 +err:
-+    ff_dnn_free_model_ov2(&ov2_model->model);
++    dnn_free_model_ov2(&ov2_model->model);
 +    return ret;
 +}
 +
@@ -666,7 +712,7 @@ index 0000000000..6605954e4c
 +    return ret;
 +}
 +
-+DNNModel *ff_dnn_load_model_ov2(const char *model_filename, DNNFunctionType func_type, const char *options, AVFilterContext *filter_ctx)
++static DNNModel *dnn_load_model_ov2(const char *model_filename, DNNFunctionType func_type, const char *options, AVFilterContext *filter_ctx)
 +{
 +    DNNModel *dnn_model = NULL;
 +    OV2Model *ov2_model = NULL;
@@ -723,11 +769,11 @@ index 0000000000..6605954e4c
 +    return dnn_model;
 +
 +err:
-+    ff_dnn_free_model_ov2(&dnn_model);
++    dnn_free_model_ov2(&dnn_model);
 +    return NULL;
 +}
 +
-+int ff_dnn_execute_model_ov2(const DNNModel *model, DNNExecBaseParams *exec_params)
++static int dnn_execute_model_ov2(const DNNModel *model, DNNExecBaseParams *exec_params)
 +{
 +    OV2Model *ov2_model = model->model;
 +    OV2Context *ctx = &ov2_model->ctx;
@@ -808,7 +854,7 @@ index 0000000000..6605954e4c
 +
 +    return 0;
 +}
-+DNNAsyncStatusType ff_dnn_get_result_ov2(const DNNModel *model, AVFrame **in, AVFrame **out)
++static DNNAsyncStatusType dnn_get_result_ov2(const DNNModel *model, AVFrame **in, AVFrame **out)
 +{
 +    OV2Model *ov2_model = model->model;
 +    return ff_dnn_get_result_common(ov2_model->task_queue, in, out);
@@ -1018,7 +1064,7 @@ index 0000000000..6605954e4c
 +
 +}
 +
-+int ff_dnn_flush_ov2(const DNNModel *model)
++static int dnn_flush_ov2(const DNNModel *model)
 +{
 +    OV2Model *ov2_model = model->model;
 +    OV2Context *ctx = &ov2_model->ctx;
@@ -1052,133 +1098,38 @@ index 0000000000..6605954e4c
 +    return 0;
 +}
 +
-+void ff_dnn_free_model_ov2(DNNModel **model)
-+{
-+    if (*model){
-+        OV2Model *ov2_model = (*model)->model;
-+        while (ff_safe_queue_size(ov2_model->request_queue) != 0) {
-+            OV2RequestItem *item = ff_safe_queue_pop_front(ov2_model->request_queue);
-+            if (item && item->infer_request) {
-+                ov_infer_request_free(item->infer_request);
-+            }
-+            av_freep(&item->lltasks);
-+            av_freep(&item);
-+        }
-+        ff_safe_queue_destroy(ov2_model->request_queue);
-+
-+        while (ff_queue_size(ov2_model->lltask_queue) != 0) {
-+            LastLevelTaskItem *item = ff_queue_pop_front(ov2_model->lltask_queue);
-+            av_freep(&item);
-+        }
-+        ff_queue_destroy(ov2_model->lltask_queue);
-+
-+        while (ff_queue_size(ov2_model->task_queue) != 0) {
-+            TaskItem *item = ff_queue_pop_front(ov2_model->task_queue);
-+            av_frame_free(&item->in_frame);
-+            av_frame_free(&item->out_frame);
-+            av_freep(&item);
-+        }
-+        ff_queue_destroy(ov2_model->task_queue);
-+
-+        if (ov2_model->preprocess)
-+            ov_preprocess_prepostprocessor_free(ov2_model->preprocess);
-+        if (ov2_model->input_info)
-+            ov_preprocess_input_info_free(ov2_model->input_info);
-+        if (ov2_model->output_info)
-+            ov_preprocess_output_info_free(ov2_model->output_info);
-+        if (ov2_model->input_port)
-+            ov_output_const_port_free(ov2_model->input_port);
-+        if (ov2_model->output_port)
-+            ov_output_const_port_free(ov2_model->output_port);
-+        if (ov2_model->compiled_model)
-+            ov_compiled_model_free(ov2_model->compiled_model);
-+        if (ov2_model->ov_model)
-+            ov_model_free(ov2_model->ov_model);
-+        if (ov2_model->core)
-+            ov_core_free(ov2_model->core);
-+        av_freep(&ov2_model);
-+        av_freep(model);
-+    }
-+}
-diff --git a/libavfilter/dnn/dnn_backend_openvino2.h b/libavfilter/dnn/dnn_backend_openvino2.h
-new file mode 100644
-index 0000000000..c203e964eb
---- /dev/null
-+++ b/libavfilter/dnn/dnn_backend_openvino2.h
-@@ -0,0 +1,40 @@
-+/*
-+ * Copyright (c) 2023
-+ *
-+ * This file is part of FFmpeg.
-+ *
-+ * FFmpeg is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * FFmpeg is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with FFmpeg; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-+ */
-+
-+/**
-+ * @file
-+ * DNN inference functions interface for OpenVINO backend.
-+ */
-+
-+
-+#ifndef AVFILTER_DNN_DNN_BACKEND_OPENVINO2_H
-+#define AVFILTER_DNN_DNN_BACKEND_OPENVINO2_H
-+
-+#include "../dnn_interface.h"
-+
-+DNNModel *ff_dnn_load_model_ov2(const char *model_filename, DNNFunctionType func_type, const char *options, AVFilterContext *filter_ctx);
-+
-+int ff_dnn_execute_model_ov2(const DNNModel *model, DNNExecBaseParams *exec_params);
-+DNNAsyncStatusType ff_dnn_get_result_ov2(const DNNModel *model, AVFrame **in, AVFrame **out);
-+int ff_dnn_flush_ov2(const DNNModel *model);
-+
-+void ff_dnn_free_model_ov2(DNNModel **model);
-+
-+#endif
++const DNNModule ff_dnn_backend_openvino2 = {
++    .load_model     = dnn_load_model_ov2,
++    .execute_model  = dnn_execute_model_ov2,
++    .get_result     = dnn_get_result_ov2,
++    .flush          = dnn_flush_ov2,
++    .free_model     = dnn_free_model_ov2,
++};
 diff --git a/libavfilter/dnn/dnn_interface.c b/libavfilter/dnn/dnn_interface.c
-index 1f3a3359ec..4cd011d15a 100644
+index b9f71aea53..08d6912612 100644
 --- a/libavfilter/dnn/dnn_interface.c
 +++ b/libavfilter/dnn/dnn_interface.c
-@@ -26,6 +26,7 @@
- #include "../dnn_interface.h"
- #include "dnn_backend_tf.h"
- #include "dnn_backend_openvino.h"
-+#include "dnn_backend_openvino2.h"
- #include "dnn_backend_torch.h"
- #include "libavutil/mem.h"
+@@ -29,6 +29,7 @@
+ extern const DNNModule ff_dnn_backend_openvino;
+ extern const DNNModule ff_dnn_backend_tf;
+ extern const DNNModule ff_dnn_backend_torch;
++extern const DNNModule ff_dnn_backend_openvino2;
  
-@@ -63,6 +64,18 @@ DNNModule *ff_get_dnn_module(DNNBackendType backend_type)
-         return NULL;
+ const DNNModule *ff_get_dnn_module(DNNBackendType backend_type, void *log_ctx)
+ {
+@@ -41,6 +42,10 @@ const DNNModule *ff_get_dnn_module(DNNBackendType backend_type, void *log_ctx)
+     case DNN_OV:
+         return &ff_dnn_backend_openvino;
      #endif
-         break;
-+    case DNN_OV2:
 +    #if (CONFIG_LIBOPENVINO2 == 1)
-+        dnn_module->load_model = &ff_dnn_load_model_ov2;
-+        dnn_module->execute_model = &ff_dnn_execute_model_ov2;
-+        dnn_module->get_result = &ff_dnn_get_result_ov2;
-+        dnn_module->flush = &ff_dnn_flush_ov2;
-+        dnn_module->free_model = &ff_dnn_free_model_ov2;
-+    #else
-+        av_freep(&dnn_module);
-+        return NULL;
++    case DNN_OV2:
++        return &ff_dnn_backend_openvino2;
 +    #endif
-+        break;
-     case DNN_TH:
      #if (CONFIG_LIBTORCH == 1)
-         dnn_module->load_model = &ff_dnn_load_model_th;
+     case DNN_TH:
+         return &ff_dnn_backend_torch;
 diff --git a/libavfilter/dnn_interface.h b/libavfilter/dnn_interface.h
-index de8bc2e7d5..b833ba4f31 100644
+index 151666fb12..bbe18ea7e7 100644
 --- a/libavfilter/dnn_interface.h
 +++ b/libavfilter/dnn_interface.h
 @@ -32,7 +32,7 @@
@@ -1191,13 +1142,13 @@ index de8bc2e7d5..b833ba4f31 100644
  typedef enum {DNN_FLOAT = 1, DNN_UINT8 = 4} DNNDataType;
  
 diff --git a/libavfilter/vf_dnn_classify.c b/libavfilter/vf_dnn_classify.c
-index 887d1f25ea..68e20753b0 100644
+index 938ca11464..fc471d02a4 100644
 --- a/libavfilter/vf_dnn_classify.c
 +++ b/libavfilter/vf_dnn_classify.c
 @@ -47,6 +47,9 @@ static const AVOption dnn_classify_options[] = {
-     { "dnn_backend", "DNN backend",                OFFSET(backend_type),     AV_OPT_TYPE_INT,       { .i64 = 2 },    INT_MIN, INT_MAX, FLAGS, "backend" },
+     { "dnn_backend", "DNN backend",                OFFSET(backend_type),     AV_OPT_TYPE_INT,       { .i64 = DNN_OV },    INT_MIN, INT_MAX, FLAGS, "backend" },
  #if (CONFIG_LIBOPENVINO == 1)
-     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = 2 },    0, 0, FLAGS, "backend" },
+     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
 +#endif
 +#if (CONFIG_LIBOPENVINO2 == 1)
 +    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
@@ -1205,13 +1156,13 @@ index 887d1f25ea..68e20753b0 100644
      DNN_COMMON_OPTIONS
      { "confidence",  "threshold of confidence",    OFFSET2(confidence),      AV_OPT_TYPE_FLOAT,     { .dbl = 0.5 },  0, 1, FLAGS},
 diff --git a/libavfilter/vf_dnn_detect.c b/libavfilter/vf_dnn_detect.c
-index 51e08f4ed9..94508708fa 100644
+index dc8e6171b5..4c83780f3d 100644
 --- a/libavfilter/vf_dnn_detect.c
 +++ b/libavfilter/vf_dnn_detect.c
 @@ -49,6 +49,9 @@ static const AVOption dnn_detect_options[] = {
  #endif
  #if (CONFIG_LIBOPENVINO == 1)
-     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = 2 },    0, 0, FLAGS, "backend" },
+     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
 +#endif
 +#if (CONFIG_LIBOPENVINO2 == 1)
 +    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
@@ -1246,12 +1197,12 @@ index 51e08f4ed9..94508708fa 100644
              return AVERROR(EINVAL);
          }
 diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
-index d3a8daf8ec..15a893cf3f 100644
+index 3b45890fb7..2a65ef2c9d 100644
 --- a/libavfilter/vf_dnn_processing.c
 +++ b/libavfilter/vf_dnn_processing.c
 @@ -52,6 +52,9 @@ static const AVOption dnn_processing_options[] = {
  #if (CONFIG_LIBOPENVINO == 1)
-     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = 2 },    0, 0, FLAGS, "backend" },
+     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
  #endif
 +#if (CONFIG_LIBOPENVINO2 == 1)
 +    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
@@ -1260,5 +1211,5 @@ index d3a8daf8ec..15a893cf3f 100644
      { "torch",       "torch backend flag",         0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
  #endif
 -- 
-2.25.1
+2.34.1
 
