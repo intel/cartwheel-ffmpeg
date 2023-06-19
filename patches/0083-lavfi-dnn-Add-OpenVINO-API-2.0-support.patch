@@ -1,7 +1,7 @@
-From ef39ab8c90b8e52925882700e362db49701ae364 Mon Sep 17 00:00:00 2001
+From e72eaaa929d7d5cd982fa0df294541c80b49a1aa Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Thu, 22 Dec 2022 10:52:27 +0800
-Subject: [PATCH 28/41] lavfi/dnn: Add OpenVINO API 2.0 support
+Subject: [PATCH] lavfi/dnn: Add OpenVINO API 2.0 support
 
 OpenVINO API 2.0 was released in March 2022, which introduced new features.
 This commit implements current OpenVINO features with new 2.0 APIs. And will
@@ -23,7 +23,7 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  create mode 100644 libavfilter/dnn/dnn_backend_openvino2.c
 
 diff --git a/configure b/configure
-index b8d858908b..5a187cc66c 100755
+index 3c309ffe80..92140d49b0 100755
 --- a/configure
 +++ b/configure
 @@ -1879,6 +1879,7 @@ EXTERNAL_LIBRARY_LIST="
@@ -34,7 +34,7 @@ index b8d858908b..5a187cc66c 100755
      libopus
      libplacebo
      libpulse
-@@ -2770,7 +2771,7 @@ dct_select="rdft"
+@@ -2771,7 +2772,7 @@ dct_select="rdft"
  deflate_wrapper_deps="zlib"
  dirac_parse_select="golomb"
  dovi_rpu_select="golomb"
@@ -42,8 +42,8 @@ index b8d858908b..5a187cc66c 100755
 +dnn_suggest="libtensorflow libopenvino libopenvino2 libtorch"
  dnn_deps="avformat swscale"
  error_resilience_select="me_cmp"
- faandct_deps="faan"
-@@ -6763,6 +6764,7 @@ enabled libopenjpeg       && { check_pkg_config libopenjpeg "libopenjp2 >= 2.1.0
+ evcparse_select="golomb"
+@@ -6769,6 +6770,7 @@ enabled libopenjpeg       && { check_pkg_config libopenjpeg "libopenjp2 >= 2.1.0
  enabled libopenmpt        && require_pkg_config libopenmpt "libopenmpt >= 0.2.6557" libopenmpt/libopenmpt.h openmpt_module_create -lstdc++ && append libopenmpt_extralibs "-lstdc++"
  enabled libopenvino       && { check_pkg_config libopenvino openvino c_api/ie_c_api.h ie_c_api_version ||
                                 require libopenvino c_api/ie_c_api.h ie_c_api_version -linference_engine_c_api; }
@@ -1142,7 +1142,7 @@ index 151666fb12..bbe18ea7e7 100644
  typedef enum {DNN_FLOAT = 1, DNN_UINT8 = 4} DNNDataType;
  
 diff --git a/libavfilter/vf_dnn_classify.c b/libavfilter/vf_dnn_classify.c
-index 938ca11464..fc471d02a4 100644
+index 938ca11464..46b7abad35 100644
 --- a/libavfilter/vf_dnn_classify.c
 +++ b/libavfilter/vf_dnn_classify.c
 @@ -47,6 +47,9 @@ static const AVOption dnn_classify_options[] = {
@@ -1151,12 +1151,12 @@ index 938ca11464..fc471d02a4 100644
      { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
 +#endif
 +#if (CONFIG_LIBOPENVINO2 == 1)
-+    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
++    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV2 },    0, 0, FLAGS, "backend" },
  #endif
      DNN_COMMON_OPTIONS
      { "confidence",  "threshold of confidence",    OFFSET2(confidence),      AV_OPT_TYPE_FLOAT,     { .dbl = 0.5 },  0, 1, FLAGS},
 diff --git a/libavfilter/vf_dnn_detect.c b/libavfilter/vf_dnn_detect.c
-index dc8e6171b5..4c83780f3d 100644
+index dc8e6171b5..dff88debfa 100644
 --- a/libavfilter/vf_dnn_detect.c
 +++ b/libavfilter/vf_dnn_detect.c
 @@ -49,6 +49,9 @@ static const AVOption dnn_detect_options[] = {
@@ -1165,7 +1165,7 @@ index dc8e6171b5..4c83780f3d 100644
      { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
 +#endif
 +#if (CONFIG_LIBOPENVINO2 == 1)
-+    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
++    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV2 },    0, 0, FLAGS, "backend" },
  #endif
      DNN_COMMON_OPTIONS
      { "confidence",  "threshold of confidence",    OFFSET2(confidence),      AV_OPT_TYPE_FLOAT,     { .dbl = 0.5 },  0, 1, FLAGS},
@@ -1197,7 +1197,7 @@ index dc8e6171b5..4c83780f3d 100644
              return AVERROR(EINVAL);
          }
 diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
-index 3b45890fb7..2a65ef2c9d 100644
+index 7f4d0f2711..4ba36f1c2e 100644
 --- a/libavfilter/vf_dnn_processing.c
 +++ b/libavfilter/vf_dnn_processing.c
 @@ -52,6 +52,9 @@ static const AVOption dnn_processing_options[] = {
@@ -1205,10 +1205,10 @@ index 3b45890fb7..2a65ef2c9d 100644
      { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
  #endif
 +#if (CONFIG_LIBOPENVINO2 == 1)
-+    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
++    { "openvino2",   "openvino2.0 backend flag",   0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV2 },    0, 0, FLAGS, "backend" },
 +#endif
  #if (CONFIG_LIBTORCH == 1)
-     { "torch",       "torch backend flag",         0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
+     { "torch",       "torch backend flag",         0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_TH },    0, 0, FLAGS, "backend" },
  #endif
 -- 
 2.34.1

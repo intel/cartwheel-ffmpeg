@@ -1,18 +1,18 @@
-From a6f74132191b197938047f3d0193c8813065615d Mon Sep 17 00:00:00 2001
+From 5525b107e650ea48a523d7be82971f8048b58259 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Wed, 29 Jun 2022 07:46:44 +0000
-Subject: [PATCH 75/77] lavf/dnn: enable libtorch backend support FRVSR model
+Subject: [PATCH] lavf/dnn: enable libtorch backend support FRVSR model
 
 Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
- libavfilter/dnn/dnn_backend_torch.cpp | 52 +++++++++++++++++++++++----
- 1 file changed, 45 insertions(+), 7 deletions(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 53 +++++++++++++++++++++++----
+ 1 file changed, 46 insertions(+), 7 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index fde0a022ae..cefbca068d 100644
+index 34560dbfd2..06608f7a92 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -46,6 +46,8 @@ typedef struct THContext {
+@@ -45,6 +45,8 @@ typedef struct THContext {
      THOptions options;
  } THContext;
  
@@ -21,7 +21,7 @@ index fde0a022ae..cefbca068d 100644
  typedef struct THModel {
      THContext ctx;
      DNNModel *model;
-@@ -53,6 +55,7 @@ typedef struct THModel {
+@@ -52,6 +54,7 @@ typedef struct THModel {
      SafeQueue *request_queue;
      Queue *task_queue;
      Queue *lltask_queue;
@@ -29,15 +29,23 @@ index fde0a022ae..cefbca068d 100644
  } THModel;
  
  typedef struct THInferRequest {
-@@ -242,6 +245,7 @@ DNNModel *ff_dnn_load_model_th(const char *model_filename, DNNFunctionType func_
+@@ -198,6 +201,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+     THModel *th_model = NULL;
+     THRequestItem *item = NULL;
+     THContext *ctx;
++    torch::jit::NameTensor first_param;
+ 
+     model = (DNNModel *)av_mallocz(sizeof(DNNModel));
+     if (!model) {
+@@ -240,6 +244,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
      }
-+    const torch::jit::NameTensor& first_param = *th_model->jit_model.named_parameters().begin();
++    first_param = *th_model->jit_model.named_parameters().begin();
  
      th_model->request_queue = ff_safe_queue_create();
      if (!th_model->request_queue) {
-@@ -276,6 +280,13 @@ DNNModel *ff_dnn_load_model_th(const char *model_filename, DNNFunctionType func_
+@@ -274,6 +279,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
          goto fail;
      }
  
@@ -51,7 +59,7 @@ index fde0a022ae..cefbca068d 100644
      th_model->model = model;
      model->model = th_model;
      model->get_input = &get_input_th;
-@@ -341,8 +352,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -339,8 +351,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
          avpriv_report_missing_feature(NULL, "model function type %d", th_model->model->func_type);
          break;
      }
@@ -67,7 +75,7 @@ index fde0a022ae..cefbca068d 100644
      if (infer_request->input_tensor->device() != ctx->options.device_type)
          *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
      return 0;
-@@ -361,6 +377,7 @@ static int th_start_inference(void *args)
+@@ -359,6 +376,7 @@ static int th_start_inference(void *args)
      THModel *th_model = NULL;
      THContext *ctx = NULL;
      std::vector<torch::jit::IValue> inputs;
@@ -75,7 +83,7 @@ index fde0a022ae..cefbca068d 100644
  
      if (!request) {
          av_log(NULL, AV_LOG_ERROR, "THRequestItem is NULL\n");
-@@ -371,14 +388,31 @@ static int th_start_inference(void *args)
+@@ -369,14 +387,31 @@ static int th_start_inference(void *args)
      task = lltask->task;
      th_model = (THModel *)task->model;
      ctx = &th_model->ctx;
@@ -109,7 +117,7 @@ index fde0a022ae..cefbca068d 100644
  
      return 0;
  }
-@@ -393,10 +427,14 @@ static void infer_completion_callback(void *args) {
+@@ -391,10 +426,14 @@ static void infer_completion_callback(void *args) {
      torch::Tensor *output = infer_request->output;
  
      c10::IntArrayRef sizes = output->sizes();
@@ -128,5 +136,5 @@ index fde0a022ae..cefbca068d 100644
      outputs.channels = 3;
  
 -- 
-2.25.1
+2.34.1
 
