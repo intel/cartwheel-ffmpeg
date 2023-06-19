@@ -1,4 +1,4 @@
-From 7911edb89700ec9022a19c9ca8078254e68cf8f0 Mon Sep 17 00:00:00 2001
+From 01ff869e0a53757b48a4de7ef8503f38e2ce60bb Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 23 Apr 2023 16:23:06 +0800
 Subject: [PATCH] lavc/vaapi_encode: Add VAAPI AV1 encoder
@@ -9,17 +9,17 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  doc/encoders.texi             |   14 +
  libavcodec/Makefile           |    1 +
  libavcodec/allcodecs.c        |    1 +
- libavcodec/vaapi_encode.c     |  102 ++-
+ libavcodec/vaapi_encode.c     |  104 ++-
  libavcodec/vaapi_encode.h     |   12 +
  libavcodec/vaapi_encode_av1.c | 1246 +++++++++++++++++++++++++++++++++
- 7 files changed, 1364 insertions(+), 15 deletions(-)
+ 7 files changed, 1366 insertions(+), 15 deletions(-)
  create mode 100644 libavcodec/vaapi_encode_av1.c
 
 diff --git a/configure b/configure
-index b8c4d2c23d..f26026e2be 100755
+index bc0961a0bb..cc2609ae0f 100755
 --- a/configure
 +++ b/configure
-@@ -3339,6 +3339,8 @@ av1_qsv_decoder_select="qsvdec"
+@@ -3340,6 +3340,8 @@ av1_qsv_decoder_select="qsvdec"
  av1_qsv_encoder_select="qsvenc"
  av1_qsv_encoder_deps="libvpl"
  av1_amf_encoder_deps="amf"
@@ -28,7 +28,7 @@ index b8c4d2c23d..f26026e2be 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -7122,6 +7124,7 @@ if enabled vaapi; then
+@@ -7126,6 +7128,7 @@ if enabled vaapi; then
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
      check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
@@ -62,10 +62,10 @@ index 20cb8a1421..def1efa0ef 100644
  @option{profile} sets the value of @emph{profile_idc} and the @emph{constraint_set*_flag}s.
  @option{level} sets the value of @emph{level_idc}.
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 5e33cc058b..3af8ad9998 100644
+index cc46cd7867..86d1e240fc 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -256,6 +256,7 @@ OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
+@@ -257,6 +257,7 @@ OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
  OBJS-$(CONFIG_AV1_MEDIACODEC_ENCODER)  += mediacodecenc.o
  OBJS-$(CONFIG_AV1_NVENC_ENCODER)       += nvenc_av1.o nvenc.o
  OBJS-$(CONFIG_AV1_QSV_ENCODER)         += qsvenc_av1.o
@@ -86,7 +86,7 @@ index 11c136ef59..9f3b557f9b 100644
  extern const FFCodec ff_libopenh264_decoder;
  extern const FFCodec ff_h264_amf_encoder;
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 045f3cf525..b640d5fc74 100644
+index 045f3cf525..7aa82d94a0 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -656,6 +656,11 @@ static int vaapi_encode_set_output_timestamp(AVCodecContext *avctx,
@@ -251,18 +251,20 @@ index 045f3cf525..b640d5fc74 100644
  static av_cold void vaapi_encode_add_global_param(AVCodecContext *avctx, int type,
                                                    void *buffer, size_t size)
  {
-@@ -2605,6 +2671,10 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2605,6 +2671,12 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
      ctx->device = (AVHWDeviceContext*)ctx->device_ref->data;
      ctx->hwctx = ctx->device->hwctx;
  
 +    ctx->tail_pkt = av_packet_alloc();
-+    if (!ctx->tail_pkt)
++    if (!ctx->tail_pkt) {
++        err = AVERROR(ENOMEM);
 +        goto fail;
++    }
 +
      err = vaapi_encode_profile_entrypoint(avctx);
      if (err < 0)
          goto fail;
-@@ -2797,9 +2867,11 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
+@@ -2797,9 +2869,11 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
      }
  
      av_frame_free(&ctx->frame);
