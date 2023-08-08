@@ -1,7 +1,7 @@
-From a0e6e9a9f8f5b9ec507c518f3c225d59522db0b6 Mon Sep 17 00:00:00 2001
+From 49fdf5324b45193cbe2a5894ecb49de1cad675ec Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:14:16 +0800
-Subject: [PATCH 3/8] avcodec: add D3D12VA hardware accelerated HEVC decoding
+Subject: [PATCH 28/44] avcodec: add D3D12VA hardware accelerated HEVC decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -20,10 +20,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_hevc.c
 
 diff --git a/configure b/configure
-index f5dad4653f..3d25e5fdea 100755
+index e2012e9ebd..4da092bfb0 100755
 --- a/configure
 +++ b/configure
-@@ -3051,6 +3051,8 @@ hevc_d3d11va_hwaccel_deps="d3d11va DXVA_PicParams_HEVC"
+@@ -3111,6 +3111,8 @@ hevc_d3d11va_hwaccel_deps="d3d11va DXVA_PicParams_HEVC"
  hevc_d3d11va_hwaccel_select="hevc_decoder"
  hevc_d3d11va2_hwaccel_deps="d3d11va DXVA_PicParams_HEVC"
  hevc_d3d11va2_hwaccel_select="hevc_decoder"
@@ -33,10 +33,10 @@ index f5dad4653f..3d25e5fdea 100755
  hevc_dxva2_hwaccel_select="hevc_decoder"
  hevc_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index ae143d8821..6cc28f2fd0 100644
+index a015f4fe3e..aeda97fd93 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -1004,6 +1004,7 @@ OBJS-$(CONFIG_H264_VIDEOTOOLBOX_HWACCEL)  += videotoolbox.o
+@@ -1009,6 +1009,7 @@ OBJS-$(CONFIG_H264_VIDEOTOOLBOX_HWACCEL)  += videotoolbox.o
  OBJS-$(CONFIG_H264_VULKAN_HWACCEL)        += vulkan_decode.o vulkan_h264.o
  OBJS-$(CONFIG_HEVC_D3D11VA_HWACCEL)       += dxva2_hevc.o
  OBJS-$(CONFIG_HEVC_DXVA2_HWACCEL)         += dxva2_hevc.o
@@ -46,7 +46,7 @@ index ae143d8821..6cc28f2fd0 100644
  OBJS-$(CONFIG_HEVC_VAAPI_HWACCEL)         += vaapi_hevc.o h265_profile_level.o
 diff --git a/libavcodec/d3d12va_hevc.c b/libavcodec/d3d12va_hevc.c
 new file mode 100644
-index 0000000000..1d94831e01
+index 0000000000..91a6e2e5af
 --- /dev/null
 +++ b/libavcodec/d3d12va_hevc.c
 @@ -0,0 +1,211 @@
@@ -246,11 +246,11 @@ index 0000000000..1d94831e01
 +}
 +
 +#if CONFIG_HEVC_D3D12VA_HWACCEL
-+const AVHWAccel ff_hevc_d3d12va_hwaccel = {
-+    .name                 = "hevc_d3d12va",
-+    .type                 = AVMEDIA_TYPE_VIDEO,
-+    .id                   = AV_CODEC_ID_HEVC,
-+    .pix_fmt              = AV_PIX_FMT_D3D12,
++const FFHWAccel ff_hevc_d3d12va_hwaccel = {
++    .p.name               = "hevc_d3d12va",
++    .p.type               = AVMEDIA_TYPE_VIDEO,
++    .p.id                 = AV_CODEC_ID_HEVC,
++    .p.pix_fmt            = AV_PIX_FMT_D3D12,
 +    .init                 = d3d12va_hevc_decode_init,
 +    .uninit               = ff_d3d12va_decode_uninit,
 +    .start_frame          = d3d12va_hevc_start_frame,
@@ -262,10 +262,10 @@ index 0000000000..1d94831e01
 +};
 +#endif
 diff --git a/libavcodec/dxva2_hevc.c b/libavcodec/dxva2_hevc.c
-index 6b239d9917..2b8c0e2a9a 100644
+index b6c08943f0..80aa847186 100644
 --- a/libavcodec/dxva2_hevc.c
 +++ b/libavcodec/dxva2_hevc.c
-@@ -56,9 +56,10 @@ static int get_refpic_index(const DXVA_PicParams_HEVC *pp, int surface_index)
+@@ -57,9 +57,10 @@ static int get_refpic_index(const DXVA_PicParams_HEVC *pp, int surface_index)
      return 0xff;
  }
  
@@ -277,7 +277,7 @@ index 6b239d9917..2b8c0e2a9a 100644
      const HEVCFrame *current_picture = h->ref;
      const HEVCSPS *sps = h->ps.sps;
      const HEVCPPS *pps = h->ps.pps;
-@@ -199,8 +200,9 @@ static void fill_picture_parameters(const AVCodecContext *avctx, AVDXVAContext *
+@@ -200,8 +201,9 @@ static void fill_picture_parameters(const AVCodecContext *avctx, AVDXVAContext *
      pp->StatusReportFeedbackNumber = 1 + DXVA_CONTEXT_REPORT_ID(avctx, ctx)++;
  }
  
@@ -288,7 +288,7 @@ index 6b239d9917..2b8c0e2a9a 100644
      unsigned i, j, pos;
      const ScalingList *sl = h->ps.pps->scaling_list_data_present_flag ?
                              &h->ps.pps->scaling_list : &h->ps.sps->scaling_list;
-@@ -368,10 +370,10 @@ static int dxva2_hevc_start_frame(AVCodecContext *avctx,
+@@ -369,10 +371,10 @@ static int dxva2_hevc_start_frame(AVCodecContext *avctx,
      av_assert0(ctx_pic);
  
      /* Fill up DXVA_PicParams_HEVC */
@@ -315,7 +315,7 @@ index a9a1fc090e..08847aef22 100644
 +
  #endif /* AVCODEC_DXVA2_INTERNAL_H */
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index eee77ec4db..f515725aa7 100644
+index 91dbd24716..d91360b5ad 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -402,6 +402,7 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -346,7 +346,7 @@ index eee77ec4db..f515725aa7 100644
  #if CONFIG_HEVC_VAAPI_HWACCEL
          *fmt++ = AV_PIX_FMT_VAAPI;
  #endif
-@@ -3778,6 +3785,9 @@ const FFCodec ff_hevc_decoder = {
+@@ -3715,6 +3722,9 @@ const FFCodec ff_hevc_decoder = {
  #if CONFIG_HEVC_D3D11VA2_HWACCEL
                                 HWACCEL_D3D11VA2(hevc),
  #endif
@@ -357,17 +357,17 @@ index eee77ec4db..f515725aa7 100644
                                 HWACCEL_NVDEC(hevc),
  #endif
 diff --git a/libavcodec/hwaccels.h b/libavcodec/hwaccels.h
-index be54604b81..70e115f78a 100644
+index 90b8beb0f5..6b71919b0a 100644
 --- a/libavcodec/hwaccels.h
 +++ b/libavcodec/hwaccels.h
-@@ -41,6 +41,7 @@ extern const AVHWAccel ff_h264_videotoolbox_hwaccel;
- extern const AVHWAccel ff_h264_vulkan_hwaccel;
- extern const AVHWAccel ff_hevc_d3d11va_hwaccel;
- extern const AVHWAccel ff_hevc_d3d11va2_hwaccel;
-+extern const AVHWAccel ff_hevc_d3d12va_hwaccel;
- extern const AVHWAccel ff_hevc_dxva2_hwaccel;
- extern const AVHWAccel ff_hevc_nvdec_hwaccel;
- extern const AVHWAccel ff_hevc_vaapi_hwaccel;
+@@ -39,6 +39,7 @@ extern const struct FFHWAccel ff_h264_videotoolbox_hwaccel;
+ extern const struct FFHWAccel ff_h264_vulkan_hwaccel;
+ extern const struct FFHWAccel ff_hevc_d3d11va_hwaccel;
+ extern const struct FFHWAccel ff_hevc_d3d11va2_hwaccel;
++extern const struct FFHWAccel ff_hevc_d3d12va_hwaccel;
+ extern const struct FFHWAccel ff_hevc_dxva2_hwaccel;
+ extern const struct FFHWAccel ff_hevc_nvdec_hwaccel;
+ extern const struct FFHWAccel ff_hevc_vaapi_hwaccel;
 -- 
-2.35.1.windows.2
+2.34.1
 

@@ -1,7 +1,7 @@
-From cca37d9969d37bc9cc191e4cf8819b83351327d4 Mon Sep 17 00:00:00 2001
+From 2ca290ab08101689f9a99845c8ffdcb59034bd18 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Thu, 2 Jan 2020 11:12:15 +0800
-Subject: [PATCH 02/29] lavc/decode: Add internal surface re-allocate method
+Subject: [PATCH 02/44] lavc/decode: Add internal surface re-allocate method
  for hwaccel
 
 Add HWACCEL_CAP_INTERNAL_ALLOC flag to indicate hwaccels are able to
@@ -9,15 +9,15 @@ re-allocate surface internally through ff_decode_get_hw_frames_ctx.
 
 Signed-off-by: Linjie Fu <linjie.fu@intel.com>
 ---
- libavcodec/decode.c   | 36 ++++++++++++++++++++++++++++++++++++
- libavcodec/hwconfig.h |  1 +
- 2 files changed, 37 insertions(+)
+ libavcodec/decode.c           | 37 +++++++++++++++++++++++++++++++++++
+ libavcodec/hwaccel_internal.h |  1 +
+ 2 files changed, 38 insertions(+)
 
 diff --git a/libavcodec/decode.c b/libavcodec/decode.c
-index 0e4aa65889..d51849e97e 100644
+index 0aa238a3eb..de4574d4ff 100644
 --- a/libavcodec/decode.c
 +++ b/libavcodec/decode.c
-@@ -1186,6 +1186,33 @@ static const AVCodecHWConfigInternal *get_hw_config(AVCodecContext *avctx, enum
+@@ -1278,6 +1278,33 @@ static const AVCodecHWConfigInternal *get_hw_config(AVCodecContext *avctx, enum
      return hw_config;
  }
  
@@ -51,12 +51,13 @@ index 0e4aa65889..d51849e97e 100644
  int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
  {
      const AVPixFmtDescriptor *desc;
-@@ -1212,6 +1239,15 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
+@@ -1304,6 +1331,16 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
          return AV_PIX_FMT_NONE;
  
      for (;;) {
 +        if (avctx->internal->hwaccel_priv_data &&
-+            avctx->hwaccel->caps_internal & HWACCEL_CAP_INTERNAL_ALLOC) {
++            avctx->hwaccel &&
++            (ffhwaccel(avctx->hwaccel)->caps_internal & HWACCEL_CAP_INTERNAL_ALLOC)) {
 +            err = hwaccel_realloc_surface(avctx);
 +            if (err < 0)
 +                av_log(avctx, AV_LOG_WARNING, "Try to re-initialize all.\n");
@@ -67,18 +68,18 @@ index 0e4aa65889..d51849e97e 100644
          // Remove the previous hwaccel, if there was one.
          ff_hwaccel_uninit(avctx);
  
-diff --git a/libavcodec/hwconfig.h b/libavcodec/hwconfig.h
-index e8c6186151..9b0170a543 100644
---- a/libavcodec/hwconfig.h
-+++ b/libavcodec/hwconfig.h
-@@ -25,6 +25,7 @@
+diff --git a/libavcodec/hwaccel_internal.h b/libavcodec/hwaccel_internal.h
+index edfe283150..11c5727598 100644
+--- a/libavcodec/hwaccel_internal.h
++++ b/libavcodec/hwaccel_internal.h
+@@ -29,6 +29,7 @@
  
  #define HWACCEL_CAP_ASYNC_SAFE      (1 << 0)
  #define HWACCEL_CAP_THREAD_SAFE     (1 << 1)
 +#define HWACCEL_CAP_INTERNAL_ALLOC  (1 << 2)
  
- 
- typedef struct AVCodecHWConfigInternal {
+ typedef struct FFHWAccel {
+     /**
 -- 
 2.34.1
 
