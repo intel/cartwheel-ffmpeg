@@ -1,7 +1,7 @@
-From f789fe8e462bef35f5dd3a0db9e3fb3b14734e6f Mon Sep 17 00:00:00 2001
+From aec5f905104487d184afe8c72518bf7729718120 Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Mon, 8 May 2023 02:15:33 +0800
-Subject: [PATCH 7/8] avcodec: add D3D12VA hardware accelerated VC1 decoding
+Subject: [PATCH 32/44] avcodec: add D3D12VA hardware accelerated VC1 decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -14,16 +14,16 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  libavcodec/d3d12va_vc1.c    | 214 ++++++++++++++++++++++++++++++++++++
  libavcodec/dxva2_internal.h |   4 +
  libavcodec/dxva2_vc1.c      |  11 +-
- libavcodec/hwaccels.h       |   2 +
+ libavcodec/hwaccels.h       |   1 +
  libavcodec/vc1dec.c         |   9 ++
- 7 files changed, 239 insertions(+), 5 deletions(-)
+ 7 files changed, 238 insertions(+), 5 deletions(-)
  create mode 100644 libavcodec/d3d12va_vc1.c
 
 diff --git a/configure b/configure
-index 9f8c535f5c..c4a93a9d6e 100755
+index 87de5f790a..4bdee38193 100755
 --- a/configure
 +++ b/configure
-@@ -3107,6 +3107,8 @@ vc1_d3d11va_hwaccel_deps="d3d11va"
+@@ -3167,6 +3167,8 @@ vc1_d3d11va_hwaccel_deps="d3d11va"
  vc1_d3d11va_hwaccel_select="vc1_decoder"
  vc1_d3d11va2_hwaccel_deps="d3d11va"
  vc1_d3d11va2_hwaccel_select="vc1_decoder"
@@ -32,7 +32,7 @@ index 9f8c535f5c..c4a93a9d6e 100755
  vc1_dxva2_hwaccel_deps="dxva2"
  vc1_dxva2_hwaccel_select="vc1_decoder"
  vc1_nvdec_hwaccel_deps="nvdec"
-@@ -3137,6 +3139,7 @@ vp9_videotoolbox_hwaccel_deps="videotoolbox"
+@@ -3197,6 +3199,7 @@ vp9_videotoolbox_hwaccel_deps="videotoolbox"
  vp9_videotoolbox_hwaccel_select="vp9_decoder"
  wmv3_d3d11va_hwaccel_select="vc1_d3d11va_hwaccel"
  wmv3_d3d11va2_hwaccel_select="vc1_d3d11va2_hwaccel"
@@ -41,10 +41,10 @@ index 9f8c535f5c..c4a93a9d6e 100755
  wmv3_nvdec_hwaccel_select="vc1_nvdec_hwaccel"
  wmv3_vaapi_hwaccel_select="vc1_vaapi_hwaccel"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 98d4ff814d..9d5350d6e1 100644
+index ed1a9b0740..daba1b2ff1 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -1030,6 +1030,7 @@ OBJS-$(CONFIG_MPEG4_VDPAU_HWACCEL)        += vdpau_mpeg4.o
+@@ -1035,6 +1035,7 @@ OBJS-$(CONFIG_MPEG4_VDPAU_HWACCEL)        += vdpau_mpeg4.o
  OBJS-$(CONFIG_MPEG4_VIDEOTOOLBOX_HWACCEL) += videotoolbox.o
  OBJS-$(CONFIG_VC1_D3D11VA_HWACCEL)        += dxva2_vc1.o
  OBJS-$(CONFIG_VC1_DXVA2_HWACCEL)          += dxva2_vc1.o
@@ -54,7 +54,7 @@ index 98d4ff814d..9d5350d6e1 100644
  OBJS-$(CONFIG_VC1_VAAPI_HWACCEL)          += vaapi_vc1.o
 diff --git a/libavcodec/d3d12va_vc1.c b/libavcodec/d3d12va_vc1.c
 new file mode 100644
-index 0000000000..d577582a3f
+index 0000000000..bc8486fb7e
 --- /dev/null
 +++ b/libavcodec/d3d12va_vc1.c
 @@ -0,0 +1,214 @@
@@ -257,11 +257,11 @@ index 0000000000..d577582a3f
 +#endif
 +
 +#if CONFIG_VC1_D3D12VA_HWACCEL
-+const AVHWAccel ff_vc1_d3d12va_hwaccel = {
-+    .name                 = "vc1_d3d12va",
-+    .type                 = AVMEDIA_TYPE_VIDEO,
-+    .id                   = AV_CODEC_ID_VC1,
-+    .pix_fmt              = AV_PIX_FMT_D3D12,
++const FFHWAccel ff_vc1_d3d12va_hwaccel = {
++    .p.name               = "vc1_d3d12va",
++    .p.type               = AVMEDIA_TYPE_VIDEO,
++    .p.id                 = AV_CODEC_ID_VC1,
++    .p.pix_fmt            = AV_PIX_FMT_D3D12,
 +    .init                 = d3d12va_vc1_decode_init,
 +    .uninit               = ff_d3d12va_decode_uninit,
 +    .start_frame          = d3d12va_vc1_start_frame,
@@ -286,10 +286,10 @@ index 0c2097001c..2532e54877 100644
 +
  #endif /* AVCODEC_DXVA2_INTERNAL_H */
 diff --git a/libavcodec/dxva2_vc1.c b/libavcodec/dxva2_vc1.c
-index 12e3de59ec..be1baa418e 100644
+index b35fb115f7..a879ca1151 100644
 --- a/libavcodec/dxva2_vc1.c
 +++ b/libavcodec/dxva2_vc1.c
-@@ -39,10 +39,11 @@ struct dxva2_picture_context {
+@@ -40,10 +40,11 @@ struct dxva2_picture_context {
      unsigned               bitstream_size;
  };
  
@@ -303,7 +303,7 @@ index 12e3de59ec..be1baa418e 100644
      const MpegEncContext *s = &v->s;
      const Picture *current_picture = s->current_picture_ptr;
      int intcomp = 0;
-@@ -162,7 +163,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
+@@ -163,7 +164,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
      pp->bBitstreamConcealmentMethod = 0;
  }
  
@@ -312,7 +312,7 @@ index 12e3de59ec..be1baa418e 100644
                         unsigned position, unsigned size)
  {
      const VC1Context *v = avctx->priv_data;
-@@ -321,7 +322,7 @@ static int dxva2_vc1_start_frame(AVCodecContext *avctx,
+@@ -322,7 +323,7 @@ static int dxva2_vc1_start_frame(AVCodecContext *avctx,
          return -1;
      assert(ctx_pic);
  
@@ -321,7 +321,7 @@ index 12e3de59ec..be1baa418e 100644
  
      ctx_pic->slice_count    = 0;
      ctx_pic->bitstream_size = 0;
-@@ -355,7 +356,7 @@ static int dxva2_vc1_decode_slice(AVCodecContext *avctx,
+@@ -356,7 +357,7 @@ static int dxva2_vc1_decode_slice(AVCodecContext *avctx,
      ctx_pic->bitstream_size += size;
  
      position = buffer - ctx_pic->bitstream;
@@ -331,30 +331,22 @@ index 12e3de59ec..be1baa418e 100644
  }
  
 diff --git a/libavcodec/hwaccels.h b/libavcodec/hwaccels.h
-index 7443eaa5d8..79c4db3624 100644
+index 927314c5e3..cd722f3f69 100644
 --- a/libavcodec/hwaccels.h
 +++ b/libavcodec/hwaccels.h
-@@ -69,6 +69,7 @@ extern const AVHWAccel ff_mpeg4_videotoolbox_hwaccel;
- extern const AVHWAccel ff_prores_videotoolbox_hwaccel;
- extern const AVHWAccel ff_vc1_d3d11va_hwaccel;
- extern const AVHWAccel ff_vc1_d3d11va2_hwaccel;
-+extern const AVHWAccel ff_vc1_d3d12va_hwaccel;
- extern const AVHWAccel ff_vc1_dxva2_hwaccel;
- extern const AVHWAccel ff_vc1_nvdec_hwaccel;
- extern const AVHWAccel ff_vc1_vaapi_hwaccel;
-@@ -85,6 +86,7 @@ extern const AVHWAccel ff_vp9_vdpau_hwaccel;
- extern const AVHWAccel ff_vp9_videotoolbox_hwaccel;
- extern const AVHWAccel ff_wmv3_d3d11va_hwaccel;
- extern const AVHWAccel ff_wmv3_d3d11va2_hwaccel;
-+extern const AVHWAccel ff_wmv3_d3d12va_hwaccel;
- extern const AVHWAccel ff_wmv3_dxva2_hwaccel;
- extern const AVHWAccel ff_wmv3_nvdec_hwaccel;
- extern const AVHWAccel ff_wmv3_vaapi_hwaccel;
+@@ -67,6 +67,7 @@ extern const struct FFHWAccel ff_mpeg4_videotoolbox_hwaccel;
+ extern const struct FFHWAccel ff_prores_videotoolbox_hwaccel;
+ extern const struct FFHWAccel ff_vc1_d3d11va_hwaccel;
+ extern const struct FFHWAccel ff_vc1_d3d11va2_hwaccel;
++extern const struct FFHWAccel ff_vc1_d3d12va_hwaccel;
+ extern const struct FFHWAccel ff_vc1_dxva2_hwaccel;
+ extern const struct FFHWAccel ff_vc1_nvdec_hwaccel;
+ extern const struct FFHWAccel ff_vc1_vaapi_hwaccel;
 diff --git a/libavcodec/vc1dec.c b/libavcodec/vc1dec.c
-index 9e343d003f..db1e667dfc 100644
+index a2a0e8f56f..9dfaf6e8b7 100644
 --- a/libavcodec/vc1dec.c
 +++ b/libavcodec/vc1dec.c
-@@ -1385,6 +1385,9 @@ static const enum AVPixelFormat vc1_hwaccel_pixfmt_list_420[] = {
+@@ -1411,6 +1411,9 @@ static const enum AVPixelFormat vc1_hwaccel_pixfmt_list_420[] = {
      AV_PIX_FMT_D3D11VA_VLD,
      AV_PIX_FMT_D3D11,
  #endif
@@ -364,7 +356,7 @@ index 9e343d003f..db1e667dfc 100644
  #if CONFIG_VC1_NVDEC_HWACCEL
      AV_PIX_FMT_CUDA,
  #endif
-@@ -1420,6 +1423,9 @@ const FFCodec ff_vc1_decoder = {
+@@ -1446,6 +1449,9 @@ const FFCodec ff_vc1_decoder = {
  #if CONFIG_VC1_D3D11VA2_HWACCEL
                          HWACCEL_D3D11VA2(vc1),
  #endif
@@ -374,7 +366,7 @@ index 9e343d003f..db1e667dfc 100644
  #if CONFIG_VC1_NVDEC_HWACCEL
                          HWACCEL_NVDEC(vc1),
  #endif
-@@ -1457,6 +1463,9 @@ const FFCodec ff_wmv3_decoder = {
+@@ -1483,6 +1489,9 @@ const FFCodec ff_wmv3_decoder = {
  #if CONFIG_WMV3_D3D11VA2_HWACCEL
                          HWACCEL_D3D11VA2(wmv3),
  #endif
@@ -385,5 +377,5 @@ index 9e343d003f..db1e667dfc 100644
                          HWACCEL_NVDEC(wmv3),
  #endif
 -- 
-2.35.1.windows.2
+2.34.1
 

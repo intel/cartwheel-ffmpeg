@@ -1,7 +1,7 @@
-From 57248070272ee21aa4079df30e966c84bf3d7eeb Mon Sep 17 00:00:00 2001
+From 17253b4826640587b7a433472138912cef1de1ec Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:24:45 +0800
-Subject: [PATCH 4/8] avcodec: add D3D12VA hardware accelerated VP9 decoding
+Subject: [PATCH 29/44] avcodec: add D3D12VA hardware accelerated VP9 decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -20,10 +20,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_vp9.c
 
 diff --git a/configure b/configure
-index 3d25e5fdea..fa2548f3e2 100755
+index 4da092bfb0..a0f7b5b590 100755
 --- a/configure
 +++ b/configure
-@@ -3119,6 +3119,8 @@ vp9_d3d11va_hwaccel_deps="d3d11va DXVA_PicParams_VP9"
+@@ -3179,6 +3179,8 @@ vp9_d3d11va_hwaccel_deps="d3d11va DXVA_PicParams_VP9"
  vp9_d3d11va_hwaccel_select="vp9_decoder"
  vp9_d3d11va2_hwaccel_deps="d3d11va DXVA_PicParams_VP9"
  vp9_d3d11va2_hwaccel_select="vp9_decoder"
@@ -33,10 +33,10 @@ index 3d25e5fdea..fa2548f3e2 100755
  vp9_dxva2_hwaccel_select="vp9_decoder"
  vp9_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 6cc28f2fd0..d5a1bfef7a 100644
+index aeda97fd93..c7edb38d3b 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -1036,6 +1036,7 @@ OBJS-$(CONFIG_VP8_NVDEC_HWACCEL)          += nvdec_vp8.o
+@@ -1041,6 +1041,7 @@ OBJS-$(CONFIG_VP8_NVDEC_HWACCEL)          += nvdec_vp8.o
  OBJS-$(CONFIG_VP8_VAAPI_HWACCEL)          += vaapi_vp8.o
  OBJS-$(CONFIG_VP9_D3D11VA_HWACCEL)        += dxva2_vp9.o
  OBJS-$(CONFIG_VP9_DXVA2_HWACCEL)          += dxva2_vp9.o
@@ -46,7 +46,7 @@ index 6cc28f2fd0..d5a1bfef7a 100644
  OBJS-$(CONFIG_VP9_VDPAU_HWACCEL)          += vdpau_vp9.o
 diff --git a/libavcodec/d3d12va_vp9.c b/libavcodec/d3d12va_vp9.c
 new file mode 100644
-index 0000000000..dc1c461f5c
+index 0000000000..56a8f34f17
 --- /dev/null
 +++ b/libavcodec/d3d12va_vp9.c
 @@ -0,0 +1,176 @@
@@ -211,11 +211,11 @@ index 0000000000..dc1c461f5c
 +}
 +
 +#if CONFIG_VP9_D3D12VA_HWACCEL
-+const AVHWAccel ff_vp9_d3d12va_hwaccel = {
-+    .name                 = "vp9_d3d12va",
-+    .type                 = AVMEDIA_TYPE_VIDEO,
-+    .id                   = AV_CODEC_ID_VP9,
-+    .pix_fmt              = AV_PIX_FMT_D3D12,
++const FFHWAccel ff_vp9_d3d12va_hwaccel = {
++    .p.name               = "vp9_d3d12va",
++    .p.type               = AVMEDIA_TYPE_VIDEO,
++    .p.id                 = AV_CODEC_ID_VP9,
++    .p.pix_fmt            = AV_PIX_FMT_D3D12,
 +    .init                 = d3d12va_vp9_decode_init,
 +    .uninit               = ff_d3d12va_decode_uninit,
 +    .start_frame          = d3d12va_vp9_start_frame,
@@ -238,10 +238,10 @@ index 08847aef22..1de749f83b 100644
 +
  #endif /* AVCODEC_DXVA2_INTERNAL_H */
 diff --git a/libavcodec/dxva2_vp9.c b/libavcodec/dxva2_vp9.c
-index dbe6c08ad1..480d734acd 100644
+index eba4df9031..2fdb184cea 100644
 --- a/libavcodec/dxva2_vp9.c
 +++ b/libavcodec/dxva2_vp9.c
-@@ -42,11 +42,12 @@ static void fill_picture_entry(DXVA_PicEntry_VPx *pic,
+@@ -43,11 +43,12 @@ static void fill_picture_entry(DXVA_PicEntry_VPx *pic,
      pic->bPicEntry = index | (flag << 7);
  }
  
@@ -256,7 +256,7 @@ index dbe6c08ad1..480d734acd 100644
  
      if (!pixdesc)
          return -1;
-@@ -264,7 +265,7 @@ static int dxva2_vp9_start_frame(AVCodecContext *avctx,
+@@ -265,7 +266,7 @@ static int dxva2_vp9_start_frame(AVCodecContext *avctx,
      av_assert0(ctx_pic);
  
      /* Fill up DXVA_PicParams_VP9 */
@@ -266,22 +266,22 @@ index dbe6c08ad1..480d734acd 100644
  
      ctx_pic->bitstream_size = 0;
 diff --git a/libavcodec/hwaccels.h b/libavcodec/hwaccels.h
-index 70e115f78a..1059b6db70 100644
+index 6b71919b0a..1344b84326 100644
 --- a/libavcodec/hwaccels.h
 +++ b/libavcodec/hwaccels.h
-@@ -75,6 +75,7 @@ extern const AVHWAccel ff_vp8_nvdec_hwaccel;
- extern const AVHWAccel ff_vp8_vaapi_hwaccel;
- extern const AVHWAccel ff_vp9_d3d11va_hwaccel;
- extern const AVHWAccel ff_vp9_d3d11va2_hwaccel;
-+extern const AVHWAccel ff_vp9_d3d12va_hwaccel;
- extern const AVHWAccel ff_vp9_dxva2_hwaccel;
- extern const AVHWAccel ff_vp9_nvdec_hwaccel;
- extern const AVHWAccel ff_vp9_vaapi_hwaccel;
+@@ -73,6 +73,7 @@ extern const struct FFHWAccel ff_vp8_nvdec_hwaccel;
+ extern const struct FFHWAccel ff_vp8_vaapi_hwaccel;
+ extern const struct FFHWAccel ff_vp9_d3d11va_hwaccel;
+ extern const struct FFHWAccel ff_vp9_d3d11va2_hwaccel;
++extern const struct FFHWAccel ff_vp9_d3d12va_hwaccel;
+ extern const struct FFHWAccel ff_vp9_dxva2_hwaccel;
+ extern const struct FFHWAccel ff_vp9_nvdec_hwaccel;
+ extern const struct FFHWAccel ff_vp9_vaapi_hwaccel;
 diff --git a/libavcodec/vp9.c b/libavcodec/vp9.c
-index 4f704ec0dd..9a34cd331e 100644
+index 89f7549ef0..7b6e5e7c71 100644
 --- a/libavcodec/vp9.c
 +++ b/libavcodec/vp9.c
-@@ -184,6 +184,7 @@ static int update_size(AVCodecContext *avctx, int w, int h)
+@@ -181,6 +181,7 @@ static int update_size(AVCodecContext *avctx, int w, int h)
  {
  #define HWACCEL_MAX (CONFIG_VP9_DXVA2_HWACCEL + \
                       CONFIG_VP9_D3D11VA_HWACCEL * 2 + \
@@ -289,7 +289,7 @@ index 4f704ec0dd..9a34cd331e 100644
                       CONFIG_VP9_NVDEC_HWACCEL + \
                       CONFIG_VP9_VAAPI_HWACCEL + \
                       CONFIG_VP9_VDPAU_HWACCEL + \
-@@ -210,6 +211,9 @@ static int update_size(AVCodecContext *avctx, int w, int h)
+@@ -207,6 +208,9 @@ static int update_size(AVCodecContext *avctx, int w, int h)
              *fmtp++ = AV_PIX_FMT_D3D11VA_VLD;
              *fmtp++ = AV_PIX_FMT_D3D11;
  #endif
@@ -299,7 +299,7 @@ index 4f704ec0dd..9a34cd331e 100644
  #if CONFIG_VP9_NVDEC_HWACCEL
              *fmtp++ = AV_PIX_FMT_CUDA;
  #endif
-@@ -1910,6 +1914,9 @@ const FFCodec ff_vp9_decoder = {
+@@ -1908,6 +1912,9 @@ const FFCodec ff_vp9_decoder = {
  #if CONFIG_VP9_D3D11VA2_HWACCEL
                                 HWACCEL_D3D11VA2(vp9),
  #endif
@@ -310,5 +310,5 @@ index 4f704ec0dd..9a34cd331e 100644
                                 HWACCEL_NVDEC(vp9),
  #endif
 -- 
-2.35.1.windows.2
+2.34.1
 

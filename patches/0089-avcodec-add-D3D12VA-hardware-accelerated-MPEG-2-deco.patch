@@ -1,7 +1,8 @@
-From 7fad1a59d8644399d6f6f4cbf73a67af57165fa0 Mon Sep 17 00:00:00 2001
+From f239c5cab900c94d525ab297d69678599752b1cc Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Mon, 8 May 2023 01:08:20 +0800
-Subject: [PATCH 6/8] avcodec: add D3D12VA hardware accelerated MPEG-2 decoding
+Subject: [PATCH 31/44] avcodec: add D3D12VA hardware accelerated MPEG-2
+ decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -20,10 +21,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_mpeg2.c
 
 diff --git a/configure b/configure
-index 1d05c898fb..9f8c535f5c 100755
+index 8c92702704..87de5f790a 100755
 --- a/configure
 +++ b/configure
-@@ -3081,6 +3081,8 @@ mpeg2_d3d11va_hwaccel_deps="d3d11va"
+@@ -3141,6 +3141,8 @@ mpeg2_d3d11va_hwaccel_deps="d3d11va"
  mpeg2_d3d11va_hwaccel_select="mpeg2video_decoder"
  mpeg2_d3d11va2_hwaccel_deps="d3d11va"
  mpeg2_d3d11va2_hwaccel_select="mpeg2video_decoder"
@@ -33,10 +34,10 @@ index 1d05c898fb..9f8c535f5c 100755
  mpeg2_dxva2_hwaccel_select="mpeg2video_decoder"
  mpeg2_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index d2940aad4c..98d4ff814d 100644
+index 208522f0b0..ed1a9b0740 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -1018,6 +1018,7 @@ OBJS-$(CONFIG_MPEG1_VDPAU_HWACCEL)        += vdpau_mpeg12.o
+@@ -1023,6 +1023,7 @@ OBJS-$(CONFIG_MPEG1_VDPAU_HWACCEL)        += vdpau_mpeg12.o
  OBJS-$(CONFIG_MPEG1_VIDEOTOOLBOX_HWACCEL) += videotoolbox.o
  OBJS-$(CONFIG_MPEG2_D3D11VA_HWACCEL)      += dxva2_mpeg2.o
  OBJS-$(CONFIG_MPEG2_DXVA2_HWACCEL)        += dxva2_mpeg2.o
@@ -46,7 +47,7 @@ index d2940aad4c..98d4ff814d 100644
  OBJS-$(CONFIG_MPEG2_VAAPI_HWACCEL)        += vaapi_mpeg2.o
 diff --git a/libavcodec/d3d12va_mpeg2.c b/libavcodec/d3d12va_mpeg2.c
 new file mode 100644
-index 0000000000..3f93a417c6
+index 0000000000..098866ecb6
 --- /dev/null
 +++ b/libavcodec/d3d12va_mpeg2.c
 @@ -0,0 +1,191 @@
@@ -226,11 +227,11 @@ index 0000000000..3f93a417c6
 +}
 +
 +#if CONFIG_MPEG2_D3D12VA_HWACCEL
-+const AVHWAccel ff_mpeg2_d3d12va_hwaccel = {
-+    .name                 = "mpeg2_d3d12va",
-+    .type                 = AVMEDIA_TYPE_VIDEO,
-+    .id                   = AV_CODEC_ID_MPEG2VIDEO,
-+    .pix_fmt              = AV_PIX_FMT_D3D12,
++const FFHWAccel ff_mpeg2_d3d12va_hwaccel = {
++    .p.name               = "mpeg2_d3d12va",
++    .p.type               = AVMEDIA_TYPE_VIDEO,
++    .p.id                 = AV_CODEC_ID_MPEG2VIDEO,
++    .p.pix_fmt            = AV_PIX_FMT_D3D12,
 +    .init                 = d3d12va_mpeg2_decode_init,
 +    .uninit               = ff_d3d12va_decode_uninit,
 +    .start_frame          = d3d12va_mpeg2_start_frame,
@@ -257,10 +258,10 @@ index 5f317ad0fe..0c2097001c 100644
 +
  #endif /* AVCODEC_DXVA2_INTERNAL_H */
 diff --git a/libavcodec/dxva2_mpeg2.c b/libavcodec/dxva2_mpeg2.c
-index 1989c588dc..2e8e545113 100644
+index 75c416654f..fde7dae550 100644
 --- a/libavcodec/dxva2_mpeg2.c
 +++ b/libavcodec/dxva2_mpeg2.c
-@@ -39,11 +39,11 @@ struct dxva2_picture_context {
+@@ -40,11 +40,11 @@ struct dxva2_picture_context {
      unsigned               bitstream_size;
  };
  
@@ -274,7 +275,7 @@ index 1989c588dc..2e8e545113 100644
      const Picture *current_picture = s->current_picture_ptr;
      int is_field = s->picture_structure != PICT_FRAME;
  
-@@ -105,11 +105,11 @@ static void fill_picture_parameters(AVCodecContext *avctx,
+@@ -106,11 +106,11 @@ static void fill_picture_parameters(AVCodecContext *avctx,
      pp->bBitstreamConcealmentMethod  = 0;
  }
  
@@ -288,7 +289,7 @@ index 1989c588dc..2e8e545113 100644
      int i;
      for (i = 0; i < 4; i++)
          qm->bNewQmatrix[i] = 1;
-@@ -122,12 +122,12 @@ static void fill_quantization_matrices(AVCodecContext *avctx,
+@@ -123,12 +123,12 @@ static void fill_quantization_matrices(AVCodecContext *avctx,
      }
  }
  
@@ -303,7 +304,7 @@ index 1989c588dc..2e8e545113 100644
      int is_field = s->picture_structure != PICT_FRAME;
      GetBitContext gb;
  
-@@ -265,8 +265,8 @@ static int dxva2_mpeg2_start_frame(AVCodecContext *avctx,
+@@ -266,8 +266,8 @@ static int dxva2_mpeg2_start_frame(AVCodecContext *avctx,
          return -1;
      assert(ctx_pic);
  
@@ -314,7 +315,7 @@ index 1989c588dc..2e8e545113 100644
  
      ctx_pic->slice_count    = 0;
      ctx_pic->bitstream_size = 0;
-@@ -292,7 +292,7 @@ static int dxva2_mpeg2_decode_slice(AVCodecContext *avctx,
+@@ -293,7 +293,7 @@ static int dxva2_mpeg2_decode_slice(AVCodecContext *avctx,
      ctx_pic->bitstream_size += size;
  
      position = buffer - ctx_pic->bitstream;
@@ -324,22 +325,22 @@ index 1989c588dc..2e8e545113 100644
      return 0;
  }
 diff --git a/libavcodec/hwaccels.h b/libavcodec/hwaccels.h
-index 517e70d5c4..7443eaa5d8 100644
+index 1c4825f2fb..927314c5e3 100644
 --- a/libavcodec/hwaccels.h
 +++ b/libavcodec/hwaccels.h
-@@ -56,6 +56,7 @@ extern const AVHWAccel ff_mpeg1_vdpau_hwaccel;
- extern const AVHWAccel ff_mpeg1_videotoolbox_hwaccel;
- extern const AVHWAccel ff_mpeg2_d3d11va_hwaccel;
- extern const AVHWAccel ff_mpeg2_d3d11va2_hwaccel;
-+extern const AVHWAccel ff_mpeg2_d3d12va_hwaccel;
- extern const AVHWAccel ff_mpeg2_nvdec_hwaccel;
- extern const AVHWAccel ff_mpeg2_dxva2_hwaccel;
- extern const AVHWAccel ff_mpeg2_vaapi_hwaccel;
+@@ -54,6 +54,7 @@ extern const struct FFHWAccel ff_mpeg1_vdpau_hwaccel;
+ extern const struct FFHWAccel ff_mpeg1_videotoolbox_hwaccel;
+ extern const struct FFHWAccel ff_mpeg2_d3d11va_hwaccel;
+ extern const struct FFHWAccel ff_mpeg2_d3d11va2_hwaccel;
++extern const struct FFHWAccel ff_mpeg2_d3d12va_hwaccel;
+ extern const struct FFHWAccel ff_mpeg2_dxva2_hwaccel;
+ extern const struct FFHWAccel ff_mpeg2_nvdec_hwaccel;
+ extern const struct FFHWAccel ff_mpeg2_vaapi_hwaccel;
 diff --git a/libavcodec/mpeg12dec.c b/libavcodec/mpeg12dec.c
-index 27c862ffb2..2ceec3f9f0 100644
+index e645b8e24a..6ac2badc31 100644
 --- a/libavcodec/mpeg12dec.c
 +++ b/libavcodec/mpeg12dec.c
-@@ -1129,6 +1129,9 @@ static const enum AVPixelFormat mpeg2_hwaccel_pixfmt_list_420[] = {
+@@ -1130,6 +1130,9 @@ static const enum AVPixelFormat mpeg2_hwaccel_pixfmt_list_420[] = {
      AV_PIX_FMT_D3D11VA_VLD,
      AV_PIX_FMT_D3D11,
  #endif
@@ -349,7 +350,7 @@ index 27c862ffb2..2ceec3f9f0 100644
  #if CONFIG_MPEG2_VAAPI_HWACCEL
      AV_PIX_FMT_VAAPI,
  #endif
-@@ -2922,6 +2925,9 @@ const FFCodec ff_mpeg2video_decoder = {
+@@ -2928,6 +2931,9 @@ const FFCodec ff_mpeg2video_decoder = {
  #if CONFIG_MPEG2_D3D11VA2_HWACCEL
                          HWACCEL_D3D11VA2(mpeg2),
  #endif
@@ -360,5 +361,5 @@ index 27c862ffb2..2ceec3f9f0 100644
                          HWACCEL_NVDEC(mpeg2),
  #endif
 -- 
-2.35.1.windows.2
+2.34.1
 

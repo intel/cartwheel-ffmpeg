@@ -1,7 +1,7 @@
-From 8008cd080b08dfa3e4a0059e7304b9b1ac561337 Mon Sep 17 00:00:00 2001
+From ecc9647503b7d359e6cf4b73f39d6640a5d2318a Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 01:32:59 +0800
-Subject: [PATCH 2/8] avcodec: add D3D12VA hardware accelerated H264 decoding
+Subject: [PATCH 27/44] avcodec: add D3D12VA hardware accelerated H264 decoding
 
 The implementation is based on:
 https://learn.microsoft.com/en-us/windows/win32/medfound/direct3d-12-video-overview
@@ -21,7 +21,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  libavcodec/Makefile         |   3 +
  libavcodec/d3d11va.h        |   3 -
  libavcodec/d3d12va.c        | 552 ++++++++++++++++++++++++++++++++++++
- libavcodec/d3d12va.h        | 184 ++++++++++++
+ libavcodec/d3d12va.h        | 185 ++++++++++++
  libavcodec/d3d12va_h264.c   | 210 ++++++++++++++
  libavcodec/dxva2.c          |  24 ++
  libavcodec/dxva2.h          |   3 -
@@ -31,16 +31,16 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  libavcodec/h264dec.c        |   3 +
  libavcodec/hwaccels.h       |   1 +
  libavcodec/hwconfig.h       |   2 +
- 14 files changed, 1028 insertions(+), 42 deletions(-)
+ 14 files changed, 1029 insertions(+), 42 deletions(-)
  create mode 100644 libavcodec/d3d12va.c
  create mode 100644 libavcodec/d3d12va.h
  create mode 100644 libavcodec/d3d12va_h264.c
 
 diff --git a/configure b/configure
-index b86064e36f..f5dad4653f 100755
+index ed5f259109..e2012e9ebd 100755
 --- a/configure
 +++ b/configure
-@@ -3033,6 +3033,8 @@ h264_d3d11va_hwaccel_deps="d3d11va"
+@@ -3093,6 +3093,8 @@ h264_d3d11va_hwaccel_deps="d3d11va"
  h264_d3d11va_hwaccel_select="h264_decoder"
  h264_d3d11va2_hwaccel_deps="d3d11va"
  h264_d3d11va2_hwaccel_select="h264_decoder"
@@ -50,10 +50,10 @@ index b86064e36f..f5dad4653f 100755
  h264_dxva2_hwaccel_select="h264_decoder"
  h264_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 9aacc1d477..ae143d8821 100644
+index 3c16b51462..a015f4fe3e 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -977,6 +977,7 @@ OBJS-$(CONFIG_ADPCM_ZORK_DECODER)         += adpcm.o adpcm_data.o
+@@ -982,6 +982,7 @@ OBJS-$(CONFIG_ADPCM_ZORK_DECODER)         += adpcm.o adpcm_data.o
  
  # hardware accelerators
  OBJS-$(CONFIG_D3D11VA)                    += dxva2.o
@@ -61,7 +61,7 @@ index 9aacc1d477..ae143d8821 100644
  OBJS-$(CONFIG_DXVA2)                      += dxva2.o
  OBJS-$(CONFIG_NVDEC)                      += nvdec.o
  OBJS-$(CONFIG_VAAPI)                      += vaapi_decode.o
-@@ -994,6 +995,7 @@ OBJS-$(CONFIG_H263_VAAPI_HWACCEL)         += vaapi_mpeg4.o
+@@ -999,6 +1000,7 @@ OBJS-$(CONFIG_H263_VAAPI_HWACCEL)         += vaapi_mpeg4.o
  OBJS-$(CONFIG_H263_VIDEOTOOLBOX_HWACCEL)  += videotoolbox.o
  OBJS-$(CONFIG_H264_D3D11VA_HWACCEL)       += dxva2_h264.o
  OBJS-$(CONFIG_H264_DXVA2_HWACCEL)         += dxva2_h264.o
@@ -69,7 +69,7 @@ index 9aacc1d477..ae143d8821 100644
  OBJS-$(CONFIG_H264_NVDEC_HWACCEL)         += nvdec_h264.o
  OBJS-$(CONFIG_H264_QSV_HWACCEL)           += qsvdec.o
  OBJS-$(CONFIG_H264_VAAPI_HWACCEL)         += vaapi_h264.o
-@@ -1277,6 +1279,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
+@@ -1288,6 +1290,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
  
  SKIPHEADERS-$(CONFIG_AMF)              += amfenc.h
  SKIPHEADERS-$(CONFIG_D3D11VA)          += d3d11va.h dxva2_internal.h
@@ -651,10 +651,10 @@ index 0000000000..7f1fab7251
 +}
 diff --git a/libavcodec/d3d12va.h b/libavcodec/d3d12va.h
 new file mode 100644
-index 0000000000..da3e7b7ab9
+index 0000000000..0976e9d24e
 --- /dev/null
 +++ b/libavcodec/d3d12va.h
-@@ -0,0 +1,184 @@
+@@ -0,0 +1,185 @@
 +/*
 + * Direct3D 12 HW acceleration video decoder
 + *
@@ -685,6 +685,7 @@ index 0000000000..da3e7b7ab9
 +#include "libavutil/hwcontext_d3d12va.h"
 +#include "avcodec.h"
 +#include "internal.h"
++#include "hwaccel_internal.h"
 +
 +/**
 + * @brief This structure is used to provides the necessary configurations and data
@@ -841,7 +842,7 @@ index 0000000000..da3e7b7ab9
 +#endif /* AVCODEC_D3D12VA_DEC_H */
 diff --git a/libavcodec/d3d12va_h264.c b/libavcodec/d3d12va_h264.c
 new file mode 100644
-index 0000000000..0810a034b4
+index 0000000000..cca32aa084
 --- /dev/null
 +++ b/libavcodec/d3d12va_h264.c
 @@ -0,0 +1,210 @@
@@ -1040,11 +1041,11 @@ index 0000000000..0810a034b4
 +}
 +
 +#if CONFIG_H264_D3D12VA_HWACCEL
-+const AVHWAccel ff_h264_d3d12va_hwaccel = {
-+    .name                 = "h264_d3d12va",
-+    .type                 = AVMEDIA_TYPE_VIDEO,
-+    .id                   = AV_CODEC_ID_H264,
-+    .pix_fmt              = AV_PIX_FMT_D3D12,
++const FFHWAccel ff_h264_d3d12va_hwaccel = {
++    .p.name               = "h264_d3d12va",
++    .p.type               = AVMEDIA_TYPE_VIDEO,
++    .p.id                 = AV_CODEC_ID_H264,
++    .p.pix_fmt            = AV_PIX_FMT_D3D12,
 +    .init                 = d3d12va_h264_decode_init,
 +    .uninit               = ff_d3d12va_decode_uninit,
 +    .start_frame          = d3d12va_h264_start_frame,
@@ -1109,10 +1110,10 @@ index 22c93992f2..bdec6112e9 100644
   * This structure is used to provides the necessary configurations and data
   * to the DXVA2 FFmpeg HWAccel implementation.
 diff --git a/libavcodec/dxva2_h264.c b/libavcodec/dxva2_h264.c
-index 6300b1418d..7a076ea981 100644
+index 20e64f848d..4933159f43 100644
 --- a/libavcodec/dxva2_h264.c
 +++ b/libavcodec/dxva2_h264.c
-@@ -47,9 +47,10 @@ static void fill_picture_entry(DXVA_PicEntry_H264 *pic,
+@@ -48,9 +48,10 @@ static void fill_picture_entry(DXVA_PicEntry_H264 *pic,
      pic->bPicEntry = index | (flag << 7);
  }
  
@@ -1124,7 +1125,7 @@ index 6300b1418d..7a076ea981 100644
      const H264Picture *current_picture = h->cur_pic_ptr;
      const SPS *sps = h->ps.sps;
      const PPS *pps = h->ps.pps;
-@@ -163,9 +164,10 @@ static void fill_picture_parameters(const AVCodecContext *avctx, AVDXVAContext *
+@@ -164,9 +165,10 @@ static void fill_picture_parameters(const AVCodecContext *avctx, AVDXVAContext *
      //pp->SliceGroupMap[810];               /* XXX not implemented by FFmpeg */
  }
  
@@ -1137,7 +1138,7 @@ index 6300b1418d..7a076ea981 100644
      unsigned i, j;
      memset(qm, 0, sizeof(*qm));
      if (DXVA_CONTEXT_WORKAROUND(avctx, ctx) & FF_DXVA2_WORKAROUND_SCALING_LIST_ZIGZAG) {
-@@ -453,10 +455,10 @@ static int dxva2_h264_start_frame(AVCodecContext *avctx,
+@@ -454,10 +456,10 @@ static int dxva2_h264_start_frame(AVCodecContext *avctx,
      assert(ctx_pic);
  
      /* Fill up DXVA_PicParams_H264 */
@@ -1262,10 +1263,10 @@ index b822af59cd..a9a1fc090e 100644
 +
  #endif /* AVCODEC_DXVA2_INTERNAL_H */
 diff --git a/libavcodec/h264_slice.c b/libavcodec/h264_slice.c
-index 41bf30eefc..df70ad8a2f 100644
+index 6cd7bb8fe7..ac36e59ddd 100644
 --- a/libavcodec/h264_slice.c
 +++ b/libavcodec/h264_slice.c
-@@ -778,6 +778,7 @@ static enum AVPixelFormat get_pixel_format(H264Context *h, int force_callback)
+@@ -799,6 +799,7 @@ static enum AVPixelFormat get_pixel_format(H264Context *h, int force_callback)
  {
  #define HWACCEL_MAX (CONFIG_H264_DXVA2_HWACCEL + \
                       (CONFIG_H264_D3D11VA_HWACCEL * 2) + \
@@ -1273,7 +1274,7 @@ index 41bf30eefc..df70ad8a2f 100644
                       CONFIG_H264_NVDEC_HWACCEL + \
                       CONFIG_H264_VAAPI_HWACCEL + \
                       CONFIG_H264_VIDEOTOOLBOX_HWACCEL + \
-@@ -883,6 +884,9 @@ static enum AVPixelFormat get_pixel_format(H264Context *h, int force_callback)
+@@ -902,6 +903,9 @@ static enum AVPixelFormat get_pixel_format(H264Context *h, int force_callback)
              *fmt++ = AV_PIX_FMT_D3D11VA_VLD;
              *fmt++ = AV_PIX_FMT_D3D11;
  #endif
@@ -1284,10 +1285,10 @@ index 41bf30eefc..df70ad8a2f 100644
              *fmt++ = AV_PIX_FMT_VAAPI;
  #endif
 diff --git a/libavcodec/h264dec.c b/libavcodec/h264dec.c
-index 19f8dba131..853d3262f7 100644
+index 1c79d9842f..4dce5c8386 100644
 --- a/libavcodec/h264dec.c
 +++ b/libavcodec/h264dec.c
-@@ -1089,6 +1089,9 @@ const FFCodec ff_h264_decoder = {
+@@ -1086,6 +1086,9 @@ const FFCodec ff_h264_decoder = {
  #if CONFIG_H264_D3D11VA2_HWACCEL
                                 HWACCEL_D3D11VA2(h264),
  #endif
@@ -1298,22 +1299,22 @@ index 19f8dba131..853d3262f7 100644
                                 HWACCEL_NVDEC(h264),
  #endif
 diff --git a/libavcodec/hwaccels.h b/libavcodec/hwaccels.h
-index 48dfc17f72..be54604b81 100644
+index c4630718cf..90b8beb0f5 100644
 --- a/libavcodec/hwaccels.h
 +++ b/libavcodec/hwaccels.h
-@@ -32,6 +32,7 @@ extern const AVHWAccel ff_h263_vaapi_hwaccel;
- extern const AVHWAccel ff_h263_videotoolbox_hwaccel;
- extern const AVHWAccel ff_h264_d3d11va_hwaccel;
- extern const AVHWAccel ff_h264_d3d11va2_hwaccel;
-+extern const AVHWAccel ff_h264_d3d12va_hwaccel;
- extern const AVHWAccel ff_h264_dxva2_hwaccel;
- extern const AVHWAccel ff_h264_nvdec_hwaccel;
- extern const AVHWAccel ff_h264_vaapi_hwaccel;
+@@ -30,6 +30,7 @@ extern const struct FFHWAccel ff_h263_vaapi_hwaccel;
+ extern const struct FFHWAccel ff_h263_videotoolbox_hwaccel;
+ extern const struct FFHWAccel ff_h264_d3d11va_hwaccel;
+ extern const struct FFHWAccel ff_h264_d3d11va2_hwaccel;
++extern const struct FFHWAccel ff_h264_d3d12va_hwaccel;
+ extern const struct FFHWAccel ff_h264_dxva2_hwaccel;
+ extern const struct FFHWAccel ff_h264_nvdec_hwaccel;
+ extern const struct FFHWAccel ff_h264_vaapi_hwaccel;
 diff --git a/libavcodec/hwconfig.h b/libavcodec/hwconfig.h
-index e8c6186151..e20118c096 100644
+index e164722a94..ee29ca631d 100644
 --- a/libavcodec/hwconfig.h
 +++ b/libavcodec/hwconfig.h
-@@ -82,6 +82,8 @@ void ff_hwaccel_uninit(AVCodecContext *avctx);
+@@ -77,6 +77,8 @@ void ff_hwaccel_uninit(AVCodecContext *avctx);
      HW_CONFIG_HWACCEL(1, 1, 1, VULKAN,       VULKAN,       ff_ ## codec ## _vulkan_hwaccel)
  #define HWACCEL_D3D11VA(codec) \
      HW_CONFIG_HWACCEL(0, 0, 1, D3D11VA_VLD,  NONE,         ff_ ## codec ## _d3d11va_hwaccel)
@@ -1323,5 +1324,5 @@ index e8c6186151..e20118c096 100644
  #define HW_CONFIG_ENCODER(device, frames, ad_hoc, format, device_type_) \
      &(const AVCodecHWConfigInternal) { \
 -- 
-2.35.1.windows.2
+2.34.1
 
