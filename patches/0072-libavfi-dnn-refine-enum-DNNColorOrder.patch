@@ -1,7 +1,7 @@
-From e64c5cb1ea0b84aab955b9dddfbd9a506a92772f Mon Sep 17 00:00:00 2001
+From b293384498d7977e406a9bf54746e82723d3133a Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 29 Nov 2021 23:49:36 +0800
-Subject: [PATCH 20/41] libavfi/dnn: refine enum DNNColorOrder
+Subject: [PATCH] libavfi/dnn: refine enum DNNColorOrder
 
 Change the DCO_RGB and DCO_BGR color order in DNNColorOrder to
 DCO_RGB_PACKED and DCO_GBR_PACKED for following RGB planar support.
@@ -15,11 +15,11 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  4 files changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index 46cbe8270e..ca72071cc6 100644
+index 4922833b07..6975a1f442 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
-@@ -157,7 +157,7 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
-     input.dt = precision_to_datatype(precision);
+@@ -268,7 +268,7 @@ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
+ #endif
      // all models in openvino open model zoo use BGR as input,
      // change to be an option when necessary.
 -    input.order = DCO_BGR;
