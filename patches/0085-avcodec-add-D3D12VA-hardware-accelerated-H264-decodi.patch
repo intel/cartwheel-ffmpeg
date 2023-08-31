@@ -1,7 +1,7 @@
-From ecc9647503b7d359e6cf4b73f39d6640a5d2318a Mon Sep 17 00:00:00 2001
+From c68c9c284e300d2d34a30f90a66ab75589bb1a35 Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 01:32:59 +0800
-Subject: [PATCH 27/44] avcodec: add D3D12VA hardware accelerated H264 decoding
+Subject: [PATCH 02/19] avcodec: add D3D12VA hardware accelerated H264 decoding
 
 The implementation is based on:
 https://learn.microsoft.com/en-us/windows/win32/medfound/direct3d-12-video-overview
@@ -20,24 +20,24 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  configure                   |   2 +
  libavcodec/Makefile         |   3 +
  libavcodec/d3d11va.h        |   3 -
- libavcodec/d3d12va.c        | 552 ++++++++++++++++++++++++++++++++++++
- libavcodec/d3d12va.h        | 185 ++++++++++++
+ libavcodec/d3d12va_decode.c | 529 ++++++++++++++++++++++++++++++++++++
+ libavcodec/d3d12va_decode.h | 176 ++++++++++++
  libavcodec/d3d12va_h264.c   | 210 ++++++++++++++
- libavcodec/dxva2.c          |  24 ++
+ libavcodec/dxva2.c          |  27 ++
  libavcodec/dxva2.h          |   3 -
  libavcodec/dxva2_h264.c     |  12 +-
- libavcodec/dxva2_internal.h |  67 +++--
+ libavcodec/dxva2_internal.h |  67 ++---
  libavcodec/h264_slice.c     |   4 +
  libavcodec/h264dec.c        |   3 +
  libavcodec/hwaccels.h       |   1 +
  libavcodec/hwconfig.h       |   2 +
- 14 files changed, 1029 insertions(+), 42 deletions(-)
- create mode 100644 libavcodec/d3d12va.c
- create mode 100644 libavcodec/d3d12va.h
+ 14 files changed, 1000 insertions(+), 42 deletions(-)
+ create mode 100644 libavcodec/d3d12va_decode.c
+ create mode 100644 libavcodec/d3d12va_decode.h
  create mode 100644 libavcodec/d3d12va_h264.c
 
 diff --git a/configure b/configure
-index ed5f259109..e2012e9ebd 100755
+index 945e1b8766..b381838308 100755
 --- a/configure
 +++ b/configure
 @@ -3093,6 +3093,8 @@ h264_d3d11va_hwaccel_deps="d3d11va"
@@ -50,14 +50,14 @@ index ed5f259109..e2012e9ebd 100755
  h264_dxva2_hwaccel_select="h264_decoder"
  h264_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 3c16b51462..a015f4fe3e 100644
+index f961d0abd6..a7808937ce 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -982,6 +982,7 @@ OBJS-$(CONFIG_ADPCM_ZORK_DECODER)         += adpcm.o adpcm_data.o
  
  # hardware accelerators
  OBJS-$(CONFIG_D3D11VA)                    += dxva2.o
-+OBJS-$(CONFIG_D3D12VA)                    += dxva2.o d3d12va.o
++OBJS-$(CONFIG_D3D12VA)                    += dxva2.o d3d12va_decode.o
  OBJS-$(CONFIG_DXVA2)                      += dxva2.o
  OBJS-$(CONFIG_NVDEC)                      += nvdec.o
  OBJS-$(CONFIG_VAAPI)                      += vaapi_decode.o
@@ -69,11 +69,11 @@ index 3c16b51462..a015f4fe3e 100644
  OBJS-$(CONFIG_H264_NVDEC_HWACCEL)         += nvdec_h264.o
  OBJS-$(CONFIG_H264_QSV_HWACCEL)           += qsvdec.o
  OBJS-$(CONFIG_H264_VAAPI_HWACCEL)         += vaapi_h264.o
-@@ -1288,6 +1290,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
+@@ -1291,6 +1293,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
  
  SKIPHEADERS-$(CONFIG_AMF)              += amfenc.h
  SKIPHEADERS-$(CONFIG_D3D11VA)          += d3d11va.h dxva2_internal.h
-+SKIPHEADERS-$(CONFIG_D3D12VA)          += d3d12va.h
++SKIPHEADERS-$(CONFIG_D3D12VA)          += d3d12va_decode.h
  SKIPHEADERS-$(CONFIG_DXVA2)            += dxva2.h dxva2_internal.h
  SKIPHEADERS-$(CONFIG_JNI)              += ffjni.h
  SKIPHEADERS-$(CONFIG_LCMS2)            += fflcms2.h
@@ -91,12 +91,12 @@ index 6816b6c1e6..27f40e5519 100644
  /**
   * This structure is used to provides the necessary configurations and data
   * to the Direct3D11 FFmpeg HWAccel implementation.
-diff --git a/libavcodec/d3d12va.c b/libavcodec/d3d12va.c
+diff --git a/libavcodec/d3d12va_decode.c b/libavcodec/d3d12va_decode.c
 new file mode 100644
-index 0000000000..7f1fab7251
+index 0000000000..c42f8f3434
 --- /dev/null
-+++ b/libavcodec/d3d12va.c
-@@ -0,0 +1,552 @@
++++ b/libavcodec/d3d12va_decode.c
+@@ -0,0 +1,529 @@
 +/*
 + * Direct3D 12 HW acceleration video decoder
 + *
@@ -131,7 +131,7 @@ index 0000000000..7f1fab7251
 +#include "libavutil/hwcontext_d3d12va.h"
 +#include "avcodec.h"
 +#include "decode.h"
-+#include "d3d12va.h"
++#include "d3d12va_decode.h"
 +
 +typedef struct CommandAllocator {
 +    ID3D12CommandAllocator *command_allocator;
@@ -186,6 +186,19 @@ index 0000000000..7f1fab7251
 +    return 0;
 +}
 +
++static int d3d12va_wait_idle(AVD3D12VASyncContext *sync_ctx)
++{
++    uint64_t completion = ID3D12Fence_GetCompletedValue(sync_ctx->fence);
++    if (completion < sync_ctx->fence_value) {
++        if (FAILED(ID3D12Fence_SetEventOnCompletion(sync_ctx->fence, sync_ctx->fence_value, sync_ctx->event)))
++            return AVERROR(EINVAL);
++
++        WaitForSingleObjectEx(sync_ctx->event, INFINITE, FALSE);
++    }
++
++    return 0;
++}
++
 +static void bufref_free_interface(void *opaque, uint8_t *data)
 +{
 +    D3D12_OBJECT_RELEASE(opaque);
@@ -231,7 +244,11 @@ index 0000000000..7f1fab7251
 +    D3D12VADecodeContext *ctx      = D3D12VA_DECODE_CONTEXT(avctx);
 +    AVD3D12VASyncContext *sync_ctx = ctx->sync_ctx;
 +
-+    return av_d3d12va_wait_queue_idle(sync_ctx, ctx->command_queue);
++    DX_CHECK(ID3D12CommandQueue_Signal(ctx->command_queue, sync_ctx->fence, ++sync_ctx->fence_value));
++    return d3d12va_wait_idle(sync_ctx);
++
++fail:
++    return AVERROR(EINVAL);
 +}
 +
 +static int d3d12va_create_decoder_heap(AVCodecContext *avctx)
@@ -478,29 +495,13 @@ index 0000000000..7f1fab7251
 +    return 0;
 +}
 +
-+static ID3D12Resource *get_surface(const AVFrame *frame)
-+{
-+    return (ID3D12Resource *)frame->data[0];
-+}
-+
-+intptr_t ff_d3d12va_get_surface_index(AVCodecContext *ctx, const AVFrame* frame)
-+{
-+    return (intptr_t)frame->data[1];
-+}
-+
-+static AVD3D12VASyncContext *d3d12va_get_sync_context(const AVFrame *frame)
-+{
-+    return (AVD3D12VASyncContext *)frame->data[2];
-+}
-+
-+static int d3d12va_begin_update_reference_frames(AVCodecContext *avctx, D3D12_RESOURCE_BARRIER *barriers, int index)
++static inline int d3d12va_update_reference_frames_state(AVCodecContext *avctx, D3D12_RESOURCE_BARRIER *barriers, int index, int state_before, int state_end)
 +{
 +    D3D12VADecodeContext   *ctx          = D3D12VA_DECODE_CONTEXT(avctx);
 +    AVHWFramesContext      *frames_ctx   = D3D12VA_FRAMES_CONTEXT(avctx);
 +    AVD3D12VAFramesContext *frames_hwctx = frames_ctx->hwctx;
 +
 +    int num_barrier = 0;
-+
 +    for (int i = 0; i < ctx->max_num_ref; i++) {
 +        if (ctx->ref_resources[i] && ctx->ref_resources[i] != frames_hwctx->texture_infos[index].texture) {
 +            barriers[num_barrier].Type  = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -508,32 +509,14 @@ index 0000000000..7f1fab7251
 +            barriers[num_barrier].Transition = (D3D12_RESOURCE_TRANSITION_BARRIER){
 +                .pResource   = ctx->ref_resources[i],
 +                .Subresource = 0,
-+                .StateBefore = D3D12_RESOURCE_STATE_COMMON,
-+                .StateAfter  = D3D12_RESOURCE_STATE_VIDEO_DECODE_READ,
++                .StateBefore = state_before,
++                .StateAfter  = state_end,
 +            };
 +            num_barrier++;
 +        }
 +    }
 +
 +    return num_barrier;
-+}
-+
-+static void d3d12va_end_update_reference_frames(AVCodecContext *avctx, D3D12_RESOURCE_BARRIER *barriers, int index)
-+{
-+    D3D12VADecodeContext   *ctx          = D3D12VA_DECODE_CONTEXT(avctx);
-+    AVHWFramesContext      *frames_ctx   = D3D12VA_FRAMES_CONTEXT(avctx);
-+    AVD3D12VAFramesContext *frames_hwctx = frames_ctx->hwctx;
-+    int num_barrier = 0;
-+
-+    for (int i = 0; i < ctx->max_num_ref; i++) {
-+        if (ctx->ref_resources[i] && ctx->ref_resources[i] != frames_hwctx->texture_infos[index].texture) {
-+            barriers[num_barrier].Transition.pResource = ctx->ref_resources[i];
-+            barriers[num_barrier].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-+            barriers[num_barrier].Transition.StateBefore = D3D12_RESOURCE_STATE_VIDEO_DECODE_READ;
-+            barriers[num_barrier].Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-+            num_barrier++;
-+        }
-+    }
 +}
 +
 +int ff_d3d12va_common_end_frame(AVCodecContext *avctx, AVFrame *frame,
@@ -546,13 +529,13 @@ index 0000000000..7f1fab7251
 +    AVHWFramesContext      *frames_ctx        = D3D12VA_FRAMES_CONTEXT(avctx);
 +    AVD3D12VAFramesContext *frames_hwctx      = frames_ctx->hwctx;
 +    ID3D12CommandAllocator *command_allocator = NULL;
-+
-+    ID3D12Resource *resource = get_surface(frame);
-+    UINT index = ff_d3d12va_get_surface_index(avctx, frame);
-+    AVD3D12VASyncContext *sync_ctx = d3d12va_get_sync_context(frame);
++    AVD3D12VAFrame         *f                 = (AVD3D12VAFrame *)frame->data[0];
++    ID3D12Resource         *resource          = (ID3D12Resource *)f->texture;
++    AVD3D12VASyncContext   *sync_ctx          = (AVD3D12VASyncContext *)f->sync_ctx;
++    intptr_t                index             = (intptr_t)f->index;
 +
 +    ID3D12VideoDecodeCommandList *cmd_list = ctx->command_list;
-+    D3D12_RESOURCE_BARRIER barriers[D3D12VA_MAX_SURFACES] = { 0 };
++    D3D12_RESOURCE_BARRIER barriers[32] = { 0 };
 +
 +    D3D12_VIDEO_DECODE_INPUT_STREAM_ARGUMENTS input_args = {
 +        .NumFrameArguments = 2,
@@ -595,7 +578,7 @@ index 0000000000..7f1fab7251
 +    input_args.ReferenceFrames.ppTexture2Ds  = ctx->ref_resources;
 +    input_args.ReferenceFrames.pSubresources = ctx->ref_subresources;
 +
-+    av_d3d12va_wait_idle(sync_ctx);
++    d3d12va_wait_idle(sync_ctx);
 +
 +    if (!qm)
 +        input_args.NumFrameArguments = 1;
@@ -612,7 +595,7 @@ index 0000000000..7f1fab7251
 +
 +    DX_CHECK(ID3D12VideoDecodeCommandList_Reset(cmd_list, command_allocator));
 +
-+    num_barrier += d3d12va_begin_update_reference_frames(avctx, &barriers[1], index);
++    num_barrier += d3d12va_update_reference_frames_state(avctx, &barriers[1], index, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_DECODE_READ);
 +
 +    ID3D12VideoDecodeCommandList_ResourceBarrier(cmd_list, num_barrier, barriers);
 +
@@ -620,7 +603,7 @@ index 0000000000..7f1fab7251
 +
 +    barriers[0].Transition.StateBefore = barriers[0].Transition.StateAfter;
 +    barriers[0].Transition.StateAfter  = D3D12_RESOURCE_STATE_COMMON;
-+    d3d12va_end_update_reference_frames(avctx, &barriers[1], index);
++    d3d12va_update_reference_frames_state(avctx, &barriers[1], index, D3D12_RESOURCE_STATE_VIDEO_DECODE_READ, D3D12_RESOURCE_STATE_COMMON);
 +
 +    ID3D12VideoDecodeCommandList_ResourceBarrier(cmd_list, num_barrier, barriers);
 +
@@ -636,12 +619,6 @@ index 0000000000..7f1fab7251
 +    if (ret < 0)
 +        return ret;
 +
-+    if (ctx->device_ctx->sync) {
-+        ret = av_d3d12va_wait_idle(ctx->sync_ctx);
-+        if (ret < 0)
-+            return ret;
-+    }
-+
 +    return 0;
 +
 +fail:
@@ -649,12 +626,12 @@ index 0000000000..7f1fab7251
 +        d3d12va_discard_command_allocator(avctx, command_allocator, ctx->sync_ctx->fence_value);
 +    return AVERROR(EINVAL);
 +}
-diff --git a/libavcodec/d3d12va.h b/libavcodec/d3d12va.h
+diff --git a/libavcodec/d3d12va_decode.h b/libavcodec/d3d12va_decode.h
 new file mode 100644
-index 0000000000..0976e9d24e
+index 0000000000..7c910c6933
 --- /dev/null
-+++ b/libavcodec/d3d12va.h
-@@ -0,0 +1,185 @@
++++ b/libavcodec/d3d12va_decode.h
+@@ -0,0 +1,176 @@
 +/*
 + * Direct3D 12 HW acceleration video decoder
 + *
@@ -677,8 +654,8 @@ index 0000000000..0976e9d24e
 + * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 + */
 +
-+#ifndef AVCODEC_D3D12VA_H
-+#define AVCODEC_D3D12VA_H
++#ifndef AVCODEC_D3D12VA_DECODE_H
++#define AVCODEC_D3D12VA_DECODE_H
 +
 +#include "libavutil/fifo.h"
 +#include "libavutil/hwcontext.h"
@@ -688,10 +665,8 @@ index 0000000000..0976e9d24e
 +#include "hwaccel_internal.h"
 +
 +/**
-+ * @brief This structure is used to provides the necessary configurations and data
++ * @brief This structure is used to provide the necessary configurations and data
 + * to the FFmpeg Direct3D 12 HWAccel implementation for video decoder.
-+ *
-+ * The application must make it available as AVCodecContext.hwaccel_context.
 + */
 +typedef struct D3D12VADecodeContext {
 +    AVBufferRef *decoder_ref;
@@ -832,17 +807,10 @@ index 0000000000..0976e9d24e
 +    const void *qm, unsigned qm_size,
 +    int(*)(AVCodecContext *, D3D12_VIDEO_DECODE_INPUT_STREAM_ARGUMENTS *, ID3D12Resource *));
 +
-+/**
-+ * @brief get surface index
-+ *
-+ * @return index
-+ */
-+intptr_t ff_d3d12va_get_surface_index(AVCodecContext *avctx, const AVFrame *frame);
-+
 +#endif /* AVCODEC_D3D12VA_DEC_H */
 diff --git a/libavcodec/d3d12va_h264.c b/libavcodec/d3d12va_h264.c
 new file mode 100644
-index 0000000000..cca32aa084
+index 0000000000..a44855bdc6
 --- /dev/null
 +++ b/libavcodec/d3d12va_h264.c
 @@ -0,0 +1,210 @@
@@ -875,7 +843,7 @@ index 0000000000..cca32aa084
 +#include "h264_ps.h"
 +#include "mpegutils.h"
 +#include "dxva2_internal.h"
-+#include "d3d12va.h"
++#include "d3d12va_decode.h"
 +#include "libavutil/hwcontext_d3d12va_internal.h"
 +#include <dxva.h>
 +
@@ -1057,21 +1025,24 @@ index 0000000000..cca32aa084
 +};
 +#endif
 diff --git a/libavcodec/dxva2.c b/libavcodec/dxva2.c
-index 568d686f39..b22ea3e8f2 100644
+index 568d686f39..09a387112c 100644
 --- a/libavcodec/dxva2.c
 +++ b/libavcodec/dxva2.c
-@@ -774,6 +774,10 @@ unsigned ff_dxva2_get_surface_index(const AVCodecContext *avctx,
+@@ -774,6 +774,13 @@ unsigned ff_dxva2_get_surface_index(const AVCodecContext *avctx,
      void *surface = get_surface(avctx, frame);
      unsigned i;
  
 +#if CONFIG_D3D12VA
-+    if (avctx->pix_fmt == AV_PIX_FMT_D3D12)
-+        return (intptr_t)frame->data[1];
++    if (avctx->pix_fmt == AV_PIX_FMT_D3D12) {
++        AVD3D12VAFrame *f = (AVD3D12VAFrame *)frame->data[0];
++        if (!f) return 0;
++        return (intptr_t)f->index;
++    }
 +#endif
  #if CONFIG_D3D11VA
      if (avctx->pix_fmt == AV_PIX_FMT_D3D11)
          return (intptr_t)frame->data[1];
-@@ -1056,3 +1060,23 @@ int ff_dxva2_is_d3d11(const AVCodecContext *avctx)
+@@ -1056,3 +1063,23 @@ int ff_dxva2_is_d3d11(const AVCodecContext *avctx)
      else
          return 0;
  }
@@ -1152,7 +1123,7 @@ index 20e64f848d..4933159f43 100644
      ctx_pic->slice_count    = 0;
      ctx_pic->bitstream_size = 0;
 diff --git a/libavcodec/dxva2_internal.h b/libavcodec/dxva2_internal.h
-index b822af59cd..a9a1fc090e 100644
+index b822af59cd..e66e2c9769 100644
 --- a/libavcodec/dxva2_internal.h
 +++ b/libavcodec/dxva2_internal.h
 @@ -26,18 +26,34 @@
@@ -1184,7 +1155,7 @@ index b822af59cd..a9a1fc090e 100644
 +#endif
 +
 +#if CONFIG_D3D12VA
-+#include "d3d12va.h"
++#include "d3d12va_decode.h"
  #endif
 +
  #if HAVE_DXVA_H
@@ -1324,5 +1295,5 @@ index e164722a94..ee29ca631d 100644
  #define HW_CONFIG_ENCODER(device, frames, ad_hoc, format, device_type_) \
      &(const AVCodecHWConfigInternal) { \
 -- 
-2.34.1
+2.41.0.windows.1
 
