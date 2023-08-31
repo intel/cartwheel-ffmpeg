@@ -1,7 +1,7 @@
-From 17253b4826640587b7a433472138912cef1de1ec Mon Sep 17 00:00:00 2001
+From 97a614d4d94beeb2a4cc61ee4715723f805d6846 Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:24:45 +0800
-Subject: [PATCH 29/44] avcodec: add D3D12VA hardware accelerated VP9 decoding
+Subject: [PATCH 04/19] avcodec: add D3D12VA hardware accelerated VP9 decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -20,7 +20,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_vp9.c
 
 diff --git a/configure b/configure
-index 4da092bfb0..a0f7b5b590 100755
+index efcac1b434..8e0cc23062 100755
 --- a/configure
 +++ b/configure
 @@ -3179,6 +3179,8 @@ vp9_d3d11va_hwaccel_deps="d3d11va DXVA_PicParams_VP9"
@@ -33,7 +33,7 @@ index 4da092bfb0..a0f7b5b590 100755
  vp9_dxva2_hwaccel_select="vp9_decoder"
  vp9_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index aeda97fd93..c7edb38d3b 100644
+index eaebfc27cd..f0b9bdb9e6 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -1041,6 +1041,7 @@ OBJS-$(CONFIG_VP8_NVDEC_HWACCEL)          += nvdec_vp8.o
@@ -46,7 +46,7 @@ index aeda97fd93..c7edb38d3b 100644
  OBJS-$(CONFIG_VP9_VDPAU_HWACCEL)          += vdpau_vp9.o
 diff --git a/libavcodec/d3d12va_vp9.c b/libavcodec/d3d12va_vp9.c
 new file mode 100644
-index 0000000000..56a8f34f17
+index 0000000000..6ff0c5400d
 --- /dev/null
 +++ b/libavcodec/d3d12va_vp9.c
 @@ -0,0 +1,176 @@
@@ -80,7 +80,7 @@ index 0000000000..56a8f34f17
 +
 +#include "vp9shared.h"
 +#include "dxva2_internal.h"
-+#include "d3d12va.h"
++#include "d3d12va_decode.h"
 +
 +typedef struct VP9DecodePictureContext {
 +    DXVA_PicParams_VP9    pp;
@@ -227,7 +227,7 @@ index 0000000000..56a8f34f17
 +};
 +#endif
 diff --git a/libavcodec/dxva2_internal.h b/libavcodec/dxva2_internal.h
-index 08847aef22..1de749f83b 100644
+index f06ea75c60..1c361929f1 100644
 --- a/libavcodec/dxva2_internal.h
 +++ b/libavcodec/dxva2_internal.h
 @@ -170,4 +170,6 @@ void ff_dxva2_hevc_fill_picture_parameters(const AVCodecContext *avctx, AVDXVACo
@@ -310,5 +310,5 @@ index 89f7549ef0..7b6e5e7c71 100644
                                 HWACCEL_NVDEC(vp9),
  #endif
 -- 
-2.34.1
+2.41.0.windows.1
 

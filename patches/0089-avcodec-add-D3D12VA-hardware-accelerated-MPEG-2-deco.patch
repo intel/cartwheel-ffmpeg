@@ -1,7 +1,7 @@
-From f239c5cab900c94d525ab297d69678599752b1cc Mon Sep 17 00:00:00 2001
+From 14efb461d426cf22630c252549c864cae24ec850 Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Mon, 8 May 2023 01:08:20 +0800
-Subject: [PATCH 31/44] avcodec: add D3D12VA hardware accelerated MPEG-2
+Subject: [PATCH 06/19] avcodec: add D3D12VA hardware accelerated MPEG-2
  decoding
 
 The command below is how to enable d3d12va:
@@ -21,7 +21,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_mpeg2.c
 
 diff --git a/configure b/configure
-index 8c92702704..87de5f790a 100755
+index 63167c6893..856361eac4 100755
 --- a/configure
 +++ b/configure
 @@ -3141,6 +3141,8 @@ mpeg2_d3d11va_hwaccel_deps="d3d11va"
@@ -34,7 +34,7 @@ index 8c92702704..87de5f790a 100755
  mpeg2_dxva2_hwaccel_select="mpeg2video_decoder"
  mpeg2_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 208522f0b0..ed1a9b0740 100644
+index a4e6fd0ee1..88925c0c5a 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -1023,6 +1023,7 @@ OBJS-$(CONFIG_MPEG1_VDPAU_HWACCEL)        += vdpau_mpeg12.o
@@ -47,7 +47,7 @@ index 208522f0b0..ed1a9b0740 100644
  OBJS-$(CONFIG_MPEG2_VAAPI_HWACCEL)        += vaapi_mpeg2.o
 diff --git a/libavcodec/d3d12va_mpeg2.c b/libavcodec/d3d12va_mpeg2.c
 new file mode 100644
-index 0000000000..098866ecb6
+index 0000000000..fe3636d242
 --- /dev/null
 +++ b/libavcodec/d3d12va_mpeg2.c
 @@ -0,0 +1,191 @@
@@ -78,7 +78,7 @@ index 0000000000..098866ecb6
 +#include "libavutil/hwcontext_d3d12va_internal.h"
 +#include "mpegutils.h"
 +#include "mpegvideodec.h"
-+#include "d3d12va.h"
++#include "d3d12va_decode.h"
 +#include "dxva2_internal.h"
 +
 +#define MAX_SLICES  1024
@@ -243,7 +243,7 @@ index 0000000000..098866ecb6
 +};
 +#endif
 diff --git a/libavcodec/dxva2_internal.h b/libavcodec/dxva2_internal.h
-index 5f317ad0fe..0c2097001c 100644
+index 8329db2a81..5e41fe28ac 100644
 --- a/libavcodec/dxva2_internal.h
 +++ b/libavcodec/dxva2_internal.h
 @@ -176,4 +176,10 @@ int ff_dxva2_vp9_fill_picture_parameters(const AVCodecContext *avctx, AVDXVACont
@@ -361,5 +361,5 @@ index e645b8e24a..6ac2badc31 100644
                          HWACCEL_NVDEC(mpeg2),
  #endif
 -- 
-2.34.1
+2.41.0.windows.1
 

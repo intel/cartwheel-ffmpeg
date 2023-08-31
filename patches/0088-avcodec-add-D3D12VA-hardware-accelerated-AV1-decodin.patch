@@ -1,7 +1,7 @@
-From 80133f7edee725e32fe4eb815a6e2eef5944d1bd Mon Sep 17 00:00:00 2001
+From 2fc1aef19e8242f3742908e8c68d8bf266ca891d Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:30:29 +0800
-Subject: [PATCH 30/44] avcodec: add D3D12VA hardware accelerated AV1 decoding
+Subject: [PATCH 05/19] avcodec: add D3D12VA hardware accelerated AV1 decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -20,7 +20,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_av1.c
 
 diff --git a/configure b/configure
-index a0f7b5b590..8c92702704 100755
+index 8e0cc23062..63167c6893 100755
 --- a/configure
 +++ b/configure
 @@ -3075,6 +3075,8 @@ av1_d3d11va_hwaccel_deps="d3d11va DXVA_PicParams_AV1"
@@ -33,7 +33,7 @@ index a0f7b5b590..8c92702704 100755
  av1_dxva2_hwaccel_select="av1_decoder"
  av1_nvdec_hwaccel_deps="nvdec CUVIDAV1PICPARAMS"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index c7edb38d3b..208522f0b0 100644
+index f0b9bdb9e6..a4e6fd0ee1 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -992,6 +992,7 @@ OBJS-$(CONFIG_VULKAN)                     += vulkan.o vulkan_video.o
@@ -88,7 +88,7 @@ index 03283ab064..96e2c8febb 100644
  #endif
 diff --git a/libavcodec/d3d12va_av1.c b/libavcodec/d3d12va_av1.c
 new file mode 100644
-index 0000000000..9f787dee62
+index 0000000000..4476f5bd8a
 --- /dev/null
 +++ b/libavcodec/d3d12va_av1.c
 @@ -0,0 +1,220 @@
@@ -119,7 +119,7 @@ index 0000000000..9f787dee62
 +#include "libavutil/hwcontext_d3d12va_internal.h"
 +#include "av1dec.h"
 +#include "dxva2_internal.h"
-+#include "d3d12va.h"
++#include "d3d12va_decode.h"
 +
 +#define MAX_TILES 256
 +
@@ -339,7 +339,7 @@ index ab118a4356..9b4c8f3875 100644
  
      ctx_pic->bitstream_size = 0;
 diff --git a/libavcodec/dxva2_internal.h b/libavcodec/dxva2_internal.h
-index 1de749f83b..5f317ad0fe 100644
+index 1c361929f1..8329db2a81 100644
 --- a/libavcodec/dxva2_internal.h
 +++ b/libavcodec/dxva2_internal.h
 @@ -172,4 +172,8 @@ void ff_dxva2_hevc_fill_scaling_lists(const AVCodecContext *avctx, AVDXVAContext
@@ -364,5 +364,5 @@ index 1344b84326..1c4825f2fb 100644
  extern const struct FFHWAccel ff_av1_nvdec_hwaccel;
  extern const struct FFHWAccel ff_av1_vaapi_hwaccel;
 -- 
-2.34.1
+2.41.0.windows.1
 

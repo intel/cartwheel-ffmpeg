@@ -1,7 +1,7 @@
-From 49fdf5324b45193cbe2a5894ecb49de1cad675ec Mon Sep 17 00:00:00 2001
+From 00928c8750ca1ddee31b070885e21b16423c4aa4 Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:14:16 +0800
-Subject: [PATCH 28/44] avcodec: add D3D12VA hardware accelerated HEVC decoding
+Subject: [PATCH 03/19] avcodec: add D3D12VA hardware accelerated HEVC decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -20,7 +20,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_hevc.c
 
 diff --git a/configure b/configure
-index e2012e9ebd..4da092bfb0 100755
+index b381838308..efcac1b434 100755
 --- a/configure
 +++ b/configure
 @@ -3111,6 +3111,8 @@ hevc_d3d11va_hwaccel_deps="d3d11va DXVA_PicParams_HEVC"
@@ -33,7 +33,7 @@ index e2012e9ebd..4da092bfb0 100755
  hevc_dxva2_hwaccel_select="hevc_decoder"
  hevc_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index a015f4fe3e..aeda97fd93 100644
+index a7808937ce..eaebfc27cd 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -1009,6 +1009,7 @@ OBJS-$(CONFIG_H264_VIDEOTOOLBOX_HWACCEL)  += videotoolbox.o
@@ -46,7 +46,7 @@ index a015f4fe3e..aeda97fd93 100644
  OBJS-$(CONFIG_HEVC_VAAPI_HWACCEL)         += vaapi_hevc.o h265_profile_level.o
 diff --git a/libavcodec/d3d12va_hevc.c b/libavcodec/d3d12va_hevc.c
 new file mode 100644
-index 0000000000..91a6e2e5af
+index 0000000000..4f6640be2f
 --- /dev/null
 +++ b/libavcodec/d3d12va_hevc.c
 @@ -0,0 +1,211 @@
@@ -79,7 +79,7 @@ index 0000000000..91a6e2e5af
 +#include "hevc_data.h"
 +#include "hevcdec.h"
 +#include "dxva2_internal.h"
-+#include "d3d12va.h"
++#include "d3d12va_decode.h"
 +#include <dxva.h>
 +
 +#define MAX_SLICES 256
@@ -302,7 +302,7 @@ index b6c08943f0..80aa847186 100644
      ctx_pic->slice_count    = 0;
      ctx_pic->bitstream_size = 0;
 diff --git a/libavcodec/dxva2_internal.h b/libavcodec/dxva2_internal.h
-index a9a1fc090e..08847aef22 100644
+index e66e2c9769..f06ea75c60 100644
 --- a/libavcodec/dxva2_internal.h
 +++ b/libavcodec/dxva2_internal.h
 @@ -166,4 +166,8 @@ void ff_dxva2_h264_fill_picture_parameters(const AVCodecContext *avctx, AVDXVACo
@@ -369,5 +369,5 @@ index 90b8beb0f5..6b71919b0a 100644
  extern const struct FFHWAccel ff_hevc_nvdec_hwaccel;
  extern const struct FFHWAccel ff_hevc_vaapi_hwaccel;
 -- 
-2.34.1
+2.41.0.windows.1
 
