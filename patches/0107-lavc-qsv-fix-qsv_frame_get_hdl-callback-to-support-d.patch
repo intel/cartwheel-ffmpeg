@@ -1,0 +1,39 @@
+From b3ec27cdd8000db22f8a1da18807a743ab0355a9 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Fri, 10 Mar 2023 15:10:35 +0800
+Subject: [PATCH 107/115] lavc/qsv: fix qsv_frame_get_hdl callback to support
+ dynamic frame pools
+
+Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
+---
+ libavcodec/qsv.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index 7563625627..3f4b7b8193 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -987,9 +987,18 @@ static mfxStatus qsv_frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+ 
+ static mfxStatus qsv_frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
+ {
+-    QSVMid *qsv_mid = (QSVMid*)mid;
++    QSVFramesContext *ctx = (QSVFramesContext *)pthis;
++    AVHWFramesContext *frames_ctx = (AVHWFramesContext*)ctx->hw_frames_ctx->data;
++    AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
+     mfxHDLPair *pair_dst = (mfxHDLPair*)hdl;
+-    mfxHDLPair *pair_src = (mfxHDLPair*)qsv_mid->handle_pair;
++    mfxHDLPair *pair_src;
++
++    if (frames_hwctx->nb_surfaces) {
++        QSVMid *qsv_mid = (QSVMid*)mid;
++        pair_src = (mfxHDLPair*)qsv_mid->handle_pair;
++    } else {
++        pair_src = (mfxHDLPair*)mid;
++    }
+ 
+     pair_dst->first = pair_src->first;
+ 
+-- 
+2.34.1
+
