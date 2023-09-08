@@ -1,0 +1,39 @@
+From d4b9ab2c85fe537106d67d17f3e050abae4e8dd8 Mon Sep 17 00:00:00 2001
+From: Haihao Xiang <haihao.xiang@intel.com>
+Date: Tue, 28 Feb 2023 15:02:20 +0800
+Subject: [PATCH 115/115] lavfi/vaapi_vpp: use dynamic frame pool for output
+ link with libva2
+
+This can avoid out of memory with vaapi filters since commit 5fa00b3.
+
+Example:
+$ ffmpeg -init_hw_device vaapi=hw:/dev/dri/renderD128
+-hwaccel_output_format vaapi -hwaccel vaapi -i input.mp4 -vf
+'scale_vaapi=w=720:h=480' -vframes 1 -f null -
+...
+[vf#0:0 @ 0x55ffe793ba80] Error while filtering: Cannot allocate memory
+
+Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
+---
+ libavfilter/vaapi_vpp.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/libavfilter/vaapi_vpp.c b/libavfilter/vaapi_vpp.c
+index cf2592e068..818bc7d58a 100644
+--- a/libavfilter/vaapi_vpp.c
++++ b/libavfilter/vaapi_vpp.c
+@@ -199,7 +199,10 @@ int ff_vaapi_vpp_config_output(AVFilterLink *outlink)
+     output_frames->width     = ctx->output_width;
+     output_frames->height    = ctx->output_height;
+ 
+-    output_frames->initial_pool_size = 4;
++    if (CONFIG_VAAPI_1)
++        output_frames->initial_pool_size = 0;
++    else
++        output_frames->initial_pool_size = 4;
+ 
+     err = ff_filter_init_hw_frames(avctx, outlink, 10);
+     if (err < 0)
+-- 
+2.34.1
+
