@@ -1,7 +1,7 @@
-From c0ce9dea1d1515f2ac918687109c6a6dbe2fb0c8 Mon Sep 17 00:00:00 2001
+From a4a3068e61c3e209834f66ebd579b974ac520efe Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 18 Oct 2020 16:15:37 -0400
-Subject: [PATCH] FFmpeg vaapi HEVC SCC encode.
+Subject: [PATCH 06/40] FFmpeg vaapi HEVC SCC encode.
 
 Depend on 0008 hevc low power enable patch.
 
@@ -23,7 +23,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  1 file changed, 43 insertions(+), 4 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index aa7e532f9a..08c7f431f9 100644
+index efa59aecf5..060e318c99 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -341,8 +341,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
@@ -33,7 +33,7 @@ index aa7e532f9a..08c7f431f9 100644
 -    ptl->general_intra_constraint_flag = ctx->gop_size == 1;
      ptl->general_one_picture_only_constraint_flag = 0;
 +    ptl->general_intra_constraint_flag =
-+        (avctx->profile == FF_PROFILE_HEVC_SCC) ? 0 : ctx->gop_size == 1;
++        (avctx->profile == AV_PROFILE_HEVC_SCC) ? 0 : ctx->gop_size == 1;
  
      ptl->general_lower_bit_rate_constraint_flag = 1;
  
@@ -41,7 +41,7 @@ index aa7e532f9a..08c7f431f9 100644
      vui->log2_max_mv_length_horizontal = 15;
      vui->log2_max_mv_length_vertical   = 15;
  
-+    if (avctx->profile == FF_PROFILE_HEVC_SCC) {
++    if (avctx->profile == AV_PROFILE_HEVC_SCC) {
 +        sps->sps_extension_present_flag = 1;
 +        sps->sps_scc_extension_flag = 1;
 +        sps->sps_curr_pic_ref_enabled_flag = 1;
@@ -56,7 +56,7 @@ index aa7e532f9a..08c7f431f9 100644
  
      pps->pps_loop_filter_across_slices_enabled_flag = 1;
  
-+    if (avctx->profile == FF_PROFILE_HEVC_SCC) {
++    if (avctx->profile == AV_PROFILE_HEVC_SCC) {
 +        pps->pps_extension_present_flag = 1;
 +        pps->pps_scc_extension_flag =1;
 +        pps->pps_curr_pic_ref_enabled_flag = 1;
@@ -95,7 +95,7 @@ index aa7e532f9a..08c7f431f9 100644
 -        sh->num_ref_idx_active_override_flag = 0;
 -        sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
 +
-+        if (avctx->profile == FF_PROFILE_HEVC_SCC) {
++        if (avctx->profile == AV_PROFILE_HEVC_SCC) {
 +            sh->num_ref_idx_active_override_flag = 1;
 +            sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1 + 1;
 +        } else {
@@ -117,26 +117,26 @@ index aa7e532f9a..08c7f431f9 100644
  
          .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
 @@ -1304,6 +1336,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
-     { FF_PROFILE_HEVC_REXT,     8, 3, 0, 0, VAProfileHEVCMain444 },
-     { FF_PROFILE_HEVC_REXT,    10, 3, 0, 0, VAProfileHEVCMain444_10 },
-     { FF_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
-+    { FF_PROFILE_HEVC_SCC,      8, 3, 1, 1, VAProfileHEVCSccMain    },
-+    { FF_PROFILE_HEVC_SCC,     10, 3, 1, 1, VAProfileHEVCSccMain10  },
-+    { FF_PROFILE_HEVC_SCC,      8, 3, 0, 0, VAProfileHEVCSccMain444 },
+     { AV_PROFILE_HEVC_REXT,     8, 3, 0, 0, VAProfileHEVCMain444 },
+     { AV_PROFILE_HEVC_REXT,    10, 3, 0, 0, VAProfileHEVCMain444_10 },
+     { AV_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
++    { AV_PROFILE_HEVC_SCC,      8, 3, 1, 1, VAProfileHEVCSccMain    },
++    { AV_PROFILE_HEVC_SCC,     10, 3, 1, 1, VAProfileHEVCSccMain10  },
++    { AV_PROFILE_HEVC_SCC,      8, 3, 0, 0, VAProfileHEVCSccMain444 },
 +#endif
 +#if VA_CHECK_VERSION(1, 9, 0)
-+    { FF_PROFILE_HEVC_SCC,     10, 3, 0, 0, VAProfileHEVCSccMain444_10 },
++    { AV_PROFILE_HEVC_SCC,     10, 3, 0, 0, VAProfileHEVCSccMain444_10 },
  #endif
-     { FF_PROFILE_UNKNOWN }
+     { AV_PROFILE_UNKNOWN }
  };
 @@ -1402,6 +1440,7 @@ static const AVOption vaapi_encode_h265_options[] = {
-     { PROFILE("main",               FF_PROFILE_HEVC_MAIN) },
-     { PROFILE("main10",             FF_PROFILE_HEVC_MAIN_10) },
-     { PROFILE("rext",               FF_PROFILE_HEVC_REXT) },
-+    { PROFILE("scc",                FF_PROFILE_HEVC_SCC) },
+     { PROFILE("main",               AV_PROFILE_HEVC_MAIN) },
+     { PROFILE("main10",             AV_PROFILE_HEVC_MAIN_10) },
+     { PROFILE("rext",               AV_PROFILE_HEVC_REXT) },
++    { PROFILE("scc",                AV_PROFILE_HEVC_SCC) },
  #undef PROFILE
  
      { "tier", "Set tier (general_tier_flag)",
 -- 
-2.25.1
+2.34.1
 

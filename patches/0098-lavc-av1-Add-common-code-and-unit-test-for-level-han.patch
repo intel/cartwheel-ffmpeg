@@ -1,7 +1,7 @@
-From 7944c63c708b586f79374b48ea70557370d9f9f1 Mon Sep 17 00:00:00 2001
+From e982e79ab64d679adcc505026811bf82ee659ddc Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 14 Mar 2023 10:21:24 +0800
-Subject: [PATCH 1/4] lavc/av1: Add common code and unit test for level
+Subject: [PATCH 36/40] lavc/av1: Add common code and unit test for level
  handling
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
@@ -10,18 +10,18 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  libavcodec/av1_profile_level.c |  92 ++++++++++++++++++++++++
  libavcodec/av1_profile_level.h |  58 +++++++++++++++
  libavcodec/tests/.gitignore    |   1 +
- libavcodec/tests/av1_levels.c  | 124 +++++++++++++++++++++++++++++++++
+ libavcodec/tests/av1_levels.c  | 125 +++++++++++++++++++++++++++++++++
  tests/fate/libavcodec.mak      |   5 ++
- 6 files changed, 281 insertions(+)
+ 6 files changed, 282 insertions(+)
  create mode 100644 libavcodec/av1_profile_level.c
  create mode 100644 libavcodec/av1_profile_level.h
  create mode 100644 libavcodec/tests/av1_levels.c
 
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 6e0c91eb14..b3f310abf6 100644
+index 735268f57a..02c84d5f33 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -1330,6 +1330,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
+@@ -1343,6 +1343,7 @@ TESTPROGS-$(CONFIG_H264_METADATA_BSF)     += h264_levels
  TESTPROGS-$(CONFIG_HEVC_METADATA_BSF)     += h265_levels
  TESTPROGS-$(CONFIG_RANGECODER)            += rangecoder
  TESTPROGS-$(CONFIG_SNOW_ENCODER)          += snowenc
@@ -202,10 +202,10 @@ index 2acfc4e804..5e0ccc5838 100644
  /avpacket
 diff --git a/libavcodec/tests/av1_levels.c b/libavcodec/tests/av1_levels.c
 new file mode 100644
-index 0000000000..8a980d42c1
+index 0000000000..b308279b58
 --- /dev/null
 +++ b/libavcodec/tests/av1_levels.c
-@@ -0,0 +1,124 @@
+@@ -0,0 +1,125 @@
 +/*
 + * Copyright (c) 2022 Fei Wang
 + *
@@ -227,6 +227,7 @@ index 0000000000..8a980d42c1
 + */
 +
 +#include "libavutil/common.h"
++#include "libavutil/log.h"
 +#include "libavcodec/av1_profile_level.h"
 +
 +static const struct {
@@ -347,5 +348,5 @@ index 8f56fae3a8..95efa6ccda 100644
  fate-iirfilter: libavcodec/tests/iirfilter$(EXESUF)
  fate-iirfilter: CMD = run libavcodec/tests/iirfilter$(EXESUF)
 -- 
-2.25.1
+2.34.1
 

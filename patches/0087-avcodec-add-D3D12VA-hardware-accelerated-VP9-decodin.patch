@@ -1,7 +1,7 @@
-From 97a614d4d94beeb2a4cc61ee4715723f805d6846 Mon Sep 17 00:00:00 2001
+From 389f7d01f226dc4110823cea63ff65b7ac58e89a Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:24:45 +0800
-Subject: [PATCH 04/19] avcodec: add D3D12VA hardware accelerated VP9 decoding
+Subject: [PATCH 25/40] avcodec: add D3D12VA hardware accelerated VP9 decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -33,10 +33,10 @@ index efcac1b434..8e0cc23062 100755
  vp9_dxva2_hwaccel_select="vp9_decoder"
  vp9_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index eaebfc27cd..f0b9bdb9e6 100644
+index 1af623f631..b597684cff 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -1041,6 +1041,7 @@ OBJS-$(CONFIG_VP8_NVDEC_HWACCEL)          += nvdec_vp8.o
+@@ -1042,6 +1042,7 @@ OBJS-$(CONFIG_VP8_NVDEC_HWACCEL)          += nvdec_vp8.o
  OBJS-$(CONFIG_VP8_VAAPI_HWACCEL)          += vaapi_vp8.o
  OBJS-$(CONFIG_VP9_D3D11VA_HWACCEL)        += dxva2_vp9.o
  OBJS-$(CONFIG_VP9_DXVA2_HWACCEL)          += dxva2_vp9.o
@@ -46,7 +46,7 @@ index eaebfc27cd..f0b9bdb9e6 100644
  OBJS-$(CONFIG_VP9_VDPAU_HWACCEL)          += vdpau_vp9.o
 diff --git a/libavcodec/d3d12va_vp9.c b/libavcodec/d3d12va_vp9.c
 new file mode 100644
-index 0000000000..6ff0c5400d
+index 0000000000..284e634b28
 --- /dev/null
 +++ b/libavcodec/d3d12va_vp9.c
 @@ -0,0 +1,176 @@
@@ -195,13 +195,13 @@ index 0000000000..6ff0c5400d
 +    D3D12VADecodeContext *ctx = D3D12VA_DECODE_CONTEXT(avctx);
 +
 +    switch (avctx->profile) {
-+    case FF_PROFILE_VP9_2:
-+    case FF_PROFILE_VP9_3:
++    case AV_PROFILE_VP9_2:
++    case AV_PROFILE_VP9_3:
 +        ctx->cfg.DecodeProfile = D3D12_VIDEO_DECODE_PROFILE_VP9_10BIT_PROFILE2;
 +        break;
 +
-+    case FF_PROFILE_VP9_0:
-+    case FF_PROFILE_VP9_1:
++    case AV_PROFILE_VP9_0:
++    case AV_PROFILE_VP9_1:
 +    default:
 +        ctx->cfg.DecodeProfile = D3D12_VIDEO_DECODE_PROFILE_VP9;
 +        break;
@@ -310,5 +310,5 @@ index 89f7549ef0..7b6e5e7c71 100644
                                 HWACCEL_NVDEC(vp9),
  #endif
 -- 
-2.41.0.windows.1
+2.34.1
 
