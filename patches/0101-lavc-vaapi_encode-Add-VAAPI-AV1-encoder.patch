@@ -1,7 +1,7 @@
-From 01ff869e0a53757b48a4de7ef8503f38e2ce60bb Mon Sep 17 00:00:00 2001
+From f204119ca44023f1453aa66d2b6dde1925202068 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Sun, 23 Apr 2023 16:23:06 +0800
-Subject: [PATCH] lavc/vaapi_encode: Add VAAPI AV1 encoder
+Subject: [PATCH 39/40] lavc/vaapi_encode: Add VAAPI AV1 encoder
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
@@ -16,10 +16,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  create mode 100644 libavcodec/vaapi_encode_av1.c
 
 diff --git a/configure b/configure
-index bc0961a0bb..cc2609ae0f 100755
+index b0b853b19e..1eee7c8448 100755
 --- a/configure
 +++ b/configure
-@@ -3340,6 +3340,8 @@ av1_qsv_decoder_select="qsvdec"
+@@ -3344,6 +3344,8 @@ av1_qsv_decoder_select="qsvdec"
  av1_qsv_encoder_select="qsvenc"
  av1_qsv_encoder_deps="libvpl"
  av1_amf_encoder_deps="amf"
@@ -28,7 +28,7 @@ index bc0961a0bb..cc2609ae0f 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -7126,6 +7128,7 @@ if enabled vaapi; then
+@@ -7138,6 +7140,7 @@ if enabled vaapi; then
      check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
      check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
      check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
@@ -37,10 +37,10 @@ index bc0961a0bb..cc2609ae0f 100755
  
  if enabled_all opencl libdrm ; then
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 20cb8a1421..def1efa0ef 100644
+index 6f8f5e127e..8adef7fb88 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3977,6 +3977,20 @@ Average variable bitrate.
+@@ -3995,6 +3995,20 @@ Average variable bitrate.
  Each encoder also has its own specific options:
  @table @option
  
@@ -62,10 +62,10 @@ index 20cb8a1421..def1efa0ef 100644
  @option{profile} sets the value of @emph{profile_idc} and the @emph{constraint_set*_flag}s.
  @option{level} sets the value of @emph{level_idc}.
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index cc46cd7867..86d1e240fc 100644
+index 02c84d5f33..0ed173f886 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -257,6 +257,7 @@ OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
+@@ -258,6 +258,7 @@ OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
  OBJS-$(CONFIG_AV1_MEDIACODEC_ENCODER)  += mediacodecenc.o
  OBJS-$(CONFIG_AV1_NVENC_ENCODER)       += nvenc_av1.o nvenc.o
  OBJS-$(CONFIG_AV1_QSV_ENCODER)         += qsvenc_av1.o
@@ -74,10 +74,10 @@ index cc46cd7867..86d1e240fc 100644
  OBJS-$(CONFIG_AVRP_DECODER)            += r210dec.o
  OBJS-$(CONFIG_AVRP_ENCODER)            += r210enc.o
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index 11c136ef59..9f3b557f9b 100644
+index 6e95ca5636..5136a566f1 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -843,6 +843,7 @@ extern const FFCodec ff_av1_nvenc_encoder;
+@@ -845,6 +845,7 @@ extern const FFCodec ff_av1_nvenc_encoder;
  extern const FFCodec ff_av1_qsv_decoder;
  extern const FFCodec ff_av1_qsv_encoder;
  extern const FFCodec ff_av1_amf_encoder;
@@ -86,7 +86,7 @@ index 11c136ef59..9f3b557f9b 100644
  extern const FFCodec ff_libopenh264_decoder;
  extern const FFCodec ff_h264_amf_encoder;
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 045f3cf525..7aa82d94a0 100644
+index 71b8398d6e..9abfc5f987 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -656,6 +656,11 @@ static int vaapi_encode_set_output_timestamp(AVCodecContext *avctx,
@@ -277,7 +277,7 @@ index 045f3cf525..7aa82d94a0 100644
  
      av_buffer_unref(&ctx->recon_frames_ref);
 diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
-index a1e639f56b..b3709dcf91 100644
+index bd25cd5c95..7d8b78927d 100644
 --- a/libavcodec/vaapi_encode.h
 +++ b/libavcodec/vaapi_encode.h
 @@ -131,6 +131,11 @@ typedef struct VAAPIEncodePicture {
@@ -308,7 +308,7 @@ index a1e639f56b..b3709dcf91 100644
  enum {
 diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
 new file mode 100644
-index 0000000000..4a9b72453c
+index 0000000000..248563761f
 --- /dev/null
 +++ b/libavcodec/vaapi_encode_av1.c
 @@ -0,0 +1,1246 @@
@@ -1345,9 +1345,9 @@ index 0000000000..4a9b72453c
 +}
 +
 +static const VAAPIEncodeProfile vaapi_encode_av1_profiles[] = {
-+    { FF_PROFILE_AV1_MAIN,  8, 3, 1, 1, VAProfileAV1Profile0 },
-+    { FF_PROFILE_AV1_MAIN, 10, 3, 1, 1, VAProfileAV1Profile0 },
-+    { FF_PROFILE_UNKNOWN }
++    { AV_PROFILE_AV1_MAIN,  8, 3, 1, 1, VAProfileAV1Profile0 },
++    { AV_PROFILE_AV1_MAIN, 10, 3, 1, 1, VAProfileAV1Profile0 },
++    { AV_PROFILE_UNKNOWN }
 +};
 +
 +static const VAAPIEncodeType vaapi_encode_type_av1 = {
@@ -1386,7 +1386,7 @@ index 0000000000..4a9b72453c
 +        VA_ENC_PACKED_HEADER_SEQUENCE |
 +        VA_ENC_PACKED_HEADER_PICTURE;
 +
-+    if (avctx->profile == FF_PROFILE_UNKNOWN)
++    if (avctx->profile == AV_PROFILE_UNKNOWN)
 +        avctx->profile = priv->profile;
 +    if (avctx->level == FF_LEVEL_UNKNOWN)
 +        avctx->level = priv->level;
@@ -1473,13 +1473,13 @@ index 0000000000..4a9b72453c
 +    VAAPI_ENCODE_RC_OPTIONS,
 +    { "profile", "Set profile (seq_profile)",
 +      OFFSET(profile), AV_OPT_TYPE_INT,
-+      { .i64 = FF_PROFILE_UNKNOWN }, FF_PROFILE_UNKNOWN, 0xff, FLAGS, "profile" },
++      { .i64 = AV_PROFILE_UNKNOWN }, AV_PROFILE_UNKNOWN, 0xff, FLAGS, "profile" },
 +
 +#define PROFILE(name, value)  name, NULL, 0, AV_OPT_TYPE_CONST, \
 +    { .i64 = value }, 0, 0, FLAGS, "profile"
-+    { PROFILE("main",               FF_PROFILE_AV1_MAIN) },
-+    { PROFILE("high",               FF_PROFILE_AV1_HIGH) },
-+    { PROFILE("professional",       FF_PROFILE_AV1_PROFESSIONAL) },
++    { PROFILE("main",               AV_PROFILE_AV1_MAIN) },
++    { PROFILE("high",               AV_PROFILE_AV1_HIGH) },
++    { PROFILE("professional",       AV_PROFILE_AV1_PROFESSIONAL) },
 +#undef PROFILE
 +
 +    { "tier", "Set tier (seq_tier)",
@@ -1559,5 +1559,5 @@ index 0000000000..4a9b72453c
 +    .p.wrapper_name = "vaapi",
 +};
 -- 
-2.25.1
+2.34.1
 

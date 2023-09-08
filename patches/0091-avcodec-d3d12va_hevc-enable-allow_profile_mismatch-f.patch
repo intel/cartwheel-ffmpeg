@@ -1,7 +1,7 @@
-From 16d35930fd8d25c8d5e84b96fd6dd29798095226 Mon Sep 17 00:00:00 2001
+From c881e5e828363d5fd32af1a3c6a2b077777b2fed Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 18 May 2023 15:13:04 +0800
-Subject: [PATCH 08/19] avcodec/d3d12va_hevc: enable allow_profile_mismatch
+Subject: [PATCH 29/40] avcodec/d3d12va_hevc: enable allow_profile_mismatch
  flag for d3d12va msp profile
 
 Same as d3d11va, this flag enables main still picture profile for
@@ -14,13 +14,13 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/libavcodec/d3d12va_hevc.c b/libavcodec/d3d12va_hevc.c
-index 4f6640be2f..1894fddb79 100644
+index d5dc02b8c5..14bdfb6f93 100644
 --- a/libavcodec/d3d12va_hevc.c
 +++ b/libavcodec/d3d12va_hevc.c
 @@ -181,8 +181,13 @@ static int d3d12va_hevc_decode_init(AVCodecContext *avctx)
          break;
  
-     case FF_PROFILE_HEVC_MAIN_STILL_PICTURE:
+     case AV_PROFILE_HEVC_MAIN_STILL_PICTURE:
 -        av_log(avctx, AV_LOG_ERROR, "D3D12 doesn't support PROFILE_HEVC_MAIN_STILL_PICTURE!\n");
 -        return AVERROR(EINVAL);
 +        if (avctx->hwaccel_flags & AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH) {
@@ -31,8 +31,8 @@ index 4f6640be2f..1894fddb79 100644
 +            return AVERROR(EINVAL);
 +        }
  
-     case FF_PROFILE_HEVC_MAIN:
+     case AV_PROFILE_HEVC_MAIN:
      default:
 -- 
-2.41.0.windows.1
+2.34.1
 

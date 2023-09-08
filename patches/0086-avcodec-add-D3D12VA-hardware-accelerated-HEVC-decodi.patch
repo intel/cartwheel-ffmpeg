@@ -1,7 +1,7 @@
-From 00928c8750ca1ddee31b070885e21b16423c4aa4 Mon Sep 17 00:00:00 2001
+From c6d8b90cb91599065c491ed8bf73b1f6fe0430fd Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:14:16 +0800
-Subject: [PATCH 03/19] avcodec: add D3D12VA hardware accelerated HEVC decoding
+Subject: [PATCH 24/40] avcodec: add D3D12VA hardware accelerated HEVC decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -33,10 +33,10 @@ index b381838308..efcac1b434 100755
  hevc_dxva2_hwaccel_select="hevc_decoder"
  hevc_nvdec_hwaccel_deps="nvdec"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index a7808937ce..eaebfc27cd 100644
+index 96d832ad54..1af623f631 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -1009,6 +1009,7 @@ OBJS-$(CONFIG_H264_VIDEOTOOLBOX_HWACCEL)  += videotoolbox.o
+@@ -1010,6 +1010,7 @@ OBJS-$(CONFIG_H264_VIDEOTOOLBOX_HWACCEL)  += videotoolbox.o
  OBJS-$(CONFIG_H264_VULKAN_HWACCEL)        += vulkan_decode.o vulkan_h264.o
  OBJS-$(CONFIG_HEVC_D3D11VA_HWACCEL)       += dxva2_hevc.o
  OBJS-$(CONFIG_HEVC_DXVA2_HWACCEL)         += dxva2_hevc.o
@@ -46,7 +46,7 @@ index a7808937ce..eaebfc27cd 100644
  OBJS-$(CONFIG_HEVC_VAAPI_HWACCEL)         += vaapi_hevc.o h265_profile_level.o
 diff --git a/libavcodec/d3d12va_hevc.c b/libavcodec/d3d12va_hevc.c
 new file mode 100644
-index 0000000000..4f6640be2f
+index 0000000000..d5dc02b8c5
 --- /dev/null
 +++ b/libavcodec/d3d12va_hevc.c
 @@ -0,0 +1,211 @@
@@ -228,15 +228,15 @@ index 0000000000..4f6640be2f
 +    D3D12VADecodeContext *ctx = D3D12VA_DECODE_CONTEXT(avctx);
 +
 +    switch (avctx->profile) {
-+    case FF_PROFILE_HEVC_MAIN_10:
++    case AV_PROFILE_HEVC_MAIN_10:
 +        ctx->cfg.DecodeProfile = D3D12_VIDEO_DECODE_PROFILE_HEVC_MAIN10;
 +        break;
 +
-+    case FF_PROFILE_HEVC_MAIN_STILL_PICTURE:
++    case AV_PROFILE_HEVC_MAIN_STILL_PICTURE:
 +        av_log(avctx, AV_LOG_ERROR, "D3D12 doesn't support PROFILE_HEVC_MAIN_STILL_PICTURE!\n");
 +        return AVERROR(EINVAL);
 +
-+    case FF_PROFILE_HEVC_MAIN:
++    case AV_PROFILE_HEVC_MAIN:
 +    default:
 +        ctx->cfg.DecodeProfile = D3D12_VIDEO_DECODE_PROFILE_HEVC_MAIN;
 +        break;
@@ -315,7 +315,7 @@ index e66e2c9769..f06ea75c60 100644
 +
  #endif /* AVCODEC_DXVA2_INTERNAL_H */
 diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 91dbd24716..d91360b5ad 100644
+index 2253edc28b..2d34407930 100644
 --- a/libavcodec/hevcdec.c
 +++ b/libavcodec/hevcdec.c
 @@ -402,6 +402,7 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
@@ -346,7 +346,7 @@ index 91dbd24716..d91360b5ad 100644
  #if CONFIG_HEVC_VAAPI_HWACCEL
          *fmt++ = AV_PIX_FMT_VAAPI;
  #endif
-@@ -3715,6 +3722,9 @@ const FFCodec ff_hevc_decoder = {
+@@ -3718,6 +3725,9 @@ const FFCodec ff_hevc_decoder = {
  #if CONFIG_HEVC_D3D11VA2_HWACCEL
                                 HWACCEL_D3D11VA2(hevc),
  #endif
@@ -369,5 +369,5 @@ index 90b8beb0f5..6b71919b0a 100644
  extern const struct FFHWAccel ff_hevc_nvdec_hwaccel;
  extern const struct FFHWAccel ff_hevc_vaapi_hwaccel;
 -- 
-2.41.0.windows.1
+2.34.1
 

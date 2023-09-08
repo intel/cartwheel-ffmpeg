@@ -1,7 +1,7 @@
-From 2fc1aef19e8242f3742908e8c68d8bf266ca891d Mon Sep 17 00:00:00 2001
+From d1cb05259d903a28c606a6b2fac45befa5b46c82 Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Sat, 17 Dec 2022 02:30:29 +0800
-Subject: [PATCH 05/19] avcodec: add D3D12VA hardware accelerated AV1 decoding
+Subject: [PATCH 26/40] avcodec: add D3D12VA hardware accelerated AV1 decoding
 
 The command below is how to enable d3d12va:
 ffmpeg -hwaccel d3d12va -i input.mp4 output.mp4
@@ -33,10 +33,10 @@ index 8e0cc23062..63167c6893 100755
  av1_dxva2_hwaccel_select="av1_decoder"
  av1_nvdec_hwaccel_deps="nvdec CUVIDAV1PICPARAMS"
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index f0b9bdb9e6..a4e6fd0ee1 100644
+index b597684cff..b877fead5e 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -992,6 +992,7 @@ OBJS-$(CONFIG_VULKAN)                     += vulkan.o vulkan_video.o
+@@ -993,6 +993,7 @@ OBJS-$(CONFIG_VULKAN)                     += vulkan.o vulkan_video.o
  
  OBJS-$(CONFIG_AV1_D3D11VA_HWACCEL)        += dxva2_av1.o
  OBJS-$(CONFIG_AV1_DXVA2_HWACCEL)          += dxva2_av1.o
@@ -45,18 +45,18 @@ index f0b9bdb9e6..a4e6fd0ee1 100644
  OBJS-$(CONFIG_AV1_VAAPI_HWACCEL)          += vaapi_av1.o
  OBJS-$(CONFIG_AV1_VDPAU_HWACCEL)          += vdpau_av1.o
 diff --git a/libavcodec/av1dec.c b/libavcodec/av1dec.c
-index 03283ab064..96e2c8febb 100644
+index 8f9c2dfefb..980805e9fe 100644
 --- a/libavcodec/av1dec.c
 +++ b/libavcodec/av1dec.c
-@@ -449,6 +449,7 @@ static int get_pixel_format(AVCodecContext *avctx)
-     enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
+@@ -511,6 +511,7 @@ static int get_pixel_format(AVCodecContext *avctx)
+     enum AVPixelFormat pix_fmt = get_sw_pixel_format(avctx, seq);
  #define HWACCEL_MAX (CONFIG_AV1_DXVA2_HWACCEL + \
                       CONFIG_AV1_D3D11VA_HWACCEL * 2 + \
 +                     CONFIG_AV1_D3D12VA_HWACCEL + \
                       CONFIG_AV1_NVDEC_HWACCEL + \
                       CONFIG_AV1_VAAPI_HWACCEL + \
                       CONFIG_AV1_VDPAU_HWACCEL + \
-@@ -524,6 +525,9 @@ static int get_pixel_format(AVCodecContext *avctx)
+@@ -529,6 +530,9 @@ static int get_pixel_format(AVCodecContext *avctx)
          *fmtp++ = AV_PIX_FMT_D3D11VA_VLD;
          *fmtp++ = AV_PIX_FMT_D3D11;
  #endif
@@ -66,7 +66,7 @@ index 03283ab064..96e2c8febb 100644
  #if CONFIG_AV1_NVDEC_HWACCEL
          *fmtp++ = AV_PIX_FMT_CUDA;
  #endif
-@@ -545,6 +549,9 @@ static int get_pixel_format(AVCodecContext *avctx)
+@@ -550,6 +554,9 @@ static int get_pixel_format(AVCodecContext *avctx)
          *fmtp++ = AV_PIX_FMT_D3D11VA_VLD;
          *fmtp++ = AV_PIX_FMT_D3D11;
  #endif
@@ -76,7 +76,7 @@ index 03283ab064..96e2c8febb 100644
  #if CONFIG_AV1_NVDEC_HWACCEL
          *fmtp++ = AV_PIX_FMT_CUDA;
  #endif
-@@ -1534,6 +1541,9 @@ const FFCodec ff_av1_decoder = {
+@@ -1542,6 +1549,9 @@ const FFCodec ff_av1_decoder = {
  #if CONFIG_AV1_D3D11VA2_HWACCEL
          HWACCEL_D3D11VA2(av1),
  #endif
@@ -88,7 +88,7 @@ index 03283ab064..96e2c8febb 100644
  #endif
 diff --git a/libavcodec/d3d12va_av1.c b/libavcodec/d3d12va_av1.c
 new file mode 100644
-index 0000000000..4476f5bd8a
+index 0000000000..005619c39a
 --- /dev/null
 +++ b/libavcodec/d3d12va_av1.c
 @@ -0,0 +1,220 @@
@@ -266,7 +266,7 @@ index 0000000000..4476f5bd8a
 +
 +    int ret;
 +
-+    if (avctx->profile != FF_PROFILE_AV1_MAIN)
++    if (avctx->profile != AV_PROFILE_AV1_MAIN)
 +        return AVERROR(EINVAL);
 +
 +    ctx->cfg.DecodeProfile = D3D12_VIDEO_DECODE_PROFILE_AV1_PROFILE0;
@@ -364,5 +364,5 @@ index 1344b84326..1c4825f2fb 100644
  extern const struct FFHWAccel ff_av1_nvdec_hwaccel;
  extern const struct FFHWAccel ff_av1_vaapi_hwaccel;
 -- 
-2.41.0.windows.1
+2.34.1
 
