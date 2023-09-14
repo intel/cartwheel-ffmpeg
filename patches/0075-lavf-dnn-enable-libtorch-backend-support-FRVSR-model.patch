@@ -1,18 +1,18 @@
-From 5525b107e650ea48a523d7be82971f8048b58259 Mon Sep 17 00:00:00 2001
+From 177f289ea7fd3199491d231a03eef65869513722 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Wed, 29 Jun 2022 07:46:44 +0000
 Subject: [PATCH] lavf/dnn: enable libtorch backend support FRVSR model
 
 Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
- libavfilter/dnn/dnn_backend_torch.cpp | 53 +++++++++++++++++++++++----
- 1 file changed, 46 insertions(+), 7 deletions(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 52 +++++++++++++++++++++++----
+ 1 file changed, 46 insertions(+), 6 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 34560dbfd2..06608f7a92 100644
+index 5e3c0a5929..4734ce2d04 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -45,6 +45,8 @@ typedef struct THContext {
+@@ -46,6 +46,8 @@ typedef struct THContext {
      THOptions options;
  } THContext;
  
@@ -21,7 +21,7 @@ index 34560dbfd2..06608f7a92 100644
  typedef struct THModel {
      THContext ctx;
      DNNModel *model;
-@@ -52,6 +54,7 @@ typedef struct THModel {
+@@ -53,6 +55,7 @@ typedef struct THModel {
      SafeQueue *request_queue;
      Queue *task_queue;
      Queue *lltask_queue;
@@ -29,7 +29,7 @@ index 34560dbfd2..06608f7a92 100644
  } THModel;
  
  typedef struct THInferRequest {
-@@ -198,6 +201,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -200,6 +203,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
      THModel *th_model = NULL;
      THRequestItem *item = NULL;
      THContext *ctx;
@@ -37,15 +37,15 @@ index 34560dbfd2..06608f7a92 100644
  
      model = (DNNModel *)av_mallocz(sizeof(DNNModel));
      if (!model) {
-@@ -240,6 +244,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -249,6 +253,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
      }
-+    first_param = *th_model->jit_model.named_parameters().begin();
++    first_param = *th_model->jit_model->named_parameters().begin();
  
      th_model->request_queue = ff_safe_queue_create();
      if (!th_model->request_queue) {
-@@ -274,6 +279,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -283,6 +288,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
          goto fail;
      }
  
@@ -59,23 +59,23 @@ index 34560dbfd2..06608f7a92 100644
      th_model->model = model;
      model->model = th_model;
      model->get_input = &get_input_th;
-@@ -339,8 +351,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -354,8 +366,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
          avpriv_report_missing_feature(NULL, "model function type %d", th_model->model->func_type);
          break;
      }
 -    *infer_request->input_tensor = torch::from_blob(input.data, {1, 1, 3, input.height, input.width},
--                                                    torch::kFloat32);
+-                                                    deleter, torch::kFloat32);
 +    if (th_model->model_type == FRVSR) {
 +        *infer_request->input_tensor = torch::from_blob(input.data, {1, 3, input.height, input.width},
-+                                                        torch::kFloat32);
++                                                        deleter, torch::kFloat32);
 +    } else {
 +        *infer_request->input_tensor = torch::from_blob(input.data, {1, 1, 3, input.height, input.width},
-+                                                        torch::kFloat32);
++                                                        deleter, torch::kFloat32);
 +    }
      if (infer_request->input_tensor->device() != ctx->options.device_type)
          *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
      return 0;
-@@ -359,6 +376,7 @@ static int th_start_inference(void *args)
+@@ -374,6 +391,7 @@ static int th_start_inference(void *args)
      THModel *th_model = NULL;
      THContext *ctx = NULL;
      std::vector<torch::jit::IValue> inputs;
@@ -83,7 +83,7 @@ index 34560dbfd2..06608f7a92 100644
  
      if (!request) {
          av_log(NULL, AV_LOG_ERROR, "THRequestItem is NULL\n");
-@@ -369,14 +387,31 @@ static int th_start_inference(void *args)
+@@ -384,6 +402,7 @@ static int th_start_inference(void *args)
      task = lltask->task;
      th_model = (THModel *)task->model;
      ctx = &th_model->ctx;
@@ -91,11 +91,11 @@ index 34560dbfd2..06608f7a92 100644
  
      if (!infer_request->input_tensor || !infer_request->output) {
          av_log(ctx, AV_LOG_ERROR, "input or output tensor is NULL\n");
-         return DNN_GENERIC_ERROR;
+@@ -391,7 +410,24 @@ static int th_start_inference(void *args)
      }
      inputs.push_back(*infer_request->input_tensor);
--
--    *infer_request->output = th_model->jit_model.forward(inputs).toTensor();
+ 
+-    *infer_request->output = th_model->jit_model->forward(inputs).toTensor();
 +    if (th_model->model_type == FRVSR) {
 +        auto size = infer_request->input_tensor->sizes();
 +        int height = size[2];
@@ -108,7 +108,7 @@ index 34560dbfd2..06608f7a92 100644
 +        inputs.push_back(hr_prev);
 +    }
 +
-+    auto outputs = th_model->jit_model.forward(inputs);
++    auto outputs = th_model->jit_model->forward(inputs);
 +    if (th_model->model_type == FRVSR) {
 +        *infer_request->output = outputs.toTuple()->elements()[0].toTensor();
 +    } else {
@@ -117,7 +117,7 @@ index 34560dbfd2..06608f7a92 100644
  
      return 0;
  }
-@@ -391,10 +426,14 @@ static void infer_completion_callback(void *args) {
+@@ -406,10 +442,14 @@ static void infer_completion_callback(void *args) {
      torch::Tensor *output = infer_request->output;
  
      c10::IntArrayRef sizes = output->sizes();

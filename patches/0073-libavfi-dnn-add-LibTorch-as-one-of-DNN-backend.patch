@@ -1,4 +1,4 @@
-From e87ee451defdd8671e8563f6ec3f8e31ff7be027 Mon Sep 17 00:00:00 2001
+From 90a5c35bc4ff0ba8c5f40811179278c83d09a4e5 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Fri, 14 May 2021 16:08:10 +0800
 Subject: [PATCH] libavfi/dnn: add LibTorch as one of DNN backend
@@ -27,20 +27,20 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
  configure                             |   7 +-
  libavfilter/dnn/Makefile              |   1 +
- libavfilter/dnn/dnn_backend_torch.cpp | 571 ++++++++++++++++++++++++++
+ libavfilter/dnn/dnn_backend_torch.cpp | 589 ++++++++++++++++++++++++++
  libavfilter/dnn/dnn_interface.c       |   5 +
- libavfilter/dnn/dnn_io_proc.c         | 118 +++++-
+ libavfilter/dnn/dnn_io_proc.c         | 119 +++++-
  libavfilter/dnn_filter_common.c       |  31 +-
  libavfilter/dnn_interface.h           |   3 +-
  libavfilter/vf_dnn_processing.c       |   3 +
- 8 files changed, 725 insertions(+), 14 deletions(-)
+ 8 files changed, 744 insertions(+), 14 deletions(-)
  create mode 100644 libavfilter/dnn/dnn_backend_torch.cpp
 
 diff --git a/configure b/configure
-index 983a7664ae..59465a324c 100755
+index 415de2797b..62781e27c9 100755
 --- a/configure
 +++ b/configure
-@@ -280,6 +280,7 @@ External library support:
+@@ -281,6 +281,7 @@ External library support:
    --enable-libtheora       enable Theora encoding via libtheora [no]
    --enable-libtls          enable LibreSSL (via libtls), needed for https support
                             if openssl, gnutls or mbedtls is not used [no]
@@ -48,7 +48,7 @@ index 983a7664ae..59465a324c 100755
    --enable-libtwolame      enable MP2 encoding via libtwolame [no]
    --enable-libuavs3d       enable AVS3 decoding via libuavs3d [no]
    --enable-libv4l2         enable libv4l2/v4l-utils [no]
-@@ -1881,6 +1882,7 @@ EXTERNAL_LIBRARY_LIST="
+@@ -1883,6 +1884,7 @@ EXTERNAL_LIBRARY_LIST="
      libopus
      libplacebo
      libpulse
@@ -56,7 +56,7 @@ index 983a7664ae..59465a324c 100755
      librabbitmq
      librav1e
      librist
-@@ -2769,7 +2771,7 @@ dct_select="rdft"
+@@ -2773,7 +2775,7 @@ dct_select="rdft"
  deflate_wrapper_deps="zlib"
  dirac_parse_select="golomb"
  dovi_rpu_select="golomb"
@@ -65,7 +65,7 @@ index 983a7664ae..59465a324c 100755
  dnn_deps="avformat swscale"
  error_resilience_select="me_cmp"
  evcparse_select="golomb"
-@@ -6777,6 +6779,7 @@ enabled libopus           && {
+@@ -6789,6 +6791,7 @@ enabled libopus           && {
  }
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
@@ -73,7 +73,7 @@ index 983a7664ae..59465a324c 100755
  enabled librabbitmq       && require_pkg_config librabbitmq "librabbitmq >= 0.7.1" amqp.h amqp_new_connection
  enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.5.0" rav1e.h rav1e_context_new
  enabled librist           && require_pkg_config librist "librist >= 0.2.7" librist/librist.h rist_receiver_create
-@@ -7236,6 +7239,8 @@ check_disable_warning -Wno-pointer-sign
+@@ -7247,6 +7250,8 @@ check_disable_warning -Wno-pointer-sign
  check_disable_warning -Wno-unused-const-variable
  check_disable_warning -Wno-bool-operation
  check_disable_warning -Wno-char-subscripts
@@ -95,10 +95,10 @@ index 5d5697ea42..3d09927c98 100644
  OBJS-$(CONFIG_DNN)                           += $(DNN-OBJS-yes)
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
 new file mode 100644
-index 0000000000..4f1395414c
+index 0000000000..3ec74b0c50
 --- /dev/null
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -0,0 +1,571 @@
+@@ -0,0 +1,589 @@
 +/*
 + * Copyright (c) 2022
 + *
@@ -139,6 +139,7 @@ index 0000000000..4f1395414c
 +typedef struct THOptions{
 +    char *device_name;
 +    c10::DeviceType device_type;
++    int optimize;
 +} THOptions;
 +
 +typedef struct THContext {
@@ -149,7 +150,7 @@ index 0000000000..4f1395414c
 +typedef struct THModel {
 +    THContext ctx;
 +    DNNModel *model;
-+    torch::jit::Module jit_model;
++    torch::jit::Module *jit_model;
 +    SafeQueue *request_queue;
 +    Queue *task_queue;
 +    Queue *lltask_queue;
@@ -171,6 +172,7 @@ index 0000000000..4f1395414c
 +#define FLAGS AV_OPT_FLAG_FILTERING_PARAM
 +static const AVOption dnn_th_options[] = {
 +    { "device", "device to run model", OFFSET(options.device_name), AV_OPT_TYPE_STRING, { .str = "cpu" }, 0, 0, FLAGS },
++    { "optimize", "turn on graph executor optimization", OFFSET(options.optimize), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS},
 +    { NULL }
 +};
 +
@@ -320,6 +322,11 @@ index 0000000000..4f1395414c
 +        return NULL;
 +    }
 +
++    if (ctx->options.optimize)
++        torch::jit::setGraphExecutorOptimize(true);
++    else
++        torch::jit::setGraphExecutorOptimize(false);
++
 +    c10::Device device = c10::Device(ctx->options.device_name);
 +    if (device.is_cpu()) {
 +        ctx->options.device_type = torch::kCPU;
@@ -329,7 +336,8 @@ index 0000000000..4f1395414c
 +    }
 +
 +    try {
-+        th_model->jit_model = torch::jit::load(model_filename, device);
++        th_model->jit_model = new torch::jit::Module;
++        (*th_model->jit_model) = torch::jit::load(model_filename);
 +    } catch (const c10::Error& e) {
 +        av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
 +        goto fail;
@@ -388,6 +396,11 @@ index 0000000000..4f1395414c
 +    return NULL;
 +}
 +
++static void deleter(void *arg)
++{
++    av_freep(&arg);
++}
++
 +static int fill_model_input_th(THModel *th_model, THRequestItem *request)
 +{
 +    LastLevelTaskItem *lltask = NULL;
@@ -413,7 +426,7 @@ index 0000000000..4f1395414c
 +
 +    input.height = task->in_frame->height;
 +    input.width = task->in_frame->width;
-+    input.data = malloc(input.height * input.width * 3 * sizeof(float));
++    input.data = av_malloc(input.height * input.width * 3 * sizeof(float));
 +    if (!input.data)
 +        return AVERROR(ENOMEM);
 +    infer_request->input_tensor = new torch::Tensor();
@@ -434,7 +447,7 @@ index 0000000000..4f1395414c
 +        break;
 +    }
 +    *infer_request->input_tensor = torch::from_blob(input.data, {1, 1, 3, input.height, input.width},
-+                                                    torch::kFloat32);
++                                                    deleter, torch::kFloat32);
 +    return 0;
 +
 +err:
@@ -468,7 +481,7 @@ index 0000000000..4f1395414c
 +    }
 +    inputs.push_back(*infer_request->input_tensor);
 +
-+    *infer_request->output = th_model->jit_model.forward(inputs).toTensor();
++    *infer_request->output = th_model->jit_model->forward(inputs).toTensor();
 +
 +    return 0;
 +}
@@ -509,6 +522,7 @@ index 0000000000..4f1395414c
 +        goto err;
 +    }
 +    task->inference_done++;
++    av_freep(&request->lltask);
 +err:
 +    th_free_request(infer_request);
 +
@@ -524,6 +538,7 @@ index 0000000000..4f1395414c
 +    LastLevelTaskItem *lltask;
 +    TaskItem *task = NULL;
 +    int ret = 0;
++    torch::NoGradGuard no_grad;
 +
 +    if (ff_queue_size(lltask_queue) == 0) {
 +        destroy_request_item(&request);
@@ -658,7 +673,10 @@ index 0000000000..4f1395414c
 +            av_frame_free(&item->out_frame);
 +            av_freep(&item);
 +        }
++        ff_queue_destroy(th_model->task_queue);
 +    }
++    delete th_model->jit_model;
++    av_opt_free(&th_model->ctx);
 +    av_freep(&th_model);
 +    av_freep(model);
 +}
@@ -694,7 +712,7 @@ index e843826aa6..b9f71aea53 100644
          av_log(log_ctx, AV_LOG_ERROR,
                  "Module backend_type %d is not supported or enabled.\n",
 diff --git a/libavfilter/dnn/dnn_io_proc.c b/libavfilter/dnn/dnn_io_proc.c
-index 532b089002..5c5017db1a 100644
+index 532b089002..91e77a4a4c 100644
 --- a/libavfilter/dnn/dnn_io_proc.c
 +++ b/libavfilter/dnn/dnn_io_proc.c
 @@ -24,10 +24,21 @@
@@ -707,7 +725,7 @@ index 532b089002..5c5017db1a 100644
  {
      struct SwsContext *sws_ctx;
 +    int frame_size = frame->height * frame->width;
-+    int linesize[3];
++    int linesize[3] = { 0 };
 +    void **dst_data = NULL;
 +    void *middle_data = NULL;
 +    enum AVPixelFormat fmt;
@@ -738,7 +756,7 @@ index 532b089002..5c5017db1a 100644
  
      switch (frame->format) {
      case AV_PIX_FMT_RGB24:
-@@ -51,12 +74,43 @@ int ff_proc_from_dnn_to_frame(AVFrame *frame, DNNData *output, void *log_ctx)
+@@ -51,12 +74,44 @@ int ff_proc_from_dnn_to_frame(AVFrame *frame, DNNData *output, void *log_ctx)
                  "fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
                  av_get_pix_fmt_name(AV_PIX_FMT_GRAYF32), frame->width * 3, frame->height,
                  av_get_pix_fmt_name(AV_PIX_FMT_GRAY8),   frame->width * 3, frame->height);
@@ -775,6 +793,7 @@ index 532b089002..5c5017db1a 100644
 +                                      frame->width * sizeof(uint8_t), 0}
 +                      , 0, frame->height,
 +                      (uint8_t * const*)frame->data, frame->linesize);
++            sws_freeContext(sws_ctx);
 +            break;
 +        default:
 +            break;
@@ -783,7 +802,7 @@ index 532b089002..5c5017db1a 100644
          return 0;
      case AV_PIX_FMT_GRAYF32:
          av_image_copy_plane(frame->data[0], frame->linesize[0],
-@@ -101,6 +155,14 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
+@@ -101,6 +156,14 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
  {
      struct SwsContext *sws_ctx;
      int bytewidth = av_image_get_linesize(frame->format, frame->width, 0);
@@ -798,7 +817,7 @@ index 532b089002..5c5017db1a 100644
      if (bytewidth < 0) {
          return AVERROR(EINVAL);
      }
-@@ -112,6 +174,46 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
+@@ -112,6 +175,46 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
      switch (frame->format) {
      case AV_PIX_FMT_RGB24:
      case AV_PIX_FMT_BGR24:
@@ -845,7 +864,7 @@ index 532b089002..5c5017db1a 100644
          sws_ctx = sws_getContext(frame->width * 3,
                                   frame->height,
                                   AV_PIX_FMT_GRAY8,
-@@ -124,13 +226,15 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
+@@ -124,13 +227,15 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
                  "fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
                  av_get_pix_fmt_name(AV_PIX_FMT_GRAY8),  frame->width * 3, frame->height,
                  av_get_pix_fmt_name(AV_PIX_FMT_GRAYF32),frame->width * 3, frame->height);
@@ -863,7 +882,7 @@ index 532b089002..5c5017db1a 100644
          break;
      case AV_PIX_FMT_GRAYF32:
          av_image_copy_plane(input->data, bytewidth,
-@@ -184,6 +288,14 @@ static enum AVPixelFormat get_pixel_format(DNNData *data)
+@@ -184,6 +289,14 @@ static enum AVPixelFormat get_pixel_format(DNNData *data)
              av_assert0(!"unsupported data pixel format.\n");
              return AV_PIX_FMT_BGR24;
          }
@@ -955,10 +974,10 @@ index fe8bdc2df1..151666fb12 100644
  
  typedef enum {
 diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
-index 95c3e0b99b..7f4d0f2711 100644
+index 6829e94585..f80c17b80c 100644
 --- a/libavfilter/vf_dnn_processing.c
 +++ b/libavfilter/vf_dnn_processing.c
-@@ -51,6 +51,9 @@ static const AVOption dnn_processing_options[] = {
+@@ -50,6 +50,9 @@ static const AVOption dnn_processing_options[] = {
  #endif
  #if (CONFIG_LIBOPENVINO == 1)
      { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
