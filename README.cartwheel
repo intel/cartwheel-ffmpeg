@@ -37,6 +37,9 @@ $ git checkout -b <my new branch>
 $ git am ../patches/*.patch
 ```
 
+## build
+[how to]( https://github.com/intel/cartwheel-ffmpeg/wiki/How-to-build-cartwheel-ffmpeg)
+
 ## rebase
 ```shell
 # at top-level directory
