@@ -1,4 +1,4 @@
-From 177f289ea7fd3199491d231a03eef65869513722 Mon Sep 17 00:00:00 2001
+From e387e0d370e17d1ee530953cda2f653a6f5201f3 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Wed, 29 Jun 2022 07:46:44 +0000
 Subject: [PATCH] lavf/dnn: enable libtorch backend support FRVSR model
@@ -9,7 +9,7 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  1 file changed, 46 insertions(+), 6 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 5e3c0a5929..4734ce2d04 100644
+index dcc2df3ebd..c8aef78616 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -46,6 +46,8 @@ typedef struct THContext {
@@ -29,7 +29,7 @@ index 5e3c0a5929..4734ce2d04 100644
  } THModel;
  
  typedef struct THInferRequest {
-@@ -200,6 +203,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -201,6 +204,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
      THModel *th_model = NULL;
      THRequestItem *item = NULL;
      THContext *ctx;
@@ -37,7 +37,7 @@ index 5e3c0a5929..4734ce2d04 100644
  
      model = (DNNModel *)av_mallocz(sizeof(DNNModel));
      if (!model) {
-@@ -249,6 +253,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -250,6 +254,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
      }
@@ -45,7 +45,7 @@ index 5e3c0a5929..4734ce2d04 100644
  
      th_model->request_queue = ff_safe_queue_create();
      if (!th_model->request_queue) {
-@@ -283,6 +288,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -284,6 +289,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
          goto fail;
      }
  
@@ -59,7 +59,7 @@ index 5e3c0a5929..4734ce2d04 100644
      th_model->model = model;
      model->model = th_model;
      model->get_input = &get_input_th;
-@@ -354,8 +366,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -355,8 +367,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
          avpriv_report_missing_feature(NULL, "model function type %d", th_model->model->func_type);
          break;
      }
@@ -75,7 +75,7 @@ index 5e3c0a5929..4734ce2d04 100644
      if (infer_request->input_tensor->device() != ctx->options.device_type)
          *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
      return 0;
-@@ -374,6 +391,7 @@ static int th_start_inference(void *args)
+@@ -375,6 +392,7 @@ static int th_start_inference(void *args)
      THModel *th_model = NULL;
      THContext *ctx = NULL;
      std::vector<torch::jit::IValue> inputs;
@@ -83,7 +83,7 @@ index 5e3c0a5929..4734ce2d04 100644
  
      if (!request) {
          av_log(NULL, AV_LOG_ERROR, "THRequestItem is NULL\n");
-@@ -384,6 +402,7 @@ static int th_start_inference(void *args)
+@@ -385,6 +403,7 @@ static int th_start_inference(void *args)
      task = lltask->task;
      th_model = (THModel *)task->model;
      ctx = &th_model->ctx;
@@ -91,7 +91,7 @@ index 5e3c0a5929..4734ce2d04 100644
  
      if (!infer_request->input_tensor || !infer_request->output) {
          av_log(ctx, AV_LOG_ERROR, "input or output tensor is NULL\n");
-@@ -391,7 +410,24 @@ static int th_start_inference(void *args)
+@@ -392,7 +411,24 @@ static int th_start_inference(void *args)
      }
      inputs.push_back(*infer_request->input_tensor);
  
@@ -117,11 +117,15 @@ index 5e3c0a5929..4734ce2d04 100644
  
      return 0;
  }
-@@ -406,10 +442,14 @@ static void infer_completion_callback(void *args) {
+@@ -407,11 +443,15 @@ static void infer_completion_callback(void *args) {
      torch::Tensor *output = infer_request->output;
  
      c10::IntArrayRef sizes = output->sizes();
 -    assert(sizes.size == 5);
+     outputs.order = DCO_RGB;
+     outputs.layout = DL_NCHW;
+-    outputs.height = sizes.at(3);
+-    outputs.width = sizes.at(4);
 +    if (th_model->model_type == FRVSR) {
 +        outputs.height = sizes.at(2);
 +        outputs.width = sizes.at(3);
@@ -129,9 +133,6 @@ index 5e3c0a5929..4734ce2d04 100644
 +        outputs.height = sizes.at(3);
 +        outputs.width = sizes.at(4);
 +    }
-     outputs.order = DCO_RGB_PLANAR;
--    outputs.height = sizes.at(3);
--    outputs.width = sizes.at(4);
      outputs.dt = DNN_FLOAT;
      outputs.channels = 3;
  

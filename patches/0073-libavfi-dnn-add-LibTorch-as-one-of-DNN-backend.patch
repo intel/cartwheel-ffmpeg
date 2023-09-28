@@ -1,4 +1,4 @@
-From 90a5c35bc4ff0ba8c5f40811179278c83d09a4e5 Mon Sep 17 00:00:00 2001
+From f1e69c845f4dbbeeac12221cc80adb0129104029 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Fri, 14 May 2021 16:08:10 +0800
 Subject: [PATCH] libavfi/dnn: add LibTorch as one of DNN backend
@@ -27,17 +27,16 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
  configure                             |   7 +-
  libavfilter/dnn/Makefile              |   1 +
- libavfilter/dnn/dnn_backend_torch.cpp | 589 ++++++++++++++++++++++++++
+ libavfilter/dnn/dnn_backend_torch.cpp | 593 ++++++++++++++++++++++++++
  libavfilter/dnn/dnn_interface.c       |   5 +
- libavfilter/dnn/dnn_io_proc.c         | 119 +++++-
  libavfilter/dnn_filter_common.c       |  31 +-
- libavfilter/dnn_interface.h           |   3 +-
+ libavfilter/dnn_interface.h           |   2 +-
  libavfilter/vf_dnn_processing.c       |   3 +
- 8 files changed, 744 insertions(+), 14 deletions(-)
+ 7 files changed, 631 insertions(+), 11 deletions(-)
  create mode 100644 libavfilter/dnn/dnn_backend_torch.cpp
 
 diff --git a/configure b/configure
-index 415de2797b..62781e27c9 100755
+index ee1ff4217b..9124920cf8 100755
 --- a/configure
 +++ b/configure
 @@ -281,6 +281,7 @@ External library support:
@@ -65,7 +64,7 @@ index 415de2797b..62781e27c9 100755
  dnn_deps="avformat swscale"
  error_resilience_select="me_cmp"
  evcparse_select="golomb"
-@@ -6789,6 +6791,7 @@ enabled libopus           && {
+@@ -6790,6 +6792,7 @@ enabled libopus           && {
  }
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
@@ -73,7 +72,7 @@ index 415de2797b..62781e27c9 100755
  enabled librabbitmq       && require_pkg_config librabbitmq "librabbitmq >= 0.7.1" amqp.h amqp_new_connection
  enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.5.0" rav1e.h rav1e_context_new
  enabled librist           && require_pkg_config librist "librist >= 0.2.7" librist/librist.h rist_receiver_create
-@@ -7247,6 +7250,8 @@ check_disable_warning -Wno-pointer-sign
+@@ -7250,6 +7253,8 @@ check_disable_warning -Wno-pointer-sign
  check_disable_warning -Wno-unused-const-variable
  check_disable_warning -Wno-bool-operation
  check_disable_warning -Wno-char-subscripts
@@ -95,10 +94,10 @@ index 5d5697ea42..3d09927c98 100644
  OBJS-$(CONFIG_DNN)                           += $(DNN-OBJS-yes)
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
 new file mode 100644
-index 0000000000..3ec74b0c50
+index 0000000000..fe13ddce5e
 --- /dev/null
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -0,0 +1,589 @@
+@@ -0,0 +1,593 @@
 +/*
 + * Copyright (c) 2022
 + *
@@ -205,7 +204,8 @@ index 0000000000..3ec74b0c50
 +static int get_input_th(void *model, DNNData *input, const char *input_name)
 +{
 +    input->dt = DNN_FLOAT;
-+    input->order = DCO_RGB_PLANAR;
++    input->order = DCO_RGB;
++    input->layout = DL_NCHW;
 +    input->height = -1;
 +    input->width = -1;
 +    input->channels = 3;
@@ -406,7 +406,7 @@ index 0000000000..3ec74b0c50
 +    LastLevelTaskItem *lltask = NULL;
 +    TaskItem *task = NULL;
 +    THInferRequest *infer_request = NULL;
-+    DNNData input;
++    DNNData input = { 0 };
 +    THContext *ctx = &th_model->ctx;
 +    int ret;
 +
@@ -434,6 +434,7 @@ index 0000000000..3ec74b0c50
 +
 +    switch (th_model->model->func_type) {
 +    case DFT_PROCESS_FRAME:
++        input.scale = 255;
 +        if (task->do_ioproc) {
 +            if (th_model->model->frame_pre_proc != NULL) {
 +                th_model->model->frame_pre_proc(task->in_frame, &input, th_model->model->filter_ctx);
@@ -490,14 +491,15 @@ index 0000000000..3ec74b0c50
 +    THRequestItem *request = (THRequestItem*)args;
 +    LastLevelTaskItem *lltask = request->lltask;
 +    TaskItem *task = lltask->task;
-+    DNNData outputs;
++    DNNData outputs = { 0 };
 +    THInferRequest *infer_request = request->infer_request;
 +    THModel *th_model = (THModel *)task->model;
 +    torch::Tensor *output = infer_request->output;
 +
 +    c10::IntArrayRef sizes = output->sizes();
 +    assert(sizes.size == 5);
-+    outputs.order = DCO_RGB_PLANAR;
++    outputs.order = DCO_RGB;
++    outputs.layout = DL_NCHW;
 +    outputs.height = sizes.at(3);
 +    outputs.width = sizes.at(4);
 +    outputs.dt = DNN_FLOAT;
@@ -506,6 +508,7 @@ index 0000000000..3ec74b0c50
 +    switch (th_model->model->func_type) {
 +    case DFT_PROCESS_FRAME:
 +        if (task->do_ioproc) {
++            outputs.scale = 255;
 +            outputs.data = output->data_ptr();
 +            if (th_model->model->frame_post_proc != NULL) {
 +                th_model->model->frame_post_proc(task->out_frame, &outputs, th_model->model->filter_ctx);
@@ -711,194 +714,8 @@ index e843826aa6..b9f71aea53 100644
      default:
          av_log(log_ctx, AV_LOG_ERROR,
                  "Module backend_type %d is not supported or enabled.\n",
-diff --git a/libavfilter/dnn/dnn_io_proc.c b/libavfilter/dnn/dnn_io_proc.c
-index 532b089002..91e77a4a4c 100644
---- a/libavfilter/dnn/dnn_io_proc.c
-+++ b/libavfilter/dnn/dnn_io_proc.c
-@@ -24,10 +24,21 @@
- #include "libavutil/avassert.h"
- #include "libavutil/detection_bbox.h"
- 
-+static enum AVPixelFormat get_pixel_format(DNNData *data);
-+
- int ff_proc_from_dnn_to_frame(AVFrame *frame, DNNData *output, void *log_ctx)
- {
-     struct SwsContext *sws_ctx;
-+    int frame_size = frame->height * frame->width;
-+    int linesize[3] = { 0 };
-+    void **dst_data = NULL;
-+    void *middle_data = NULL;
-+    enum AVPixelFormat fmt;
-     int bytewidth = av_image_get_linesize(frame->format, frame->width, 0);
-+    linesize[0] = frame->linesize[0];
-+    dst_data = (void **)frame->data;
-+    fmt = get_pixel_format(output);
-+
-     if (bytewidth < 0) {
-         return AVERROR(EINVAL);
-     }
-@@ -35,6 +46,18 @@ int ff_proc_from_dnn_to_frame(AVFrame *frame, DNNData *output, void *log_ctx)
-         avpriv_report_missing_feature(log_ctx, "data type rather than DNN_FLOAT");
-         return AVERROR(ENOSYS);
-     }
-+    if (fmt == AV_PIX_FMT_GBRP) {
-+        middle_data = malloc(frame_size * 3 * sizeof(uint8_t));
-+        if (!middle_data) {
-+            av_log(log_ctx, AV_LOG_ERROR, "Failed to malloc memory for middle_data for "
-+                    "the conversion fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
-+                    av_get_pix_fmt_name(AV_PIX_FMT_GRAYF32),  frame->width, frame->height,
-+                    av_get_pix_fmt_name(AV_PIX_FMT_GRAY8),frame->width, frame->height);
-+            return AVERROR(EINVAL);
-+        }
-+        dst_data = &middle_data;
-+        linesize[0] = frame->width * 3;
-+    }
- 
-     switch (frame->format) {
-     case AV_PIX_FMT_RGB24:
-@@ -51,12 +74,44 @@ int ff_proc_from_dnn_to_frame(AVFrame *frame, DNNData *output, void *log_ctx)
-                 "fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
-                 av_get_pix_fmt_name(AV_PIX_FMT_GRAYF32), frame->width * 3, frame->height,
-                 av_get_pix_fmt_name(AV_PIX_FMT_GRAY8),   frame->width * 3, frame->height);
-+            av_freep(&middle_data);
-             return AVERROR(EINVAL);
-         }
-         sws_scale(sws_ctx, (const uint8_t *[4]){(const uint8_t *)output->data, 0, 0, 0},
-                            (const int[4]){frame->width * 3 * sizeof(float), 0, 0, 0}, 0, frame->height,
--                           (uint8_t * const*)frame->data, frame->linesize);
-+                           (uint8_t * const*)dst_data, linesize);
-         sws_freeContext(sws_ctx);
-+        switch (fmt) {
-+        case AV_PIX_FMT_GBRP:
-+            sws_ctx = sws_getContext(frame->width,
-+                                     frame->height,
-+                                     AV_PIX_FMT_GBRP,
-+                                     frame->width,
-+                                     frame->height,
-+                                     frame->format,
-+                                     0, NULL, NULL, NULL);
-+            if (!sws_ctx) {
-+                av_log(log_ctx, AV_LOG_ERROR, "Impossible to create scale context for the conversion "
-+                       "fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
-+                       av_get_pix_fmt_name(AV_PIX_FMT_GBRP),  frame->width, frame->height,
-+                       av_get_pix_fmt_name(frame->format),frame->width, frame->height);
-+                av_freep(&middle_data);
-+                return AVERROR(EINVAL);
-+            }
-+            sws_scale(sws_ctx, (const uint8_t * const[4]){(uint8_t *)dst_data[0] + frame_size * sizeof(uint8_t),
-+                                                          (uint8_t *)dst_data[0] + frame_size * sizeof(uint8_t) * 2,
-+                                                          (uint8_t *)dst_data[0], 0},
-+                      (const int [4]){frame->width * sizeof(uint8_t),
-+                                      frame->width * sizeof(uint8_t),
-+                                      frame->width * sizeof(uint8_t), 0}
-+                      , 0, frame->height,
-+                      (uint8_t * const*)frame->data, frame->linesize);
-+            sws_freeContext(sws_ctx);
-+            break;
-+        default:
-+            break;
-+        }
-+        av_freep(&middle_data);
-         return 0;
-     case AV_PIX_FMT_GRAYF32:
-         av_image_copy_plane(frame->data[0], frame->linesize[0],
-@@ -101,6 +156,14 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
- {
-     struct SwsContext *sws_ctx;
-     int bytewidth = av_image_get_linesize(frame->format, frame->width, 0);
-+    int frame_size = frame->height * frame->width;
-+    int linesize[3];
-+    void **src_data, *middle_data = NULL;
-+    enum AVPixelFormat fmt;
-+    linesize[0] = frame->linesize[0];
-+    src_data = (void **)frame->data;
-+    fmt = get_pixel_format(input);
-+
-     if (bytewidth < 0) {
-         return AVERROR(EINVAL);
-     }
-@@ -112,6 +175,46 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
-     switch (frame->format) {
-     case AV_PIX_FMT_RGB24:
-     case AV_PIX_FMT_BGR24:
-+        switch (fmt) {
-+        case AV_PIX_FMT_GBRP:
-+            middle_data = av_malloc(frame_size * 3 * sizeof(uint8_t));
-+            if (!middle_data) {
-+                av_log(log_ctx, AV_LOG_ERROR, "Failed to malloc memory for middle_data for "
-+                       "the conversion fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
-+                       av_get_pix_fmt_name(frame->format),  frame->width, frame->height,
-+                       av_get_pix_fmt_name(AV_PIX_FMT_GBRP),frame->width, frame->height);
-+                return AVERROR(EINVAL);
-+            }
-+            sws_ctx = sws_getContext(frame->width,
-+                                     frame->height,
-+                                     frame->format,
-+                                     frame->width,
-+                                     frame->height,
-+                                     AV_PIX_FMT_GBRP,
-+                                     0, NULL, NULL, NULL);
-+            if (!sws_ctx) {
-+                av_log(log_ctx, AV_LOG_ERROR, "Impossible to create scale context for the conversion "
-+                       "fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
-+                       av_get_pix_fmt_name(frame->format),  frame->width, frame->height,
-+                       av_get_pix_fmt_name(AV_PIX_FMT_GBRP),frame->width, frame->height);
-+                av_freep(&middle_data);
-+                return AVERROR(EINVAL);
-+            }
-+            sws_scale(sws_ctx, (const uint8_t **)frame->data,
-+                      frame->linesize, 0, frame->height,
-+                      (uint8_t * const [4]){(uint8_t *)middle_data + frame_size * sizeof(uint8_t),
-+                                            (uint8_t *)middle_data + frame_size * sizeof(uint8_t) * 2,
-+                                            (uint8_t *)middle_data, 0},
-+                      (const int [4]){frame->width * sizeof(uint8_t),
-+                                      frame->width * sizeof(uint8_t),
-+                                      frame->width * sizeof(uint8_t), 0});
-+            sws_freeContext(sws_ctx);
-+            src_data = &middle_data;
-+            linesize[0] = frame->width * 3;
-+            break;
-+        default:
-+            break;
-+        }
-         sws_ctx = sws_getContext(frame->width * 3,
-                                  frame->height,
-                                  AV_PIX_FMT_GRAY8,
-@@ -124,13 +227,15 @@ int ff_proc_from_frame_to_dnn(AVFrame *frame, DNNData *input, void *log_ctx)
-                 "fmt:%s s:%dx%d -> fmt:%s s:%dx%d\n",
-                 av_get_pix_fmt_name(AV_PIX_FMT_GRAY8),  frame->width * 3, frame->height,
-                 av_get_pix_fmt_name(AV_PIX_FMT_GRAYF32),frame->width * 3, frame->height);
-+            av_freep(&middle_data);
-             return AVERROR(EINVAL);
-         }
--        sws_scale(sws_ctx, (const uint8_t **)frame->data,
--                           frame->linesize, 0, frame->height,
-+        sws_scale(sws_ctx, (const uint8_t **)src_data,
-+                           linesize, 0, frame->height,
-                            (uint8_t * const [4]){input->data, 0, 0, 0},
-                            (const int [4]){frame->width * 3 * sizeof(float), 0, 0, 0});
-         sws_freeContext(sws_ctx);
-+        av_freep(&middle_data);
-         break;
-     case AV_PIX_FMT_GRAYF32:
-         av_image_copy_plane(input->data, bytewidth,
-@@ -184,6 +289,14 @@ static enum AVPixelFormat get_pixel_format(DNNData *data)
-             av_assert0(!"unsupported data pixel format.\n");
-             return AV_PIX_FMT_BGR24;
-         }
-+    } else if (data->dt == DNN_FLOAT) {
-+        //for libtorch dnn_processing only
-+        switch (data->order) {
-+        case DCO_RGB_PLANAR:
-+            return AV_PIX_FMT_GBRP;
-+        default:
-+            return AV_PIX_FMT_NONE;
-+        }
-     }
- 
-     av_assert0(!"unsupported data type.\n");
 diff --git a/libavfilter/dnn_filter_common.c b/libavfilter/dnn_filter_common.c
-index d175c91914..03e0595b47 100644
+index 3b9182c1d1..48cd24897d 100644
 --- a/libavfilter/dnn_filter_common.c
 +++ b/libavfilter/dnn_filter_common.c
 @@ -53,19 +53,31 @@ static char **separate_output_names(const char *expr, const char *val_sep, int *
@@ -953,7 +770,7 @@ index d175c91914..03e0595b47 100644
  
  int ff_dnn_execute_model(DnnContext *ctx, AVFrame *in_frame, AVFrame *out_frame)
 diff --git a/libavfilter/dnn_interface.h b/libavfilter/dnn_interface.h
-index fe8bdc2df1..151666fb12 100644
+index 183d8418b2..bd7e4548ea 100644
 --- a/libavfilter/dnn_interface.h
 +++ b/libavfilter/dnn_interface.h
 @@ -32,7 +32,7 @@
@@ -965,14 +782,6 @@ index fe8bdc2df1..151666fb12 100644
  
  typedef enum {DNN_FLOAT = 1, DNN_UINT8 = 4} DNNDataType;
  
-@@ -40,6 +40,7 @@ typedef enum {
-     DCO_NONE,
-     DCO_BGR_PACKED,
-     DCO_RGB_PACKED,
-+    DCO_RGB_PLANAR,
- } DNNColorOrder;
- 
- typedef enum {
 diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
 index 6829e94585..f80c17b80c 100644
 --- a/libavfilter/vf_dnn_processing.c

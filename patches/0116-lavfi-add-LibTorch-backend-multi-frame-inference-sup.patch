@@ -1,4 +1,4 @@
-From 9355c7b8028903b8eb0dcb872e7c876185acd56b Mon Sep 17 00:00:00 2001
+From 9341520065b5358c77156b9fc3e514d1c2d47d77 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 18 Jul 2022 10:13:04 +0800
 Subject: [PATCH] lavfi: add LibTorch backend multi-frame inference support
@@ -14,12 +14,12 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  libavfilter/dnn/dnn_backend_common.h   |  3 +
  libavfilter/dnn/dnn_backend_openvino.c |  2 +-
  libavfilter/dnn/dnn_backend_tf.c       |  2 +-
- libavfilter/dnn/dnn_backend_torch.cpp  | 33 +++++++++--
+ libavfilter/dnn/dnn_backend_torch.cpp  | 34 +++++++++--
  libavfilter/dnn_filter_common.c        | 79 +++++++++++++++++++++++---
  libavfilter/dnn_filter_common.h        |  4 ++
  libavfilter/dnn_interface.h            |  6 +-
  libavfilter/vf_dnn_processing.c        |  3 +-
- 9 files changed, 130 insertions(+), 22 deletions(-)
+ 9 files changed, 131 insertions(+), 22 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_common.c b/libavfilter/dnn/dnn_backend_common.c
 index 91a4a3c4bf..3ff2486923 100644
@@ -79,10 +79,10 @@ index 42c67c7040..b3ff29d904 100644
      uint32_t inference_todo;
      uint32_t inference_done;
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index 6975a1f442..d212e071e4 100644
+index 10520cd765..452e1f1418 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
-@@ -1048,7 +1048,7 @@ static int extract_lltask_from_task(DNNFunctionType func_type, TaskItem *task, Q
+@@ -1141,7 +1141,7 @@ static int extract_lltask_from_task(DNNFunctionType func_type, TaskItem *task, Q
      }
  }
  
@@ -92,7 +92,7 @@ index 6975a1f442..d212e071e4 100644
  {
  #if HAVE_OPENVINO2
 diff --git a/libavfilter/dnn/dnn_backend_tf.c b/libavfilter/dnn/dnn_backend_tf.c
-index 6ce377d1d9..3950ed56b8 100644
+index 25046b58d9..e13e953e9c 100644
 --- a/libavfilter/dnn/dnn_backend_tf.c
 +++ b/libavfilter/dnn/dnn_backend_tf.c
 @@ -317,7 +317,7 @@ static int get_input_tf(void *model, DNNData *input, const char *input_name)
@@ -105,7 +105,7 @@ index 6ce377d1d9..3950ed56b8 100644
  {
      int ret;
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 624187d8f5..cf8eb593c0 100644
+index c8aef78616..f54493d742 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -33,6 +33,7 @@ extern "C" {
@@ -116,7 +116,7 @@ index 624187d8f5..cf8eb593c0 100644
  }
  
  typedef struct THOptions{
-@@ -114,7 +115,7 @@ static int get_input_th(void *model, DNNData *input, const char *input_name)
+@@ -115,7 +116,7 @@ static int get_input_th(void *model, DNNData *input, const char *input_name)
      return 0;
  }
  
@@ -125,7 +125,7 @@ index 624187d8f5..cf8eb593c0 100644
                                     const char *output_name, int *output_width, int *output_height)
  {
      int ret = 0;
-@@ -125,6 +126,7 @@ static int get_output_th(void *model, const char *input_name, int input_width, i
+@@ -126,6 +127,7 @@ static int get_output_th(void *model, const char *input_name, int input_width, i
      DNNExecBaseParams exec_params = {
          .input_name     = input_name,
          .output_names   = &output_name,
@@ -133,9 +133,9 @@ index 624187d8f5..cf8eb593c0 100644
          .nb_output      = 1,
          .in_frame       = NULL,
          .out_frame      = NULL,
-@@ -327,7 +329,9 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -328,7 +330,9 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
      THInferRequest *infer_request = NULL;
-     DNNData input;
+     DNNData input = { 0 };
      THContext *ctx = &th_model->ctx;
 -    int ret;
 +    AVFrame *tmp_frame = NULL;
@@ -144,7 +144,7 @@ index 624187d8f5..cf8eb593c0 100644
  
      lltask = (LastLevelTaskItem *)ff_queue_pop_front(th_model->lltask_queue);
      if (!lltask) {
-@@ -345,9 +349,10 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -346,9 +350,10 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
  
      input.height = task->in_frame->height;
      input.width = task->in_frame->width;
@@ -156,7 +156,7 @@ index 624187d8f5..cf8eb593c0 100644
      infer_request->input_tensor = new torch::Tensor();
      infer_request->output = new torch::Tensor();
  
-@@ -357,7 +362,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -359,7 +364,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
              if (th_model->model->frame_pre_proc != NULL) {
                  th_model->model->frame_pre_proc(task->in_frame, &input, th_model->model->filter_ctx);
              } else {
@@ -173,7 +173,7 @@ index 624187d8f5..cf8eb593c0 100644
              }
          }
          break;
-@@ -369,7 +382,7 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -371,7 +384,7 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
          *infer_request->input_tensor = torch::from_blob(input.data, {1, 3, input.height, input.width},
                                                          deleter, torch::kFloat32);
      } else {
@@ -182,16 +182,17 @@ index 624187d8f5..cf8eb593c0 100644
                                                          deleter, torch::kFloat32);
      }
      if (infer_request->input_tensor->device() != ctx->options.device_type)
-@@ -439,6 +452,8 @@ static void infer_completion_callback(void *args) {
+@@ -441,6 +454,9 @@ static void infer_completion_callback(void *args) {
      THInferRequest *infer_request = request->infer_request;
      THModel *th_model = (THModel *)task->model;
      torch::Tensor *output = infer_request->output;
 +    AVFrame *tmp_frame = NULL;
-+    int offset = 0;
++    int ret, offset = 0;;
++    void *in_data;
  
      c10::IntArrayRef sizes = output->sizes();
-     if (th_model->model_type == FRVSR) {
-@@ -462,7 +477,13 @@ static void infer_completion_callback(void *args) {
+     outputs.order = DCO_RGB;
+@@ -466,7 +482,13 @@ static void infer_completion_callback(void *args) {
              if (th_model->model->frame_post_proc != NULL) {
                  th_model->model->frame_post_proc(task->out_frame, &outputs, th_model->model->filter_ctx);
              } else {
@@ -207,7 +208,7 @@ index 624187d8f5..cf8eb593c0 100644
          } else {
              task->out_frame->width = outputs.width;
 diff --git a/libavfilter/dnn_filter_common.c b/libavfilter/dnn_filter_common.c
-index 03e0595b47..c67150f1e3 100644
+index 48cd24897d..266ec92c28 100644
 --- a/libavfilter/dnn_filter_common.c
 +++ b/libavfilter/dnn_filter_common.c
 @@ -126,20 +126,49 @@ int ff_dnn_get_input(DnnContext *ctx, DNNData *input)
@@ -337,7 +338,7 @@ index 30871ee381..2b5b8783c5 100644
      { "backend_configs",    "backend configs",            OFFSET(backend_options),  AV_OPT_TYPE_STRING,    { .str = NULL }, 0, 0, FLAGS },\
      { "options", "backend configs (deprecated, use backend_configs)", OFFSET(backend_options),  AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, FLAGS | AV_OPT_FLAG_DEPRECATED},\
 diff --git a/libavfilter/dnn_interface.h b/libavfilter/dnn_interface.h
-index 151666fb12..d573809108 100644
+index bd7e4548ea..5524a0d8e3 100644
 --- a/libavfilter/dnn_interface.h
 +++ b/libavfilter/dnn_interface.h
 @@ -28,6 +28,7 @@
@@ -348,7 +349,7 @@ index 151666fb12..d573809108 100644
  #include "avfilter.h"
  
  #define DNN_GENERIC_ERROR FFERRTAG('D','N','N','!')
-@@ -68,9 +69,12 @@ typedef struct DNNData{
+@@ -76,9 +77,12 @@ typedef struct DNNData{
  typedef struct DNNExecBaseParams {
      const char *input_name;
      const char **output_names;
@@ -361,7 +362,7 @@ index 151666fb12..d573809108 100644
  } DNNExecBaseParams;
  
  typedef struct DNNExecClassificationParams {
-@@ -95,7 +99,7 @@ typedef struct DNNModel{
+@@ -103,7 +107,7 @@ typedef struct DNNModel{
      // Just reuse struct DNNData here, actually the DNNData.data field is not needed.
      int (*get_input)(void *model, DNNData *input, const char *input_name);
      // Gets model output width/height with given input w/h

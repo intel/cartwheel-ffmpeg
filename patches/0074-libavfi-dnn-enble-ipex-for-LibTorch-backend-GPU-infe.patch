@@ -1,4 +1,4 @@
-From 03d7c27010f84becbbb5c4a698cee5fd2aa0f012 Mon Sep 17 00:00:00 2001
+From f93ee868af238990dbcd9cd9f9d7462d55366fe9 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 11 Apr 2022 23:20:19 +0800
 Subject: [PATCH] libavfi/dnn: enble ipex for LibTorch backend GPU inference
@@ -14,10 +14,10 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  2 files changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index 62781e27c9..de36a4443c 100755
+index 9124920cf8..70fd92b859 100755
 --- a/configure
 +++ b/configure
-@@ -6791,7 +6791,7 @@ enabled libopus           && {
+@@ -6792,7 +6792,7 @@ enabled libopus           && {
  }
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
@@ -27,10 +27,10 @@ index 62781e27c9..de36a4443c 100755
  enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.5.0" rav1e.h rav1e_context_new
  enabled librist           && require_pkg_config librist "librist >= 0.2.7" librist/librist.h rist_receiver_create
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index cd9fa34f9b..5e3c0a5929 100644
+index fe13ddce5e..dcc2df3ebd 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -229,6 +229,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -230,6 +230,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
      c10::Device device = c10::Device(ctx->options.device_name);
      if (device.is_cpu()) {
          ctx->options.device_type = torch::kCPU;
@@ -44,7 +44,7 @@ index cd9fa34f9b..5e3c0a5929 100644
      } else {
          av_log(ctx, AV_LOG_ERROR, "Not supported device:\"%s\"\n", ctx->options.device_name);
          goto fail;
-@@ -237,6 +244,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -238,6 +245,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
      try {
          th_model->jit_model = new torch::jit::Module;
          (*th_model->jit_model) = torch::jit::load(model_filename);
@@ -52,7 +52,7 @@ index cd9fa34f9b..5e3c0a5929 100644
      } catch (const c10::Error& e) {
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
-@@ -348,6 +356,8 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -349,6 +357,8 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
      }
      *infer_request->input_tensor = torch::from_blob(input.data, {1, 1, 3, input.height, input.width},
                                                      deleter, torch::kFloat32);
@@ -61,16 +61,16 @@ index cd9fa34f9b..5e3c0a5929 100644
      return 0;
  
  err:
-@@ -406,6 +416,9 @@ static void infer_completion_callback(void *args) {
+@@ -408,6 +418,9 @@ static void infer_completion_callback(void *args) {
      switch (th_model->model->func_type) {
      case DFT_PROCESS_FRAME:
          if (task->do_ioproc) {
 +            //post process can only deal with CPU memory.
 +            if (output->device() != torch::kCPU)
 +                *output = output->to(torch::kCPU);
+             outputs.scale = 255;
              outputs.data = output->data_ptr();
              if (th_model->model->frame_post_proc != NULL) {
-                 th_model->model->frame_post_proc(task->out_frame, &outputs, th_model->model->filter_ctx);
 -- 
 2.34.1
 
