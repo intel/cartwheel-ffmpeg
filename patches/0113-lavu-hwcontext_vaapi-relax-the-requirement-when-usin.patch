@@ -1,8 +1,8 @@
-From 934adf94d2915e01d0abb599bb039d2413d80154 Mon Sep 17 00:00:00 2001
+From edf7561ce281ca2766dedb7e5d668b6ecfd9dbbc Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 13 Mar 2023 20:14:05 +0800
-Subject: [PATCH 113/116] lavu/hwcontext_vaapi: relax the requirement when
- using libva2 (VAAPI 1)
+Subject: [PATCH 113/116] lavu/hwcontext_vaapi: relax the requirement when using
+ libva2 (VAAPI 1)
 
 With libva2, the argument for render target list to vaCreateContext() is
 a hint, so we may use a dynamic frame pool.
@@ -16,22 +16,22 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  4 files changed, 9 insertions(+), 4 deletions(-)
 
 diff --git a/doc/APIchanges b/doc/APIchanges
-index 36dadde913..b489c7fd66 100644
+index 25cb06ddf98b..67bd8bb3564f 100644
 --- a/doc/APIchanges
 +++ b/doc/APIchanges
 @@ -2,6 +2,10 @@ The last version increases of all libraries were on 2023-02-09
  
  API changes, most recent first:
  
-+2023-09-xx - xxxxxxxxxx - lavu 58.27.100 - hwcontext_vaapi.h
++2023-09-xx - xxxxxxxxxx - lavu 58.29.100 - hwcontext_vaapi.h
 +  Modify the documentation to relax the constraint for dynamic
 +  frames pool.
 +
- 2023-09-xx - xxxxxxxxxx - lavu 58.26.100 - hwcontext_qsv.h
+ 2023-09-xx - xxxxxxxxxx - lavu 58.28.100 - hwcontext_qsv.h
    Add AVQSVFramesContext.info to support dynamic frame pools
  
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 53581d8df0..1a51df10f4 100644
+index 53581d8df0d9..1a51df10f4d0 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -619,7 +619,7 @@ static int vaapi_hw_frames_init(AVHWFramesContext *hwfc)
@@ -44,7 +44,7 @@ index 53581d8df0..1a51df10f4 100644
              avfc->surface_ids = NULL;
          }
 diff --git a/libavutil/hwcontext_vaapi.h b/libavutil/hwcontext_vaapi.h
-index aea0ec9263..0e88fbe893 100644
+index aea0ec926341..0e88fbe89327 100644
 --- a/libavutil/hwcontext_vaapi.h
 +++ b/libavutil/hwcontext_vaapi.h
 @@ -26,9 +26,10 @@
@@ -61,18 +61,18 @@ index aea0ec9263..0e88fbe893 100644
   * For user-allocated pools, AVHWFramesContext.pool must return AVBufferRefs
   * with the data pointer set to a VASurfaceID.
 diff --git a/libavutil/version.h b/libavutil/version.h
-index 2dc1a647b8..4c0c545d40 100644
+index 279e54c39441..7c0600da22f1 100644
 --- a/libavutil/version.h
 +++ b/libavutil/version.h
 @@ -79,7 +79,7 @@
   */
  
  #define LIBAVUTIL_VERSION_MAJOR  58
--#define LIBAVUTIL_VERSION_MINOR  26
-+#define LIBAVUTIL_VERSION_MINOR  27
+-#define LIBAVUTIL_VERSION_MINOR  28
++#define LIBAVUTIL_VERSION_MINOR  29
  #define LIBAVUTIL_VERSION_MICRO 100
  
  #define LIBAVUTIL_VERSION_INT   AV_VERSION_INT(LIBAVUTIL_VERSION_MAJOR, \
 -- 
-2.34.1
+2.41.0
 
