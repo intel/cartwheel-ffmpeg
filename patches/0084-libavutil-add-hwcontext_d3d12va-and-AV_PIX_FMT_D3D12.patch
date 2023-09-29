@@ -1,4 +1,4 @@
-From d987a3a9f496b48cabfca5f7a8d4617d1a58cf18 Mon Sep 17 00:00:00 2001
+From a44c6ddce8d1b66e13d18c723a97d6b80094a978 Mon Sep 17 00:00:00 2001
 From: Wu Jianhua <toqsxw@outlook.com>
 Date: Thu, 15 Dec 2022 22:51:22 +0800
 Subject: [PATCH 01/19] libavutil: add hwcontext_d3d12va and AV_PIX_FMT_D3D12
@@ -23,7 +23,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavutil/hwcontext_d3d12va_internal.h
 
 diff --git a/configure b/configure
-index de36a4443c..945e1b8766 100755
+index 6d82d78fa829..db3c9896948b 100755
 --- a/configure
 +++ b/configure
 @@ -340,6 +340,7 @@ External library support:
@@ -50,7 +50,7 @@ index de36a4443c..945e1b8766 100755
  dxva2_deps="dxva2api_h DXVA2_ConfigPictureDecode ole32 user32"
  ffnvcodec_deps_any="libdl LoadLibrary"
  mediacodec_deps="android"
-@@ -6554,6 +6557,8 @@ check_type "windows.h dxgi1_2.h" "IDXGIOutput1"
+@@ -6555,6 +6558,8 @@ check_type "windows.h dxgi1_2.h" "IDXGIOutput1"
  check_type "windows.h dxgi1_5.h" "IDXGIOutput5"
  check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
  check_type "windows.h d3d11.h" "ID3D11VideoContext"
@@ -60,10 +60,10 @@ index de36a4443c..945e1b8766 100755
  check_type "d3d9.h dxva2api.h" DXVA2_ConfigPictureDecode -D_WIN32_WINNT=0x0602
  check_func_headers mfapi.h MFCreateAlignedMemoryBuffer -lmfplat
 diff --git a/libavutil/Makefile b/libavutil/Makefile
-index 1201a08636..4a63323f04 100644
+index 733a32572377..0c531067f245 100644
 --- a/libavutil/Makefile
 +++ b/libavutil/Makefile
-@@ -41,6 +41,7 @@ HEADERS = adler32.h                                                     \
+@@ -42,6 +42,7 @@ HEADERS = adler32.h                                                     \
            hwcontext.h                                                   \
            hwcontext_cuda.h                                              \
            hwcontext_d3d11va.h                                           \
@@ -71,7 +71,7 @@ index 1201a08636..4a63323f04 100644
            hwcontext_drm.h                                               \
            hwcontext_dxva2.h                                             \
            hwcontext_qsv.h                                               \
-@@ -190,6 +191,7 @@ OBJS = adler32.o                                                        \
+@@ -192,6 +193,7 @@ OBJS = adler32.o                                                        \
  
  OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
  OBJS-$(CONFIG_D3D11VA)                  += hwcontext_d3d11va.o
@@ -79,7 +79,7 @@ index 1201a08636..4a63323f04 100644
  OBJS-$(CONFIG_DXVA2)                    += hwcontext_dxva2.o
  OBJS-$(CONFIG_LIBDRM)                   += hwcontext_drm.o
  OBJS-$(CONFIG_MACOS_KPERF)              += macos_kperf.o
-@@ -213,6 +215,7 @@ SKIPHEADERS-$(HAVE_CUDA_H)             += hwcontext_cuda.h
+@@ -215,6 +217,7 @@ SKIPHEADERS-$(HAVE_CUDA_H)             += hwcontext_cuda.h
  SKIPHEADERS-$(CONFIG_CUDA)             += hwcontext_cuda_internal.h     \
                                            cuda_check.h
  SKIPHEADERS-$(CONFIG_D3D11VA)          += hwcontext_d3d11va.h
@@ -88,7 +88,7 @@ index 1201a08636..4a63323f04 100644
  SKIPHEADERS-$(CONFIG_QSV)              += hwcontext_qsv.h
  SKIPHEADERS-$(CONFIG_OPENCL)           += hwcontext_opencl.h
 diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
-index cf14707182..5243eba639 100644
+index 13a2417d19ee..7d9b97b0caf1 100644
 --- a/libavutil/hwcontext.c
 +++ b/libavutil/hwcontext.c
 @@ -36,6 +36,9 @@ static const HWContextType * const hw_table[] = {
@@ -110,7 +110,7 @@ index cf14707182..5243eba639 100644
      [AV_HWDEVICE_TYPE_QSV]    = "qsv",
      [AV_HWDEVICE_TYPE_VAAPI]  = "vaapi",
 diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
-index 7cea44f9d4..e3e5fa5527 100644
+index 7cea44f9d426..e3e5fa552740 100644
 --- a/libavutil/hwcontext.h
 +++ b/libavutil/hwcontext.h
 @@ -37,6 +37,7 @@ enum AVHWDeviceType {
@@ -123,7 +123,7 @@ index 7cea44f9d4..e3e5fa5527 100644
  
 diff --git a/libavutil/hwcontext_d3d12va.c b/libavutil/hwcontext_d3d12va.c
 new file mode 100644
-index 0000000000..89c878f3f0
+index 000000000000..89c878f3f0e9
 --- /dev/null
 +++ b/libavutil/hwcontext_d3d12va.c
 @@ -0,0 +1,691 @@
@@ -820,7 +820,7 @@ index 0000000000..89c878f3f0
 +};
 diff --git a/libavutil/hwcontext_d3d12va.h b/libavutil/hwcontext_d3d12va.h
 new file mode 100644
-index 0000000000..0c7e068374
+index 000000000000..0c7e068374b0
 --- /dev/null
 +++ b/libavutil/hwcontext_d3d12va.h
 @@ -0,0 +1,141 @@
@@ -967,7 +967,7 @@ index 0000000000..0c7e068374
 +#endif /* AVUTIL_HWCONTEXT_D3D12VA_H */
 diff --git a/libavutil/hwcontext_d3d12va_internal.h b/libavutil/hwcontext_d3d12va_internal.h
 new file mode 100644
-index 0000000000..bfd89b3545
+index 000000000000..bfd89b354546
 --- /dev/null
 +++ b/libavutil/hwcontext_d3d12va_internal.h
 @@ -0,0 +1,59 @@
@@ -1032,7 +1032,7 @@ index 0000000000..bfd89b3545
 +#endif /* AVUTIL_HWCONTEXT_D3D12VA_INTERNAL_H */
 \ No newline at end of file
 diff --git a/libavutil/hwcontext_internal.h b/libavutil/hwcontext_internal.h
-index f6fb67c491..a0433015ba 100644
+index f6fb67c49123..a0433015ba9d 100644
 --- a/libavutil/hwcontext_internal.h
 +++ b/libavutil/hwcontext_internal.h
 @@ -171,6 +171,7 @@ int ff_hwframe_map_replace(AVFrame *dst, const AVFrame *src);
@@ -1044,10 +1044,10 @@ index f6fb67c491..a0433015ba 100644
  extern const HWContextType ff_hwcontext_type_dxva2;
  extern const HWContextType ff_hwcontext_type_opencl;
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index e1e0dd2a9e..09fca5ef19 100644
+index 6ded9467b0a3..d4d20bd5114c 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
-@@ -2283,6 +2283,10 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+@@ -2311,6 +2311,10 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
          .name = "d3d11",
          .flags = AV_PIX_FMT_FLAG_HWACCEL,
      },
@@ -1059,12 +1059,12 @@ index e1e0dd2a9e..09fca5ef19 100644
          .name = "gbrpf32be",
          .nb_components = 3,
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index 63e07ba64f..edf31cb574 100644
+index a26c72d56be5..58f9ad28bd82 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
-@@ -426,6 +426,13 @@ enum AVPixelFormat {
-     AV_PIX_FMT_P412BE,      ///< interleaved chroma YUV 4:4:4, 36bpp, data in the high bits, big-endian
-     AV_PIX_FMT_P412LE,      ///< interleaved chroma YUV 4:4:4, 36bpp, data in the high bits, little-endian
+@@ -429,6 +429,13 @@ enum AVPixelFormat {
+     AV_PIX_FMT_GBRAP14BE,  ///< planar GBR 4:4:4:4 56bpp, big-endian
+     AV_PIX_FMT_GBRAP14LE,  ///< planar GBR 4:4:4:4 56bpp, little-endian
  
 +    /**
 +     * Hardware surfaces for Direct3D 12.
@@ -1077,7 +1077,7 @@ index 63e07ba64f..edf31cb574 100644
  };
  
 diff --git a/libavutil/tests/hwdevice.c b/libavutil/tests/hwdevice.c
-index c57586613a..9d7964f9ee 100644
+index c57586613acf..9d7964f9ee98 100644
 --- a/libavutil/tests/hwdevice.c
 +++ b/libavutil/tests/hwdevice.c
 @@ -137,6 +137,8 @@ static const struct {
@@ -1090,5 +1090,5 @@ index c57586613a..9d7964f9ee 100644
        { "0.0", "0.1", "1.0", "1.1" } },
      { AV_HWDEVICE_TYPE_VAAPI,
 -- 
-2.41.0.windows.1
+2.41.0
 
