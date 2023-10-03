@@ -1,4 +1,4 @@
-From edf7561ce281ca2766dedb7e5d668b6ecfd9dbbc Mon Sep 17 00:00:00 2001
+From 4b4f369d688f5891fa7a5cf47c7e09a8548f001d Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Mon, 13 Mar 2023 20:14:05 +0800
 Subject: [PATCH 113/116] lavu/hwcontext_vaapi: relax the requirement when using
@@ -16,12 +16,12 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  4 files changed, 9 insertions(+), 4 deletions(-)
 
 diff --git a/doc/APIchanges b/doc/APIchanges
-index 25cb06ddf98b..67bd8bb3564f 100644
+index 5c6cd6f7bef7..b59d0e2a0010 100644
 --- a/doc/APIchanges
 +++ b/doc/APIchanges
-@@ -2,6 +2,10 @@ The last version increases of all libraries were on 2023-02-09
- 
- API changes, most recent first:
+@@ -9,6 +9,10 @@ API changes, most recent first:
+   Deprecate AVFMT_ALLOW_FLUSH without replacement. Users can always
+   flush any muxer by sending a NULL packet.
  
 +2023-09-xx - xxxxxxxxxx - lavu 58.29.100 - hwcontext_vaapi.h
 +  Modify the documentation to relax the constraint for dynamic

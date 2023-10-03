@@ -1,4 +1,4 @@
-From fc9c6c563eb53eaa8194fe9558cfbfbe0ec29ddc Mon Sep 17 00:00:00 2001
+From 7a92a07fce2a736b47630116a0f9e68dcf8bfea2 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Fri, 10 Mar 2023 13:07:09 +0800
 Subject: [PATCH 103/116] lavu/hwcontext_qsv: update AVQSVFramesContext to
@@ -20,12 +20,12 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  4 files changed, 27 insertions(+), 4 deletions(-)
 
 diff --git a/doc/APIchanges b/doc/APIchanges
-index 5b86cf6fdae4..25cb06ddf98b 100644
+index e15c715ce16a..5c6cd6f7bef7 100644
 --- a/doc/APIchanges
 +++ b/doc/APIchanges
-@@ -2,6 +2,9 @@ The last version increases of all libraries were on 2023-02-09
- 
- API changes, most recent first:
+@@ -9,6 +9,9 @@ API changes, most recent first:
+   Deprecate AVFMT_ALLOW_FLUSH without replacement. Users can always
+   flush any muxer by sending a NULL packet.
  
 +2023-09-xx - xxxxxxxxxx - lavu 58.28.100 - hwcontext_qsv.h
 +  Add AVQSVFramesContext.info to support dynamic frame pools
