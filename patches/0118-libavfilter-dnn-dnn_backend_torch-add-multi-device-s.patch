@@ -1,0 +1,293 @@
+From 3d980c14c01134cc547dd61efa7e90f2125152e3 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 20 Nov 2023 14:32:26 +0800
+Subject: [PATCH] libavfilter/dnn/dnn_backend_torch: add multi-device support
+
+Now ffmpeg-libtoch can be run on multi-device at same time. When set device
+user need to input all devices splited by '&' and also set async=1. The
+inference tasks will be distributed to idle device dynamically.
+
+example command:
+ffmpeg -i input.mp4 -vf dnn_processing=dnn_backend=torch:model=model.pt:backend_configs="device='xpu\\\&cpu'"  output.mp4
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavfilter/dnn/dnn_backend_common.c  |   1 -
+ libavfilter/dnn/dnn_backend_common.h  |   1 +
+ libavfilter/dnn/dnn_backend_torch.cpp | 121 ++++++++++++++++++++------
+ 3 files changed, 93 insertions(+), 30 deletions(-)
+
+diff --git a/libavfilter/dnn/dnn_backend_common.c b/libavfilter/dnn/dnn_backend_common.c
+index 3ff2486923..59aa4cec1a 100644
+--- a/libavfilter/dnn/dnn_backend_common.c
++++ b/libavfilter/dnn/dnn_backend_common.c
+@@ -145,7 +145,6 @@ int ff_dnn_start_inference_async(void *ctx, DNNAsyncExecModule *async_module)
+ DNNAsyncStatusType ff_dnn_get_result_common(Queue *task_queue, AVFrame **in, AVFrame **out)
+ {
+     TaskItem *task = ff_queue_peek_front(task_queue);
+-
+     if (!task) {
+         return DAST_EMPTY_QUEUE;
+     }
+diff --git a/libavfilter/dnn/dnn_backend_common.h b/libavfilter/dnn/dnn_backend_common.h
+index b3ff29d904..8fda3ebb7c 100644
+--- a/libavfilter/dnn/dnn_backend_common.h
++++ b/libavfilter/dnn/dnn_backend_common.h
+@@ -47,6 +47,7 @@ typedef struct TaskItem {
+     uint32_t nb_output;
+     uint32_t inference_todo;
+     uint32_t inference_done;
++    uint32_t device_idx;
+ } TaskItem;
+ 
+ // one task might have multiple inferences
+diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
+index 9b1da97c9f..60d98d6d5c 100644
+--- a/libavfilter/dnn/dnn_backend_torch.cpp
++++ b/libavfilter/dnn/dnn_backend_torch.cpp
+@@ -34,6 +34,7 @@ extern "C" {
+ #include "queue.h"
+ #include "safe_queue.h"
+ #include "libavutil/fifo.h"
++#include "libavutil/avstring.h"
+ }
+ 
+ typedef struct THOptions{
+@@ -54,16 +55,19 @@ typedef enum {UNKNOWN_MODEL = -1, BASICVSR, FRVSR} ModelType;
+ typedef struct THModel {
+     THContext ctx;
+     DNNModel *model;
+-    torch::jit::Module *jit_model;
+     SafeQueue *request_queue;
+     Queue *task_queue;
+     Queue *lltask_queue;
+     ModelType model_type;
++    char **device_names;
++    int nb_models;
++    SafeQueue *jit_model_queue;
+ } THModel;
+ 
+ typedef struct THInferRequest {
+     torch::Tensor *output;
+     torch::Tensor *input_tensor;
++    torch::jit::Module *jit_model;
+ } THInferRequest;
+ 
+ typedef struct THRequestItem {
+@@ -89,6 +93,29 @@ static int th_start_inference(void *args);
+ static void infer_completion_callback(void *args);
+ static void dnn_free_model_th(DNNModel **model);
+ 
++static char **th_separate_device_name(char *device_str, int *nb_devices)
++{
++    char *saveptr = NULL;
++    char **device_names;
++    int i = 0;
++    *nb_devices = 0;
++    while(device_str[i] != '\0') {
++        if(device_str[i] == '&')
++            *nb_devices += 1;
++        i++;
++    }
++    *nb_devices += 1;
++    device_names = (char **)av_mallocz(*nb_devices * sizeof(*device_names));
++    if (!device_names)
++        return NULL;
++
++    for (int i = 0; i < *nb_devices; i++) {
++        device_names[i] = av_strtok(device_str, "&", &saveptr);
++        device_str = NULL;
++    }
++    return device_names;
++}
++
+ static int extract_lltask_from_task(TaskItem *task, Queue *lltask_queue)
+ {
+     THModel *th_model = (THModel *)task->model;
+@@ -126,7 +153,7 @@ static int get_output_th(void *model, const char *input_name, int input_width, i
+     int ret = 0;
+     THModel *th_model = (THModel*) model;
+     THContext *ctx = &th_model->ctx;
+-    TaskItem task;
++    TaskItem task = { 0 };
+     THRequestItem *request;
+     DNNExecBaseParams exec_params = {
+         .input_name     = input_name,
+@@ -211,6 +238,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+     THRequestItem *item = NULL;
+     THContext *ctx;
+     torch::jit::NameTensor first_param;
++    torch::jit::Module *jit_model;
+ 
+     model = (DNNModel *)av_mallocz(sizeof(DNNModel));
+     if (!model) {
+@@ -239,30 +267,44 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+     else
+         torch::jit::setGraphExecutorOptimize(false);
+ 
+-    c10::Device device = c10::Device(ctx->options.device_name);
+-    if (device.is_cpu()) {
+-        ctx->options.device_type = torch::kCPU;
+-    } else if (device.is_xpu()) {
+-        if (!at::hasXPU()) {
+-            av_log(ctx, AV_LOG_ERROR, "No XPU device found\n");
+-            return NULL;
+-        }
+-        at::detail::getXPUHooks().initXPU();
+-        ctx->options.device_type = torch::kXPU;
+-    } else {
+-        av_log(ctx, AV_LOG_ERROR, "Not supported device:\"%s\"\n", ctx->options.device_name);
+-        goto fail;
++
++    th_model->device_names = th_separate_device_name(ctx->options.device_name, &th_model->nb_models);
++    if (!th_model->device_names) {
++        av_log(ctx, AV_LOG_ERROR, "could not parse devices names\n");
++        return NULL;
+     }
+ 
+-    try {
+-        th_model->jit_model = new torch::jit::Module;
+-        (*th_model->jit_model) = torch::jit::load(model_filename);
+-        th_model->jit_model->to(ctx->options.device_type);
+-    } catch (const c10::Error& e) {
+-        av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
++    th_model->jit_model_queue = ff_safe_queue_create();
++    if (!th_model->jit_model_queue) {
+         goto fail;
+     }
+-    first_param = *th_model->jit_model->named_parameters().begin();
++
++    for (int i = 0; i < th_model->nb_models; i++) {
++        c10::Device *device;
++        device = new c10::Device(th_model->device_names[i]);
++        if (device && device->is_xpu()) {
++            if (!at::hasXPU()) {
++                av_log(ctx, AV_LOG_ERROR, "No XPU device found\n");
++                delete device;
++                goto fail;
++            }
++            at::detail::getXPUHooks().initXPU();
++        }
++
++        try {
++            jit_model = new torch::jit::Module;
++            *jit_model = torch::jit::load(model_filename);
++            jit_model->to(*device);
++        } catch (const c10::Error& e) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
++            goto fail;
++        }
++        if (ff_safe_queue_push_back(th_model->jit_model_queue, jit_model) < 0) {
++            delete jit_model;
++            goto fail;
++        }
++    }
++    first_param = *jit_model->named_parameters().begin();
+ 
+ #if !HAVE_PTHREAD_CANCEL
+     if (ctx->options.async) {
+@@ -277,7 +319,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+     }
+ 
+     if (ctx->options.nireq <= 0) {
+-        ctx->options.nireq = 1;
++        ctx->options.nireq = th_model->nb_models;
+     }
+ 
+     for (int i = 0; i < ctx->options.nireq; i++) {
+@@ -362,6 +404,12 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+         goto err;
+     }
+ 
++    infer_request->jit_model = (torch::jit::Module *)ff_safe_queue_pop_front(th_model->jit_model_queue);
++    if (!infer_request->jit_model) {
++        av_log(ctx, AV_LOG_ERROR, "unable to get jit_model.\n");
++        return AVERROR(EINVAL);
++    }
++
+     input.height = task->in_frame->height;
+     input.width = task->in_frame->width;
+     input.data = av_malloc(input.height * input.width * 3 * sizeof(float) * task->nb_input);
+@@ -401,8 +449,6 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+         *infer_request->input_tensor = torch::from_blob(input.data, {1, task->nb_input, 3, input.height, input.width},
+                                                         deleter, torch::kFloat32);
+     }
+-    if (infer_request->input_tensor->device() != ctx->options.device_type)
+-        *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
+     return 0;
+ 
+ err:
+@@ -420,6 +466,7 @@ static int th_start_inference(void *args)
+     THContext *ctx = NULL;
+     std::vector<torch::jit::IValue> inputs;
+     c10::DeviceType device_type;
++    torch::NoGradGuard no_grad;
+ 
+     if (!request) {
+         av_log(NULL, AV_LOG_ERROR, "THRequestItem is NULL\n");
+@@ -432,10 +479,18 @@ static int th_start_inference(void *args)
+     ctx = &th_model->ctx;
+     device_type = ctx->options.device_type;
+ 
++    if (ctx->options.optimize)
++        torch::jit::setGraphExecutorOptimize(true);
++    else
++        torch::jit::setGraphExecutorOptimize(false);
++
+     if (!infer_request->input_tensor || !infer_request->output) {
+         av_log(ctx, AV_LOG_ERROR, "input or output tensor is NULL\n");
+         return DNN_GENERIC_ERROR;
+     }
++    c10::Device device = (*infer_request->jit_model->parameters().begin()).device();
++    if (infer_request->input_tensor->device() != device)
++        *infer_request->input_tensor = infer_request->input_tensor->to(device);
+     inputs.push_back(*infer_request->input_tensor);
+ 
+     if (th_model->model_type == FRVSR) {
+@@ -450,7 +505,7 @@ static int th_start_inference(void *args)
+         inputs.push_back(hr_prev);
+     }
+ 
+-    auto outputs = th_model->jit_model->forward(inputs);
++    auto outputs = infer_request->jit_model->forward(inputs);
+     if (th_model->model_type == FRVSR) {
+         *infer_request->output = outputs.toTuple()->elements()[0].toTensor();
+     } else {
+@@ -517,7 +572,11 @@ static void infer_completion_callback(void *args) {
+     av_freep(&request->lltask);
+ err:
+     th_free_request(infer_request);
+-
++    if (ff_safe_queue_push_back(th_model->jit_model_queue, infer_request->jit_model) < 0) {
++        delete infer_request->jit_model;
++        av_log(&th_model->ctx, AV_LOG_ERROR, "Unable to push back jit_model when failed to start inference.\n");
++    }
++    infer_request->jit_model = NULL;
+     if (ff_safe_queue_push_back(th_model->request_queue, request) < 0) {
+         destroy_request_item(&request);
+         av_log(&th_model->ctx, AV_LOG_ERROR, "Unable to push back request_queue when failed to start inference.\n");
+@@ -530,7 +589,6 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+     LastLevelTaskItem *lltask;
+     TaskItem *task = NULL;
+     int ret = 0;
+-    torch::NoGradGuard no_grad;
+     THContext *ctx;
+ 
+     if (ff_queue_size(lltask_queue) == 0) {
+@@ -673,7 +731,12 @@ static void dnn_free_model_th(DNNModel **model)
+         av_freep(&item);
+     }
+     ff_queue_destroy(th_model->task_queue);
+-    delete th_model->jit_model;
++    while (ff_safe_queue_size(th_model->jit_model_queue) != 0) {
++        torch::jit::Module *jit_model = (torch::jit::Module *)ff_safe_queue_pop_front(th_model->jit_model_queue);
++        delete jit_model;
++    }
++    ff_safe_queue_destroy(th_model->jit_model_queue);
++    av_freep(&th_model->device_names);
+     av_opt_free(&th_model->ctx);
+     av_freep(&th_model);
+     av_freep(model);
+-- 
+2.34.1
+
