@@ -1,14 +1,14 @@
-From b11e71b5524cc99fbf597df1737c079a749ee656 Mon Sep 17 00:00:00 2001
+From 3c2de5bd6aa40b33845db8344141c1d4e4375759 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Mon, 13 Mar 2023 20:14:05 +0800
-Subject: [PATCH 43/46] lavu/hwcontext_vaapi: relax the requirement when using
- libva2 (VAAPI 1)
+Date: Wed, 20 Dec 2023 15:10:48 +0800
+Subject: [PATCH 112/114] lavu/hwcontext_vaapi: relax the requirement when
+ using libva2 (VAAPI 1)
 
 With libva2, the argument for render target list to vaCreateContext() is
 a hint, so we may use a dynamic frame pool.
 
-To reduce conflict in cartwheel, don't update libavutil/version.h and
-doc/APIchanges !!!
+To reduce conflict in cartwheel, don't update libavutil/version.h
+and doc/APIchanges !!!
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
@@ -17,7 +17,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  2 files changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 0d2fcbba67..19544ea612 100644
+index a9499e140d..e6f45f8fde 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -619,7 +619,7 @@ static int vaapi_hw_frames_init(AVHWFramesContext *hwfc)
@@ -30,7 +30,7 @@ index 0d2fcbba67..19544ea612 100644
              avfc->surface_ids = NULL;
          }
 diff --git a/libavutil/hwcontext_vaapi.h b/libavutil/hwcontext_vaapi.h
-index aea0ec9263..0e88fbe893 100644
+index aea0ec9263..259c6f5dbd 100644
 --- a/libavutil/hwcontext_vaapi.h
 +++ b/libavutil/hwcontext_vaapi.h
 @@ -26,9 +26,10 @@
@@ -41,8 +41,8 @@ index aea0ec9263..0e88fbe893 100644
 + * Dynamic frame pools are supported. Note that any pool used as a render
   * target is required to be of fixed size in order to be be usable as an
 - * argument to vaCreateContext().
-+ * argument to vaCreateContext() with libva. When libva2 (VAAPI 1) is used,
-+ * a pool used as a render target can be dynamic.
++ * argument to vaCreateContext() when libva is used. When libva2 (VAAPI 1)
++ * is used, a pool used as a render target can be dynamic.
   *
   * For user-allocated pools, AVHWFramesContext.pool must return AVBufferRefs
   * with the data pointer set to a VASurfaceID.

@@ -1,7 +1,7 @@
-From 8c0d719fa132a935c072f5e19b61f88ab3fa4bcf Mon Sep 17 00:00:00 2001
+From 0040ba19219a6de620d17174a50b1cf97836b1f6 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Fri, 10 Mar 2023 13:30:32 +0800
-Subject: [PATCH 111/115] lavfi/qsvvpp: set right mfxFrameInfo for frames in
+Date: Wed, 20 Dec 2023 15:10:46 +0800
+Subject: [PATCH 110/114] lavfi/qsvvpp: set right mfxFrameInfo for frames in
  dynamic frame pools
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>

@@ -1,7 +1,7 @@
-From 2759bd5f1dd6f299dd2c991f3f473246ef3bf23c Mon Sep 17 00:00:00 2001
+From 2b99fe538358d7cb0fa6c618978b2e6244e658bc Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Tue, 28 Feb 2023 14:05:28 +0800
-Subject: [PATCH 114/115] lavc/vaapi_decode: use dynamic frame pool for output
+Date: Wed, 20 Dec 2023 15:10:49 +0800
+Subject: [PATCH 113/114] lavc/vaapi_decode: use dynamic frame pool for output
  frames with libva2
 
 This allows a downstream element stores more frames from VAAPI
@@ -21,10 +21,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 20 insertions(+), 16 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 5282dc1351..75b80684fb 100644
+index 1e43d77e69..01042e51f7 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
-@@ -644,22 +644,26 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -645,22 +645,26 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
          if (err < 0)
              goto fail;
  

@@ -1,27 +1,22 @@
-From 049cda48f6cb8bfbccf60f4f1423ccab5d6ebaee Mon Sep 17 00:00:00 2001
+From 1429902f6fa43698a1b22db0a8486cb1541f3306 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Fri, 10 Mar 2023 13:07:09 +0800
-Subject: [PATCH 33/46] lavu/hwcontext_qsv: update AVQSVFramesContext to
+Date: Wed, 20 Dec 2023 15:10:39 +0800
+Subject: [PATCH 103/114] lavu/hwcontext_qsv: update AVQSVFramesContext to
  support dynamic frame pools
 
-When AVQSVFramesContext.nb_surfaces is set to 0, a dynamic frame pool is
-expected, otherwise a fixed frame pool is expected.
+Add AVQSVFramesContext.info and update the description
 
-In addition, AVQSVFramesContext.info is added. User should provide
-AVQSVFramesContext.info instead of AVQSVFramesContext.surfaces for
-dynamic frame pools.
-
-To reduce conflict in cartwheel, don't update libavutil/version.h and
-doc/APIchanges !!!
+To reduce conflict in cartwheel, don't update libavutil/version.h
+and doc/APIchanges !!!
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
  libavutil/hwcontext_qsv.c |  4 ++--
- libavutil/hwcontext_qsv.h | 22 +++++++++++++++++++++-
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ libavutil/hwcontext_qsv.h | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 29 insertions(+), 6 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 0f1ac50913..6d045405c4 100644
+index 2fe8733eb1..b4ba095631 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -613,7 +613,7 @@ static mfxStatus frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
@@ -43,19 +38,33 @@ index 0f1ac50913..6d045405c4 100644
      /* Apparently VPP requires the frame rate to be set to some value, otherwise
       * init will fail (probably for the framerate conversion filter). Since we
 diff --git a/libavutil/hwcontext_qsv.h b/libavutil/hwcontext_qsv.h
-index e2dba8ad83..317ae5094f 100644
+index e2dba8ad83..5950e38500 100644
 --- a/libavutil/hwcontext_qsv.h
 +++ b/libavutil/hwcontext_qsv.h
-@@ -51,7 +51,27 @@ typedef struct AVQSVDeviceContext {
+@@ -25,8 +25,8 @@
+  * @file
+  * An API-specific header for AV_HWDEVICE_TYPE_QSV.
+  *
+- * This API does not support dynamic frame pools. AVHWFramesContext.pool must
+- * contain AVBufferRefs whose data pointer points to an mfxFrameSurface1 struct.
++ * AVHWFramesContext.pool must contain AVBufferRefs whose data pointer points
++ * to a mfxFrameSurface1 struct.
+  */
+ 
+ /**
+@@ -51,11 +51,34 @@ typedef struct AVQSVDeviceContext {
   * This struct is allocated as AVHWFramesContext.hwctx
   */
  typedef struct AVQSVFramesContext {
 -    mfxFrameSurface1 *surfaces;
 +    /**
-+     * A pointer to mfxFrameSurface1 or mfxFrameInfo structure.
++     * A pointer to a mfxFrameSurface1 or mfxFrameInfo struct
 +     *
-+     * When nb_surfaces is 0, it is a pointer to mfxFrameInfo structure,
-+     * otherwise it is a pointer to mfxFrameSurface1.
++     * When nb_surfaces is non-zero, it is a pointer to a mfxFrameSurface1
++     * struct.
++     *
++     * When nb_surfaces is 0, it is a pointer to a mfxFrameInfo struct, all
++     * buffers allocated from the pool have the same mfxFrameInfo.
 +     */
 +    union {
 +        mfxFrameSurface1 *surfaces;
@@ -63,18 +72,23 @@ index e2dba8ad83..317ae5094f 100644
 +    };
 +
 +    /**
-+     * Number of frames
++     * Number of frames in the pool
 +     *
-+     * A dynamic frame pool is required when nb_surfaces is 0, otherwise
-+     * a fixed frame pool is required.
++     * It is 0 for dynamic frame pools or AVHWFramesContext.initial_pool_size
++     * for fixed frame pools.
 +     *
-+     * User should make sure the configuration can support dynamic frame
-+     * allocation when dynamic frame pool is required. For example, you cannt
-+     * set nb_surfaces to 0 when the child_device_type is AV_HWDEVICE_TYPE_DXVA2.
++     * Note only oneVPL GPU runtime 2.9+ can support dynamic frame pools
++     * on d3d11va or vaapi
 +     */
      int            nb_surfaces;
  
      /**
+-     * A combination of MFX_MEMTYPE_* describing the frame pool.
++     * Set by user. It is a combination of MFX_MEMTYPE_* describing the frame
++     * pool.
+      */
+     int frame_type;
+ } AVQSVFramesContext;
 -- 
 2.34.1
 

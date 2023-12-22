@@ -1,7 +1,16 @@
-From 58c536c81a3f8a5157268d17917a4b57c7a09889 Mon Sep 17 00:00:00 2001
+From aff1addf89600649930de6a5c42a493ac1fff545 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Tue, 14 Mar 2023 14:40:47 +0800
-Subject: [PATCH 110/115] lavc/qsvdec: require a dynamic frame pool if possible
+Date: Wed, 20 Dec 2023 15:10:45 +0800
+Subject: [PATCH 109/114] lavc/qsvdec: require a dynamic frame pool if possible
+
+This allows a downstream element stores more frames from qsv decoders
+and fixes error in get_buffer()
+
+$ ffmpeg -hwaccel qsv -hwaccel_output_format qsv -i input.mp4 -vf
+reverse -f null -
+
+[vist#0:0/h264 @ 0x562248f12c50] Decoding error: Cannot allocate memory
+[h264_qsv @ 0x562248f66b10] get_buffer() failed
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
@@ -9,7 +18,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 45 insertions(+), 12 deletions(-)
 
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 43c148dba4..c2f0f44af9 100644
+index 053c719068..dd6ab28ce2 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
 @@ -43,6 +43,7 @@

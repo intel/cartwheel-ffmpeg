@@ -1,7 +1,7 @@
-From 318b111903b269469b7262029331933a84ce8b30 Mon Sep 17 00:00:00 2001
+From dfd2c8dab752f5872208baace3f5b4f41c0a313d Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Wed, 1 Mar 2023 15:24:44 +0800
-Subject: [PATCH 106/115] lavu/hwcontext_qsv: add support for dynamic frame
+Date: Wed, 20 Dec 2023 15:10:42 +0800
+Subject: [PATCH 106/114] lavu/hwcontext_qsv: add support for dynamic frame
  pool in qsv_map_to
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
@@ -10,7 +10,7 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 129 insertions(+), 2 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index e7df452059..4b6600e231 100644
+index 7b66d6a3f1..2dc1a9b78c 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -2088,8 +2088,8 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
