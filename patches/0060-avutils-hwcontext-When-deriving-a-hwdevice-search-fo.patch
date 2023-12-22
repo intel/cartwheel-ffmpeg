@@ -1,7 +1,7 @@
-From cc8703ef911350e177b5bb2455f4d9a984d900dd Mon Sep 17 00:00:00 2001
+From 442dc01f6e7c79a6c87b0766685c2b41888f5d0a Mon Sep 17 00:00:00 2001
 From: Soft Works <softworkz@hotmail.com>
 Date: Thu, 25 Nov 2021 02:41:32 +0000
-Subject: [PATCH 60/77] avutils/hwcontext: When deriving a hwdevice, search for
+Subject: [PATCH 09/41] avutils/hwcontext: When deriving a hwdevice, search for
  existing device in both directions
 
 The test /libavutil/tests/hwdevice checks that when deriving a device
@@ -65,10 +65,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  4 files changed, 55 insertions(+), 3 deletions(-)
 
 diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
-index ab9ad3703e..bd788b7eda 100644
+index e23bad230f..7d9b97b0ca 100644
 --- a/libavutil/hwcontext.c
 +++ b/libavutil/hwcontext.c
-@@ -123,6 +123,7 @@ static const AVClass hwdevice_ctx_class = {
+@@ -127,6 +127,7 @@ static const AVClass hwdevice_ctx_class = {
  static void hwdevice_ctx_free(void *opaque, uint8_t *data)
  {
      AVHWDeviceContext *ctx = (AVHWDeviceContext*)data;
@@ -76,7 +76,7 @@ index ab9ad3703e..bd788b7eda 100644
  
      /* uninit might still want access the hw context and the user
       * free() callback might destroy it, so uninit has to be called first */
-@@ -133,6 +134,8 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
+@@ -137,6 +138,8 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
          ctx->free(ctx);
  
      av_buffer_unref(&ctx->internal->source_device);
@@ -85,7 +85,7 @@ index ab9ad3703e..bd788b7eda 100644
  
      av_freep(&ctx->hwctx);
      av_freep(&ctx->internal->priv);
-@@ -644,6 +647,26 @@ fail:
+@@ -652,6 +655,26 @@ fail:
      return ret;
  }
  
@@ -112,7 +112,7 @@ index ab9ad3703e..bd788b7eda 100644
  int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
                                          enum AVHWDeviceType type,
                                          AVBufferRef *src_ref,
-@@ -667,6 +690,16 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
+@@ -675,6 +698,16 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
          tmp_ref = tmp_ctx->internal->source_device;
      }
  
@@ -129,7 +129,7 @@ index ab9ad3703e..bd788b7eda 100644
      dst_ref = av_hwdevice_ctx_alloc(type);
      if (!dst_ref) {
          ret = AVERROR(ENOMEM);
-@@ -688,6 +721,11 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
+@@ -696,6 +729,11 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
                      ret = AVERROR(ENOMEM);
                      goto fail;
                  }
@@ -142,19 +142,19 @@ index ab9ad3703e..bd788b7eda 100644
                  if (ret < 0)
                      goto fail;
 diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
-index c18b7e1e8b..3ae572fc64 100644
+index 2b33721a97..e3e5fa5527 100644
 --- a/libavutil/hwcontext.h
 +++ b/libavutil/hwcontext.h
-@@ -37,6 +37,7 @@ enum AVHWDeviceType {
-     AV_HWDEVICE_TYPE_OPENCL,
+@@ -38,6 +38,7 @@ enum AVHWDeviceType {
      AV_HWDEVICE_TYPE_MEDIACODEC,
      AV_HWDEVICE_TYPE_VULKAN,
+     AV_HWDEVICE_TYPE_D3D12VA,
 +    AV_HWDEVICE_TYPE_NB,          ///< number of hw device types, not part of API/ABI.
  };
  
  typedef struct AVHWDeviceInternal AVHWDeviceInternal;
 diff --git a/libavutil/hwcontext_internal.h b/libavutil/hwcontext_internal.h
-index e6266494ac..f6fb67c491 100644
+index 4df516ee6a..a0433015ba 100644
 --- a/libavutil/hwcontext_internal.h
 +++ b/libavutil/hwcontext_internal.h
 @@ -109,6 +109,12 @@ struct AVHWDeviceInternal {
@@ -171,10 +171,10 @@ index e6266494ac..f6fb67c491 100644
  
  struct AVHWFramesInternal {
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 7b4cb7d93f..f7a4ba45d5 100644
+index a67552b5ac..2fe8733eb1 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -330,7 +330,7 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)
+@@ -355,7 +355,7 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)
      av_buffer_unref(&s->child_frames_ref);
  }
  
@@ -183,7 +183,7 @@ index 7b4cb7d93f..f7a4ba45d5 100644
  {
  }
  
-@@ -343,7 +343,7 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, size_t size)
+@@ -368,7 +368,7 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, size_t size)
      if (s->nb_surfaces_used < hwctx->nb_surfaces) {
          s->nb_surfaces_used++;
          return av_buffer_create((uint8_t*)(s->surfaces_internal + s->nb_surfaces_used - 1),
@@ -192,7 +192,7 @@ index 7b4cb7d93f..f7a4ba45d5 100644
      }
  
      return NULL;
-@@ -2261,8 +2261,15 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -2238,8 +2238,15 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
      child_device = (AVHWDeviceContext*)priv->child_device_ctx->data;
  
      impl = choose_implementation(device, child_device_type);
@@ -210,5 +210,5 @@ index 7b4cb7d93f..f7a4ba45d5 100644
  
  const HWContextType ff_hwcontext_type_qsv = {
 -- 
-2.17.1
+2.34.1
 
