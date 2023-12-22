@@ -1,17 +1,8 @@
-From d4b9ab2c85fe537106d67d17f3e050abae4e8dd8 Mon Sep 17 00:00:00 2001
+From 2bfbb157a5a13b77d28063d5bab9c197f9935758 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Tue, 28 Feb 2023 15:02:20 +0800
-Subject: [PATCH 115/115] lavfi/vaapi_vpp: use dynamic frame pool for output
+Date: Wed, 20 Dec 2023 15:10:50 +0800
+Subject: [PATCH 114/114] lavfi/vaapi_vpp: use dynamic frame pool for output
  link with libva2
-
-This can avoid out of memory with vaapi filters since commit 5fa00b3.
-
-Example:
-$ ffmpeg -init_hw_device vaapi=hw:/dev/dri/renderD128
--hwaccel_output_format vaapi -hwaccel vaapi -i input.mp4 -vf
-'scale_vaapi=w=720:h=480' -vframes 1 -f null -
-...
-[vf#0:0 @ 0x55ffe793ba80] Error while filtering: Cannot allocate memory
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---

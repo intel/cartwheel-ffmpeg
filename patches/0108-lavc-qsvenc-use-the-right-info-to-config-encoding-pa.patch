@@ -1,37 +1,14 @@
-From ff8cbb08e3c236ebdce12dec2fc31794b75786d8 Mon Sep 17 00:00:00 2001
+From e23a3c965eaf9b99afa36d8d950d299b0e7098cb Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Fri, 10 Mar 2023 13:28:52 +0800
-Subject: [PATCH 108/115] lavc/qsv: set right mfxFrameInfo for frames in
- dynamic frame pools
+Date: Wed, 20 Dec 2023 15:10:44 +0800
+Subject: [PATCH 108/114] lavc/qsvenc: use the right info to config encoding
+ parameters
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
- libavcodec/qsv.c    |  4 ++--
  libavcodec/qsvenc.c | 10 ++++++----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 3f4b7b8193..4ae697379f 100644
---- a/libavcodec/qsv.c
-+++ b/libavcodec/qsv.c
-@@ -839,7 +839,7 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
-         AVHWFramesContext *frames_ctx = (AVHWFramesContext*)ctx->hw_frames_ctx->data;
-         AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
-         mfxFrameInfo      *i  = &req->Info;
--        mfxFrameInfo      *i1 = &frames_hwctx->surfaces[0].Info;
-+        mfxFrameInfo      *i1 = frames_hwctx->nb_surfaces ? &frames_hwctx->surfaces[0].Info : frames_hwctx->info;
- 
-         if (i->Width  > i1->Width  || i->Height > i1->Height ||
-             i->FourCC != i1->FourCC || i->ChromaFormat != i1->ChromaFormat) {
-@@ -954,7 +954,7 @@ static mfxStatus qsv_frame_lock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
-     if (!qsv_mid->hw_frame->hw_frames_ctx)
-         goto fail;
- 
--    qsv_mid->surf.Info = hw_frames_hwctx->surfaces[0].Info;
-+    qsv_mid->surf.Info = hw_frames_hwctx->nb_surfaces ? hw_frames_hwctx->surfaces[0].Info : *hw_frames_hwctx->info;
-     qsv_mid->surf.Data.MemId = qsv_mid->handle_pair;
- 
-     /* map the data to the system memory */
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
 index eb4f9a9747..6f7e679b66 100644
 --- a/libavcodec/qsvenc.c

@@ -1,7 +1,7 @@
-From 9a4a3f5fda0a8e62642bb217e14a5664f9f172f5 Mon Sep 17 00:00:00 2001
+From dd4b636080dc69aa24db32a5748b21c3199d3c62 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
-Date: Tue, 25 Jul 2023 14:07:22 +0800
-Subject: [PATCH 112/115] lavfi/qsvvpp: require a dynamic frame pool for output
+Date: Wed, 20 Dec 2023 15:10:47 +0800
+Subject: [PATCH 111/114] lavfi/qsvvpp: require a dynamic frame pool for output
  if possible
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
