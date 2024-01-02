@@ -1,8 +1,8 @@
-From f93ee868af238990dbcd9cd9f9d7462d55366fe9 Mon Sep 17 00:00:00 2001
+From 6824c0d682e33f9c5af4ba1779d94b6d4016b668 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 11 Apr 2022 23:20:19 +0800
-Subject: [PATCH] libavfi/dnn: enble ipex for LibTorch backend GPU inference
- support
+Subject: [PATCH 17/41] libavfi/dnn: enble ipex for LibTorch backend GPU
+ inference support
 
 IPEX has not been officially released, this patch should be in cartwheel
 repo only.
@@ -14,18 +14,18 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  2 files changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index 9124920cf8..70fd92b859 100755
+index 15d5782177..c8a3f812b9 100755
 --- a/configure
 +++ b/configure
-@@ -6792,7 +6792,7 @@ enabled libopus           && {
- }
- enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
- enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
+@@ -6875,7 +6875,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
+ enabled libtesseract      && require_pkg_config libtesseract tesseract tesseract/capi.h TessBaseAPICreate
+ enabled libtheora         && require libtheora theora/theoraenc.h th_info_init -ltheoraenc -ltheoradec -logg
+ enabled libtls            && require_pkg_config libtls libtls tls.h tls_configure
 -enabled libtorch          && check_cxxflags -std=c++14 && require_cpp libtorch torch/torch.h "torch::Tensor" -ltorch -lc10 -ltorch_cpu -lstdc++ -lpthread
 +enabled libtorch          && check_cxxflags -std=c++14 && require_cpp libtorch torch/torch.h "torch::Tensor" -ltorch -lc10 -ltorch_cpu -lstdc++ -lpthread -Wl,--no-as-needed -lintel-ext-pt-gpu -Wl,--as-needed
- enabled librabbitmq       && require_pkg_config librabbitmq "librabbitmq >= 0.7.1" amqp.h amqp_new_connection
- enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.5.0" rav1e.h rav1e_context_new
- enabled librist           && require_pkg_config librist "librist >= 0.2.7" librist/librist.h rist_receiver_create
+ enabled libtwolame        && require libtwolame twolame.h twolame_init -ltwolame &&
+                              { check_lib libtwolame twolame.h twolame_encode_buffer_float32_interleaved -ltwolame ||
+                                die "ERROR: libtwolame must be installed and version must be >= 0.3.10"; }
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
 index fe13ddce5e..dcc2df3ebd 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp

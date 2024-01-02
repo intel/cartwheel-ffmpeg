@@ -1,7 +1,7 @@
-From 1fbe8df7af36366e574b51d3597828627c18999d Mon Sep 17 00:00:00 2001
+From b739806af0a3562ed5bb615d83810ab4172a8a19 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 8 Dec 2023 12:52:41 +0800
-Subject: [PATCH 1/3] avcodec/vaapi_encode: introduce a base layer for vaapi
+Subject: [PATCH 39/41] avcodec/vaapi_encode: introduce a base layer for vaapi
  encode
 
 Since VAAPI and future D3D12VA implementation may share the same dpb
@@ -1019,7 +1019,7 @@ index 0000000000..6b6cec05f2
 +
 +#endif /* AVCODEC_HW_BASE_ENCODE_H */
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index b2f3059643..e1605492b6 100644
+index 86f4110cd2..c388e3e2dc 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -139,22 +139,24 @@ static int vaapi_encode_make_misc_param_buffer(AVCodecContext *avctx,
@@ -1278,7 +1278,7 @@ index b2f3059643..e1605492b6 100644
          if (pic->tail_size) {
 -            if (ctx->tail_pkt->size) {
 +            if (base_ctx->tail_pkt->size) {
-                 err = AVERROR(AVERROR_BUG);
+                 err = AVERROR_BUG;
                  goto end;
              }
  
@@ -4542,5 +4542,5 @@ index d00e73e945..d86615f207 100644
      .p.priv_class   = &vaapi_encode_vp9_class,
      .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
 -- 
-2.41.0.windows.1
+2.34.1
 
