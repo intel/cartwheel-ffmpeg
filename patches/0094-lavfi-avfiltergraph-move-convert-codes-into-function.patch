@@ -1,20 +1,20 @@
-From 9105e4ed24e09aee9c6d5d9bb6d7c82917cddc56 Mon Sep 17 00:00:00 2001
+From c06d7d52d386323a261273fdbe54293a7032739c Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 4 Jul 2022 16:09:55 +0800
-Subject: [PATCH 3/5] lavfi/avfiltergraph: move convert codes into functions
+Subject: [PATCH 21/41] lavfi/avfiltergraph: move convert codes into functions
 
 This patch moves the auto-insert filter codes into two functions.
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
- libavfilter/avfiltergraph.c | 128 ++++++++++++++++++++++--------------
- 1 file changed, 79 insertions(+), 49 deletions(-)
+ libavfilter/avfiltergraph.c | 146 ++++++++++++++++++++++--------------
+ 1 file changed, 88 insertions(+), 58 deletions(-)
 
 diff --git a/libavfilter/avfiltergraph.c b/libavfilter/avfiltergraph.c
-index 68daa93e61..b03fc6701e 100644
+index 727eff81ee..7a0dee5412 100644
 --- a/libavfilter/avfiltergraph.c
 +++ b/libavfilter/avfiltergraph.c
-@@ -393,6 +393,74 @@ static int formats_declared(AVFilterContext *f)
+@@ -391,6 +391,83 @@ static int formats_declared(AVFilterContext *f)
      return 1;
  }
  
@@ -54,7 +54,16 @@ index 68daa93e61..b03fc6701e 100644
 +    av_assert0( inlink->outcfg.formats->refcount > 0);
 +    av_assert0(outlink->incfg.formats->refcount > 0);
 +    av_assert0(outlink->outcfg.formats->refcount > 0);
-+    if (outlink->type == AVMEDIA_TYPE_AUDIO) {
++    if (outlink->type == AVMEDIA_TYPE_VIDEO) {
++        av_assert0( inlink-> incfg.color_spaces->refcount > 0);
++        av_assert0( inlink->outcfg.color_spaces->refcount > 0);
++        av_assert0(outlink-> incfg.color_spaces->refcount > 0);
++        av_assert0(outlink->outcfg.color_spaces->refcount > 0);
++        av_assert0( inlink-> incfg.color_ranges->refcount > 0);
++        av_assert0( inlink->outcfg.color_ranges->refcount > 0);
++        av_assert0(outlink-> incfg.color_ranges->refcount > 0);
++        av_assert0(outlink->outcfg.color_ranges->refcount > 0);
++    } else if (outlink->type == AVMEDIA_TYPE_AUDIO) {
 +        av_assert0( inlink-> incfg.samplerates->refcount > 0);
 +        av_assert0( inlink->outcfg.samplerates->refcount > 0);
 +        av_assert0(outlink-> incfg.samplerates->refcount > 0);
@@ -89,7 +98,7 @@ index 68daa93e61..b03fc6701e 100644
  /**
   * Perform one round of query_formats() and merging formats lists on the
   * filter graph.
-@@ -470,10 +538,6 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
+@@ -465,10 +542,6 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
  
              if (convert_needed) {
                  AVFilterContext *convert;
@@ -100,7 +109,7 @@ index 68daa93e61..b03fc6701e 100644
  
                  if (graph->disable_auto_convert) {
                      av_log(log_ctx, AV_LOG_ERROR,
-@@ -484,54 +548,20 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
+@@ -479,63 +552,20 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
                  }
  
                  /* couldn't merge format lists. auto-insert conversion filter */
@@ -134,7 +143,16 @@ index 68daa93e61..b03fc6701e 100644
 -                av_assert0( inlink->outcfg.formats->refcount > 0);
 -                av_assert0(outlink->incfg.formats->refcount > 0);
 -                av_assert0(outlink->outcfg.formats->refcount > 0);
--                if (outlink->type == AVMEDIA_TYPE_AUDIO) {
+-                if (outlink->type == AVMEDIA_TYPE_VIDEO) {
+-                    av_assert0( inlink-> incfg.color_spaces->refcount > 0);
+-                    av_assert0( inlink->outcfg.color_spaces->refcount > 0);
+-                    av_assert0(outlink-> incfg.color_spaces->refcount > 0);
+-                    av_assert0(outlink->outcfg.color_spaces->refcount > 0);
+-                    av_assert0( inlink-> incfg.color_ranges->refcount > 0);
+-                    av_assert0( inlink->outcfg.color_ranges->refcount > 0);
+-                    av_assert0(outlink-> incfg.color_ranges->refcount > 0);
+-                    av_assert0(outlink->outcfg.color_ranges->refcount > 0);
+-                } else if (outlink->type == AVMEDIA_TYPE_AUDIO) {
 -                    av_assert0( inlink-> incfg.samplerates->refcount > 0);
 -                    av_assert0( inlink->outcfg.samplerates->refcount > 0);
 -                    av_assert0(outlink-> incfg.samplerates->refcount > 0);
@@ -167,5 +185,5 @@ index 68daa93e61..b03fc6701e 100644
              }
          }
 -- 
-2.41.0.windows.1
+2.34.1
 
