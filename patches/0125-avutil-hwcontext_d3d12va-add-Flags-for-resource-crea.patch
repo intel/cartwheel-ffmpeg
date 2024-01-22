@@ -1,7 +1,7 @@
-From 7ae1cd9018c2a8e27a124a9af9824614709ebf27 Mon Sep 17 00:00:00 2001
+From e2f3a84b510a36f8486c262bcf620f359b38159f Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 26 Sep 2023 10:11:50 +0800
-Subject: [PATCH 2/3] hwcontext_d3d12va: add Flags for resource creation
+Subject: [PATCH 8/9] avutil/hwcontext_d3d12va: add Flags for resource creation
 
 Flags field is added to support diffferent resource creation.
 

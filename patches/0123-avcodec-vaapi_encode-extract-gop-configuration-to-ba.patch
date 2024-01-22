@@ -1,0 +1,165 @@
+From 506ba50ff606efd1e8e39040f9965134668cbfb8 Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Fri, 29 Dec 2023 10:00:02 +0800
+Subject: [PATCH 6/9] avcodec/vaapi_encode: extract gop configuration to base
+ layer
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/hw_base_encode.c | 54 +++++++++++++++++++++++++++++++++++++
+ libavcodec/hw_base_encode.h |  3 +++
+ libavcodec/vaapi_encode.c   | 52 +++--------------------------------
+ 3 files changed, 61 insertions(+), 48 deletions(-)
+
+diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
+index c20c47bf55..bb9fe70239 100644
+--- a/libavcodec/hw_base_encode.c
++++ b/libavcodec/hw_base_encode.c
+@@ -782,6 +782,60 @@ int ff_hw_base_rc_mode_configure(AVCodecContext *avctx, const HWBaseEncodeRCMode
+     return 0;
+ }
+ 
++int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
++                                  int flags, int prediction_pre_only)
++{
++    HWBaseEncodeContext *ctx = avctx->priv_data;
++
++    if (flags & FLAG_INTRA_ONLY || avctx->gop_size <= 1) {
++        av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
++        ctx->gop_size = 1;
++    } else if (ref_l0 < 1) {
++        av_log(avctx, AV_LOG_ERROR, "Driver does not support any "
++               "reference frames.\n");
++        return AVERROR(EINVAL);
++    } else if (!(flags & FLAG_B_PICTURES) || ref_l1 < 1 ||
++               avctx->max_b_frames < 1 || prediction_pre_only) {
++        if (ctx->p_to_gpb)
++           av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
++                  "(supported references: %d / %d).\n",
++                  ref_l0, ref_l1);
++        else
++            av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
++                   "(supported references: %d / %d).\n", ref_l0, ref_l1);
++        ctx->gop_size = avctx->gop_size;
++        ctx->p_per_i  = INT_MAX;
++        ctx->b_per_p  = 0;
++    } else {
++       if (ctx->p_to_gpb)
++           av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
++                  "(supported references: %d / %d).\n",
++                  ref_l0, ref_l1);
++       else
++           av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
++                  "(supported references: %d / %d).\n", ref_l0, ref_l1);
++        ctx->gop_size = avctx->gop_size;
++        ctx->p_per_i  = INT_MAX;
++        ctx->b_per_p  = avctx->max_b_frames;
++        if (flags & FLAG_B_PICTURE_REFERENCES) {
++            ctx->max_b_depth = FFMIN(ctx->desired_b_depth,
++                                     av_log2(ctx->b_per_p) + 1);
++        } else {
++            ctx->max_b_depth = 1;
++        }
++    }
++
++    if (flags & FLAG_NON_IDR_KEY_PICTURES) {
++        ctx->closed_gop  = !!(avctx->flags & AV_CODEC_FLAG_CLOSED_GOP);
++        ctx->gop_per_idr = ctx->idr_interval + 1;
++    } else {
++        ctx->closed_gop  = 1;
++        ctx->gop_per_idr = 1;
++    }
++
++    return 0;
++}
++
+ int ff_hw_base_encode_init(AVCodecContext *avctx)
+ {
+     HWBaseEncodeContext *ctx = avctx->priv_data;
+diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
+index 57cfa12e73..d6d2fc03c5 100644
+--- a/libavcodec/hw_base_encode.h
++++ b/libavcodec/hw_base_encode.h
+@@ -276,6 +276,9 @@ int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
+ int ff_hw_base_rc_mode_configure(AVCodecContext *avctx, const HWBaseEncodeRCMode *rc_mode,
+                                  int default_quality, HWBaseEncodeRCConfigure *rc_conf);
+ 
++int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
++                                  int flags, int prediction_pre_only);
++
+ int ff_hw_base_encode_init(AVCodecContext *avctx);
+ 
+ int ff_hw_base_encode_close(AVCodecContext *avctx);
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index 30e5deac08..0bce3ce105 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -1443,7 +1443,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+     VAStatus vas;
+     VAConfigAttrib attr = { VAConfigAttribEncMaxRefFrames };
+     uint32_t ref_l0, ref_l1;
+-    int prediction_pre_only;
++    int prediction_pre_only, err;
+ 
+     vas = vaGetConfigAttributes(ctx->hwctx->display,
+                                 ctx->va_profile,
+@@ -1507,53 +1507,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+     }
+ #endif
+ 
+-    if (ctx->codec->flags & FLAG_INTRA_ONLY ||
+-        avctx->gop_size <= 1) {
+-        av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
+-        base_ctx->gop_size = 1;
+-    } else if (ref_l0 < 1) {
+-        av_log(avctx, AV_LOG_ERROR, "Driver does not support any "
+-               "reference frames.\n");
+-        return AVERROR(EINVAL);
+-    } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
+-               ref_l1 < 1 || avctx->max_b_frames < 1 ||
+-               prediction_pre_only) {
+-        if (base_ctx->p_to_gpb)
+-           av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
+-                  "(supported references: %d / %d).\n",
+-                  ref_l0, ref_l1);
+-        else
+-            av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
+-                   "(supported references: %d / %d).\n", ref_l0, ref_l1);
+-        base_ctx->gop_size = avctx->gop_size;
+-        base_ctx->p_per_i  = INT_MAX;
+-        base_ctx->b_per_p  = 0;
+-    } else {
+-       if (base_ctx->p_to_gpb)
+-           av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
+-                  "(supported references: %d / %d).\n",
+-                  ref_l0, ref_l1);
+-       else
+-           av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
+-                  "(supported references: %d / %d).\n", ref_l0, ref_l1);
+-        base_ctx->gop_size = avctx->gop_size;
+-        base_ctx->p_per_i  = INT_MAX;
+-        base_ctx->b_per_p  = avctx->max_b_frames;
+-        if (ctx->codec->flags & FLAG_B_PICTURE_REFERENCES) {
+-            base_ctx->max_b_depth = FFMIN(base_ctx->desired_b_depth,
+-                                          av_log2(base_ctx->b_per_p) + 1);
+-        } else {
+-            base_ctx->max_b_depth = 1;
+-        }
+-    }
+-
+-    if (ctx->codec->flags & FLAG_NON_IDR_KEY_PICTURES) {
+-        base_ctx->closed_gop  = !!(avctx->flags & AV_CODEC_FLAG_CLOSED_GOP);
+-        base_ctx->gop_per_idr = base_ctx->idr_interval + 1;
+-    } else {
+-        base_ctx->closed_gop  = 1;
+-        base_ctx->gop_per_idr = 1;
+-    }
++    err = ff_hw_base_init_gop_structure(avctx, ref_l0, ref_l1, ctx->codec->flags, prediction_pre_only);
++    if (err < 0)
++        return err;
+ 
+     return 0;
+ }
+-- 
+2.41.0.windows.1
+
