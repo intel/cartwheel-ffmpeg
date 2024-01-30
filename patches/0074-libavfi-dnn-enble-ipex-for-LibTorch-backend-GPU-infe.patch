@@ -1,8 +1,8 @@
-From 6824c0d682e33f9c5af4ba1779d94b6d4016b668 Mon Sep 17 00:00:00 2001
+From 6418fc9ef2eeb20c8d63e3471811509cec77e23f Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 11 Apr 2022 23:20:19 +0800
-Subject: [PATCH 17/41] libavfi/dnn: enble ipex for LibTorch backend GPU
- inference support
+Subject: [PATCH] libavfi/dnn: enble ipex for LibTorch backend GPU inference
+ support
 
 IPEX has not been officially released, this patch should be in cartwheel
 repo only.
@@ -14,10 +14,10 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  2 files changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index 15d5782177..c8a3f812b9 100755
+index 213613034b..3bb94f8a49 100755
 --- a/configure
 +++ b/configure
-@@ -6875,7 +6875,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
+@@ -6878,7 +6878,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
  enabled libtesseract      && require_pkg_config libtesseract tesseract tesseract/capi.h TessBaseAPICreate
  enabled libtheora         && require libtheora theora/theoraenc.h th_info_init -ltheoraenc -ltheoradec -logg
  enabled libtls            && require_pkg_config libtls libtls tls.h tls_configure
@@ -27,7 +27,7 @@ index 15d5782177..c8a3f812b9 100755
                               { check_lib libtwolame twolame.h twolame_encode_buffer_float32_interleaved -ltwolame ||
                                 die "ERROR: libtwolame must be installed and version must be >= 0.3.10"; }
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index fe13ddce5e..dcc2df3ebd 100644
+index 97e859eaca..f348870468 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -230,6 +230,13 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
@@ -52,16 +52,16 @@ index fe13ddce5e..dcc2df3ebd 100644
      } catch (const c10::Error& e) {
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
-@@ -349,6 +357,8 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
-     }
-     *infer_request->input_tensor = torch::from_blob(input.data, {1, 1, 3, input.height, input.width},
-                                                     deleter, torch::kFloat32);
+@@ -351,6 +359,8 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+     *infer_request->input_tensor = torch::from_blob(input.data,
+         {1, 1, 3, input.dims[height_idx], input.dims[width_idx]},
+         deleter, torch::kFloat32);
 +    if (infer_request->input_tensor->device() != ctx->options.device_type)
 +        *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
      return 0;
  
  err:
-@@ -408,6 +418,9 @@ static void infer_completion_callback(void *args) {
+@@ -410,6 +420,9 @@ static void infer_completion_callback(void *args) {
      switch (th_model->model->func_type) {
      case DFT_PROCESS_FRAME:
          if (task->do_ioproc) {
