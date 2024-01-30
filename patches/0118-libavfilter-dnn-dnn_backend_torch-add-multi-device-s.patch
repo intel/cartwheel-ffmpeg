@@ -1,4 +1,4 @@
-From 3d980c14c01134cc547dd61efa7e90f2125152e3 Mon Sep 17 00:00:00 2001
+From 55c22b3e82f551c3a4a37ba87609f16411e52be9 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 20 Nov 2023 14:32:26 +0800
 Subject: [PATCH] libavfilter/dnn/dnn_backend_torch: add multi-device support
@@ -14,14 +14,14 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
  libavfilter/dnn/dnn_backend_common.c  |   1 -
  libavfilter/dnn/dnn_backend_common.h  |   1 +
- libavfilter/dnn/dnn_backend_torch.cpp | 121 ++++++++++++++++++++------
- 3 files changed, 93 insertions(+), 30 deletions(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 122 ++++++++++++++++++++------
+ 3 files changed, 94 insertions(+), 30 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_common.c b/libavfilter/dnn/dnn_backend_common.c
-index 3ff2486923..59aa4cec1a 100644
+index 8fefc7fdd3..3008ea77d1 100644
 --- a/libavfilter/dnn/dnn_backend_common.c
 +++ b/libavfilter/dnn/dnn_backend_common.c
-@@ -145,7 +145,6 @@ int ff_dnn_start_inference_async(void *ctx, DNNAsyncExecModule *async_module)
+@@ -138,7 +138,6 @@ int ff_dnn_start_inference_async(void *ctx, DNNAsyncExecModule *async_module)
  DNNAsyncStatusType ff_dnn_get_result_common(Queue *task_queue, AVFrame **in, AVFrame **out)
  {
      TaskItem *task = ff_queue_peek_front(task_queue);
@@ -42,7 +42,7 @@ index b3ff29d904..8fda3ebb7c 100644
  
  // one task might have multiple inferences
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 9b1da97c9f..60d98d6d5c 100644
+index d2901b6c0f..093425445c 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -34,6 +34,7 @@ extern "C" {
@@ -195,29 +195,30 @@ index 9b1da97c9f..60d98d6d5c 100644
      }
  
      for (int i = 0; i < ctx->options.nireq; i++) {
-@@ -362,6 +404,12 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -362,6 +404,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+     if ( ret != 0) {
          goto err;
      }
- 
++
 +    infer_request->jit_model = (torch::jit::Module *)ff_safe_queue_pop_front(th_model->jit_model_queue);
 +    if (!infer_request->jit_model) {
 +        av_log(ctx, AV_LOG_ERROR, "unable to get jit_model.\n");
 +        return AVERROR(EINVAL);
 +    }
 +
-     input.height = task->in_frame->height;
-     input.width = task->in_frame->width;
-     input.data = av_malloc(input.height * input.width * 3 * sizeof(float) * task->nb_input);
-@@ -401,8 +449,6 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
-         *infer_request->input_tensor = torch::from_blob(input.data, {1, task->nb_input, 3, input.height, input.width},
-                                                         deleter, torch::kFloat32);
+     width_idx = dnn_get_width_idx_by_layout(input.layout);
+     height_idx = dnn_get_height_idx_by_layout(input.layout);
+     input.dims[height_idx] = task->in_frame->height;
+@@ -408,8 +457,6 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+             {1, task->nb_input, 3, input.dims[height_idx], input.dims[width_idx]},
+             deleter, torch::kFloat32);
      }
 -    if (infer_request->input_tensor->device() != ctx->options.device_type)
 -        *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
      return 0;
  
  err:
-@@ -420,6 +466,7 @@ static int th_start_inference(void *args)
+@@ -427,6 +474,7 @@ static int th_start_inference(void *args)
      THContext *ctx = NULL;
      std::vector<torch::jit::IValue> inputs;
      c10::DeviceType device_type;
@@ -225,7 +226,7 @@ index 9b1da97c9f..60d98d6d5c 100644
  
      if (!request) {
          av_log(NULL, AV_LOG_ERROR, "THRequestItem is NULL\n");
-@@ -432,10 +479,18 @@ static int th_start_inference(void *args)
+@@ -439,10 +487,18 @@ static int th_start_inference(void *args)
      ctx = &th_model->ctx;
      device_type = ctx->options.device_type;
  
@@ -244,7 +245,7 @@ index 9b1da97c9f..60d98d6d5c 100644
      inputs.push_back(*infer_request->input_tensor);
  
      if (th_model->model_type == FRVSR) {
-@@ -450,7 +505,7 @@ static int th_start_inference(void *args)
+@@ -457,7 +513,7 @@ static int th_start_inference(void *args)
          inputs.push_back(hr_prev);
      }
  
@@ -253,7 +254,7 @@ index 9b1da97c9f..60d98d6d5c 100644
      if (th_model->model_type == FRVSR) {
          *infer_request->output = outputs.toTuple()->elements()[0].toTensor();
      } else {
-@@ -517,7 +572,11 @@ static void infer_completion_callback(void *args) {
+@@ -523,7 +579,11 @@ static void infer_completion_callback(void *args) {
      av_freep(&request->lltask);
  err:
      th_free_request(infer_request);
@@ -266,7 +267,7 @@ index 9b1da97c9f..60d98d6d5c 100644
      if (ff_safe_queue_push_back(th_model->request_queue, request) < 0) {
          destroy_request_item(&request);
          av_log(&th_model->ctx, AV_LOG_ERROR, "Unable to push back request_queue when failed to start inference.\n");
-@@ -530,7 +589,6 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+@@ -536,7 +596,6 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
      LastLevelTaskItem *lltask;
      TaskItem *task = NULL;
      int ret = 0;
@@ -274,7 +275,7 @@ index 9b1da97c9f..60d98d6d5c 100644
      THContext *ctx;
  
      if (ff_queue_size(lltask_queue) == 0) {
-@@ -673,7 +731,12 @@ static void dnn_free_model_th(DNNModel **model)
+@@ -679,7 +738,12 @@ static void dnn_free_model_th(DNNModel **model)
          av_freep(&item);
      }
      ff_queue_destroy(th_model->task_queue);
