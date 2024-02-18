@@ -1,7 +1,7 @@
-From 8d714ea66f5e9e353ebe6d24de5f734d8cf2237a Mon Sep 17 00:00:00 2001
+From bf888e3dc59ffbf7d3ec901358fa869778c9555d Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 8 Dec 2023 12:52:41 +0800
-Subject: [PATCH 3/9] avcodec/vaapi_encode: introduce a base layer for vaapi
+Subject: [PATCH 40/46] avcodec/vaapi_encode: introduce a base layer for vaapi
  encode
 
 Since VAAPI and future D3D12VA implementation may share the same dpb
@@ -28,10 +28,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/hw_base_encode.h
 
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index bb42095165..f9a5c9d616 100644
+index 470d7cb9b1..23946f6ea3 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -163,7 +163,7 @@ OBJS-$(CONFIG_STARTCODE)               += startcode.o
+@@ -164,7 +164,7 @@ OBJS-$(CONFIG_STARTCODE)               += startcode.o
  OBJS-$(CONFIG_TEXTUREDSP)              += texturedsp.o
  OBJS-$(CONFIG_TEXTUREDSPENC)           += texturedspenc.o
  OBJS-$(CONFIG_TPELDSP)                 += tpeldsp.o
@@ -685,7 +685,7 @@ index 0000000000..62adda2fc3
 +}
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
 new file mode 100644
-index 0000000000..be4c6b034e
+index 0000000000..faf6b6b858
 --- /dev/null
 +++ b/libavcodec/hw_base_encode.h
 @@ -0,0 +1,277 @@
@@ -950,14 +950,14 @@ index 0000000000..be4c6b034e
 +
 +#define HW_BASE_ENCODE_RC_MODE(name, desc) \
 +    { #name, desc, 0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_ ## name }, \
-+      0, 0, FLAGS, "rc_mode" }
++      0, 0, FLAGS, .unit = "rc_mode" }
 +#define HW_BASE_ENCODE_RC_OPTIONS \
 +    { "rc_mode",\
 +      "Set rate control mode", \
 +      OFFSET(common.base.explicit_rc_mode), AV_OPT_TYPE_INT, \
-+      { .i64 = RC_MODE_AUTO }, RC_MODE_AUTO, RC_MODE_MAX, FLAGS, "rc_mode" }, \
++      { .i64 = RC_MODE_AUTO }, RC_MODE_AUTO, RC_MODE_MAX, FLAGS, .unit = "rc_mode" }, \
 +    { "auto", "Choose mode automatically based on other parameters", \
-+      0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_AUTO }, 0, 0, FLAGS, "rc_mode" }, \
++      0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_AUTO }, 0, 0, FLAGS, .unit = "rc_mode" }, \
 +    HW_BASE_ENCODE_RC_MODE(CQP,  "Constant-quality"), \
 +    HW_BASE_ENCODE_RC_MODE(CBR,  "Constant-bitrate"), \
 +    HW_BASE_ENCODE_RC_MODE(VBR,  "Variable-bitrate"), \
@@ -2394,7 +2394,7 @@ index 38d855fbd4..e2f968c36d 100644
      return 0;
  }
 diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
-index d5d6d5eb1b..772fb83f5b 100644
+index 6964055b93..772fb83f5b 100644
 --- a/libavcodec/vaapi_encode.h
 +++ b/libavcodec/vaapi_encode.h
 @@ -29,36 +29,24 @@
@@ -2746,14 +2746,14 @@ index d5d6d5eb1b..772fb83f5b 100644
  
 -#define VAAPI_ENCODE_RC_MODE(name, desc) \
 -    { #name, desc, 0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_ ## name }, \
--      0, 0, FLAGS, "rc_mode" }
+-      0, 0, FLAGS, .unit = "rc_mode" }
 -#define VAAPI_ENCODE_RC_OPTIONS \
 -    { "rc_mode",\
 -      "Set rate control mode", \
 -      OFFSET(common.explicit_rc_mode), AV_OPT_TYPE_INT, \
--      { .i64 = RC_MODE_AUTO }, RC_MODE_AUTO, RC_MODE_MAX, FLAGS, "rc_mode" }, \
+-      { .i64 = RC_MODE_AUTO }, RC_MODE_AUTO, RC_MODE_MAX, FLAGS, .unit = "rc_mode" }, \
 -    { "auto", "Choose mode automatically based on other parameters", \
--      0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_AUTO }, 0, 0, FLAGS, "rc_mode" }, \
+-      0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_AUTO }, 0, 0, FLAGS, .unit = "rc_mode" }, \
 -    VAAPI_ENCODE_RC_MODE(CQP,  "Constant-quality"), \
 -    VAAPI_ENCODE_RC_MODE(CBR,  "Constant-bitrate"), \
 -    VAAPI_ENCODE_RC_MODE(VBR,  "Variable-bitrate"), \
@@ -2764,7 +2764,7 @@ index d5d6d5eb1b..772fb83f5b 100644
 -
  #endif /* AVCODEC_VAAPI_ENCODE_H */
 diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
-index 5a9ff0f798..d3785e133c 100644
+index a46b882ab9..7d863988e5 100644
 --- a/libavcodec/vaapi_encode_av1.c
 +++ b/libavcodec/vaapi_encode_av1.c
 @@ -109,20 +109,21 @@ static void vaapi_encode_av1_trace_write_log(void *ctx,
@@ -2996,7 +2996,7 @@ index 5a9ff0f798..d3785e133c 100644
 +    HW_BASE_ENCODE_RC_OPTIONS,
      { "profile", "Set profile (seq_profile)",
        OFFSET(profile), AV_OPT_TYPE_INT,
-       { .i64 = AV_PROFILE_UNKNOWN }, AV_PROFILE_UNKNOWN, 0xff, FLAGS, "profile" },
+       { .i64 = AV_PROFILE_UNKNOWN }, AV_PROFILE_UNKNOWN, 0xff, FLAGS, .unit = "profile" },
 @@ -934,7 +939,7 @@ const FFCodec ff_av1_vaapi_encoder = {
      .p.id           = AV_CODEC_ID_AV1,
      .priv_data_size = sizeof(VAAPIEncodeAV1Context),
@@ -3007,7 +3007,7 @@ index 5a9ff0f798..d3785e133c 100644
      .p.priv_class   = &vaapi_encode_av1_class,
      .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
 diff --git a/libavcodec/vaapi_encode_h264.c b/libavcodec/vaapi_encode_h264.c
-index 57b5ea2bab..fe02f75f85 100644
+index 37df9103ae..2855097823 100644
 --- a/libavcodec/vaapi_encode_h264.c
 +++ b/libavcodec/vaapi_encode_h264.c
 @@ -234,7 +234,7 @@ static int vaapi_encode_h264_write_extra_header(AVCodecContext *avctx,
@@ -3550,7 +3550,7 @@ index 57b5ea2bab..fe02f75f85 100644
      .p.priv_class   = &vaapi_encode_h264_class,
      .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index d7abe194b5..5affafcedd 100644
+index df020cc927..dee93ca9cc 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -260,6 +260,7 @@ fail:
@@ -4062,7 +4062,7 @@ index c17747e3a9..3096043991 100644
      .p.priv_class   = &vaapi_encode_mjpeg_class,
      .p.capabilities = AV_CODEC_CAP_HARDWARE | AV_CODEC_CAP_DR1 |
 diff --git a/libavcodec/vaapi_encode_mpeg2.c b/libavcodec/vaapi_encode_mpeg2.c
-index d1904bf4f5..c5485dbcc4 100644
+index c9b16fbcfc..7600ce2822 100644
 --- a/libavcodec/vaapi_encode_mpeg2.c
 +++ b/libavcodec/vaapi_encode_mpeg2.c
 @@ -166,6 +166,7 @@ fail:
@@ -4518,5 +4518,5 @@ index c2a8dec71b..85621d7471 100644
      .p.priv_class   = &vaapi_encode_vp9_class,
      .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
 -- 
-2.41.0.windows.1
+2.34.1
 

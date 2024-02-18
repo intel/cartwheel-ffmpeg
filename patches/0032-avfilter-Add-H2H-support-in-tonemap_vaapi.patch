@@ -1,15 +1,15 @@
-From a4eb9f3b1c7cd5815191a5eebd9b5408b8182541 Mon Sep 17 00:00:00 2001
+From 4a1abef8cea71b5562bff8f567dd2d71cc41f4d7 Mon Sep 17 00:00:00 2001
 From: Xinpeng Sun <xinpeng.sun@intel.com>
 Date: Mon, 23 Dec 2019 15:29:32 +0800
-Subject: [PATCH 32/77] avfilter: Add H2H support in tonemap_vaapi
+Subject: [PATCH 04/46] avfilter: Add H2H support in tonemap_vaapi
 
 Signed-off-by: Xinpeng Sun <xinpeng.sun@intel.com>
 ---
- libavfilter/vf_tonemap_vaapi.c | 191 +++++++++++++++++++++++++++++++--
- 1 file changed, 181 insertions(+), 10 deletions(-)
+ libavfilter/vf_tonemap_vaapi.c | 195 +++++++++++++++++++++++++++++++--
+ 1 file changed, 185 insertions(+), 10 deletions(-)
 
 diff --git a/libavfilter/vf_tonemap_vaapi.c b/libavfilter/vf_tonemap_vaapi.c
-index cd2f4c2195..93946306db 100644
+index 5de7faa8cc..bdec2567ee 100644
 --- a/libavfilter/vf_tonemap_vaapi.c
 +++ b/libavfilter/vf_tonemap_vaapi.c
 @@ -39,7 +39,11 @@ typedef struct HDRVAAPIContext {
@@ -196,7 +196,7 @@ index cd2f4c2195..93946306db 100644
      err = ff_vaapi_vpp_init_params(avctx, &params,
                                     input_frame, output_frame);
      if (err < 0)
-@@ -358,6 +488,46 @@ static av_cold int tonemap_vaapi_init(AVFilterContext *avctx)
+@@ -361,6 +491,46 @@ static av_cold int tonemap_vaapi_init(AVFilterContext *avctx)
      STRING_OPTION(color_transfer,  color_transfer,  AVCOL_TRC_UNSPECIFIED);
      STRING_OPTION(color_matrix,    color_space,     AVCOL_SPC_UNSPECIFIED);
  
@@ -243,12 +243,16 @@ index cd2f4c2195..93946306db 100644
      return 0;
  }
  
-@@ -383,10 +553,11 @@ static const AVOption tonemap_vaapi_options[] = {
+@@ -386,10 +556,15 @@ static const AVOption tonemap_vaapi_options[] = {
      { "t",        "Output color transfer characteristics set",
        OFFSET(color_transfer_string),  AV_OPT_TYPE_STRING,
-       { .str = NULL }, .flags = FLAGS, "transfer" },
-+    { "display", "set master display",  OFFSET(master_display), AV_OPT_TYPE_STRING, {.str=NULL}, CHAR_MIN, CHAR_MAX, FLAGS },
-+    { "light",   "set content light",   OFFSET(content_light),  AV_OPT_TYPE_STRING, {.str=NULL}, CHAR_MIN, CHAR_MAX, FLAGS },
+       { .str = NULL }, .flags = FLAGS, .unit = "transfer" },
++    { "display", "set master display",
++      OFFSET(master_display), AV_OPT_TYPE_STRING,
++      { .str = NULL }, .flags = FLAGS },
++    { "light",   "set content light",
++      OFFSET(content_light),  AV_OPT_TYPE_STRING,
++      { .str = NULL }, .flags = FLAGS },
      { NULL }
  };
  
@@ -257,5 +261,5 @@ index cd2f4c2195..93946306db 100644
  
  static const AVFilterPad tonemap_vaapi_inputs[] = {
 -- 
-2.17.1
+2.34.1
 

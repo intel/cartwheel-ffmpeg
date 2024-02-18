@@ -1,7 +1,7 @@
-From 6ae69e87d32cb0475b9155a62e8d2a11679a5d59 Mon Sep 17 00:00:00 2001
+From 8f68a51f697245b982eca34798d063de42b6453c Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Fri, 14 May 2021 16:08:10 +0800
-Subject: [PATCH] libavfi/dnn: add LibTorch as one of DNN backend
+Subject: [PATCH 16/46] libavfi/dnn: add LibTorch as one of DNN backend
 
 PyTorch is an open source machine learning framework that accelerates
 the path from research prototyping to production deployment. Official
@@ -36,7 +36,7 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  create mode 100644 libavfilter/dnn/dnn_backend_torch.cpp
 
 diff --git a/configure b/configure
-index 7d7173d989..213613034b 100755
+index ab9ea334f0..3339a4c441 100755
 --- a/configure
 +++ b/configure
 @@ -279,6 +279,7 @@ External library support:
@@ -55,7 +55,7 @@ index 7d7173d989..213613034b 100755
      libtwolame
      libuavs3d
      libv4l2
-@@ -2779,7 +2781,7 @@ cbs_vp9_select="cbs"
+@@ -2782,7 +2784,7 @@ cbs_vp9_select="cbs"
  deflate_wrapper_deps="zlib"
  dirac_parse_select="golomb"
  dovi_rpu_select="golomb"
@@ -64,7 +64,7 @@ index 7d7173d989..213613034b 100755
  dnn_deps="avformat swscale"
  error_resilience_select="me_cmp"
  evcparse_select="golomb"
-@@ -6856,8 +6858,6 @@ enabled libopus           && {
+@@ -6866,8 +6868,6 @@ enabled libopus           && {
  }
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
@@ -73,7 +73,7 @@ index 7d7173d989..213613034b 100755
  enabled librabbitmq       && require_pkg_config librabbitmq "librabbitmq >= 0.7.1" amqp.h amqp_new_connection
  enabled librav1e          && require_pkg_config librav1e "rav1e >= 0.5.0" rav1e.h rav1e_context_new
  enabled librist           && require_pkg_config librist "librist >= 0.2.7" librist/librist.h rist_receiver_create
-@@ -6878,6 +6878,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
+@@ -6888,6 +6888,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
  enabled libtesseract      && require_pkg_config libtesseract tesseract tesseract/capi.h TessBaseAPICreate
  enabled libtheora         && require libtheora theora/theoraenc.h th_info_init -ltheoraenc -ltheoradec -logg
  enabled libtls            && require_pkg_config libtls libtls tls.h tls_configure
@@ -81,7 +81,7 @@ index 7d7173d989..213613034b 100755
  enabled libtwolame        && require libtwolame twolame.h twolame_init -ltwolame &&
                               { check_lib libtwolame twolame.h twolame_encode_buffer_float32_interleaved -ltwolame ||
                                 die "ERROR: libtwolame must be installed and version must be >= 0.3.10"; }
-@@ -7317,6 +7318,8 @@ check_disable_warning -Wno-pointer-sign
+@@ -7327,6 +7328,8 @@ check_disable_warning -Wno-pointer-sign
  check_disable_warning -Wno-unused-const-variable
  check_disable_warning -Wno-bool-operation
  check_disable_warning -Wno-char-subscripts
@@ -777,16 +777,16 @@ index 852d88baa8..63f492e690 100644
  typedef enum {DNN_FLOAT = 1, DNN_UINT8 = 4} DNNDataType;
  
 diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
-index 0b70c8e024..beaba44694 100644
+index e7d21eef32..d99a42d732 100644
 --- a/libavfilter/vf_dnn_processing.c
 +++ b/libavfilter/vf_dnn_processing.c
 @@ -50,6 +50,9 @@ static const AVOption dnn_processing_options[] = {
  #endif
  #if (CONFIG_LIBOPENVINO == 1)
-     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, "backend" },
+     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_OV },    0, 0, FLAGS, .unit = "backend" },
 +#endif
 +#if (CONFIG_LIBTORCH == 1)
-+    { "torch",       "torch backend flag",         0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_TH },    0, 0, FLAGS, "backend" },
++    { "torch",       "torch backend flag",         0,                        AV_OPT_TYPE_CONST,     { .i64 = DNN_TH },    0, 0, FLAGS, .unit = "backend" },
  #endif
      DNN_COMMON_OPTIONS
      { NULL }
