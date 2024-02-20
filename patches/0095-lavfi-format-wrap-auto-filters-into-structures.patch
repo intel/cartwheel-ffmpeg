@@ -1,7 +1,7 @@
-From 6c0079a5106f98bb1faa13dca3a6c0adf7b691a6 Mon Sep 17 00:00:00 2001
+From c084786efd4eee9a99f7fc0976628899617c1f63 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 4 Jul 2022 16:09:56 +0800
-Subject: [PATCH 4/5] lavfi/format: wrap auto filters into structures
+Subject: [PATCH 2/3] lavfi/format: wrap auto filters into structures
 
 This patch wraps auto conversion filters into new structures, making it
 easier to add more auto filters. And it adds a loop to automatically insert
@@ -15,10 +15,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 78 insertions(+), 30 deletions(-)
 
 diff --git a/libavfilter/avfiltergraph.c b/libavfilter/avfiltergraph.c
-index b03fc6701e..0d555e73b5 100644
+index b80bba3571..d3ecdda070 100644
 --- a/libavfilter/avfiltergraph.c
 +++ b/libavfilter/avfiltergraph.c
-@@ -395,24 +395,22 @@ static int formats_declared(AVFilterContext *f)
+@@ -393,24 +393,22 @@ static int formats_declared(AVFilterContext *f)
  
  static int insert_auto_filter(AVFilterContext **convert, AVFilterGraph *graph,
                                AVFilterLink *link, const AVFilterNegotiation *neg,
@@ -49,7 +49,7 @@ index b03fc6701e..0d555e73b5 100644
      ret = avfilter_graph_create_filter(&ctx, filter, inst_name, opts, NULL, graph);
      if (ret < 0)
          return ret;
-@@ -501,7 +499,7 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
+@@ -505,7 +503,7 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
          for (j = 0; j < filter->nb_inputs; j++) {
              AVFilterLink *link = filter->inputs[j];
              const AVFilterNegotiation *neg;
@@ -58,16 +58,16 @@ index b03fc6701e..0d555e73b5 100644
              int convert_needed = 0;
  
              if (!link)
-@@ -537,8 +535,6 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
+@@ -541,8 +539,6 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
              }
  
              if (convert_needed) {
 -                AVFilterContext *convert;
 -
-                 if (graph->disable_auto_convert) {
+                 if (fffiltergraph(graph)->disable_auto_convert) {
                      av_log(log_ctx, AV_LOG_ERROR,
                             "The filters '%s' and '%s' do not have a common format "
-@@ -548,20 +544,52 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
+@@ -552,20 +548,52 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
                  }
  
                  /* couldn't merge format lists. auto-insert conversion filter */
@@ -134,10 +134,10 @@ index b03fc6701e..0d555e73b5 100644
              }
          }
 diff --git a/libavfilter/formats.c b/libavfilter/formats.c
-index d1c97daf64..c3b4039b58 100644
+index 681f0b1203..63adf2d485 100644
 --- a/libavfilter/formats.c
 +++ b/libavfilter/formats.c
-@@ -347,18 +347,32 @@ static const AVFilterFormatsMerger mergers_audio[] = {
+@@ -381,18 +381,32 @@ static const AVFilterFormatsMerger mergers_audio[] = {
      },
  };
  
@@ -175,10 +175,10 @@ index d1c97daf64..c3b4039b58 100644
  
  const AVFilterNegotiation *ff_filter_get_negotiation(AVFilterLink *link)
 diff --git a/libavfilter/formats.h b/libavfilter/formats.h
-index 22224dce2d..868cbe98dd 100644
+index 82b3af4be1..acdd5b4691 100644
 --- a/libavfilter/formats.h
 +++ b/libavfilter/formats.h
-@@ -330,6 +330,12 @@ typedef struct AVFilterFormatMerger {
+@@ -388,6 +388,12 @@ typedef struct AVFilterFormatMerger {
      int (*can_merge)(const void *a, const void *b);
  } AVFilterFormatsMerger;
  
@@ -191,7 +191,7 @@ index 22224dce2d..868cbe98dd 100644
  /**
   * Callbacks and properties to describe the steps of a format negotiation.
   *
-@@ -418,8 +424,8 @@ typedef struct AVFilterFormatMerger {
+@@ -476,8 +482,8 @@ typedef struct AVFilterFormatMerger {
  typedef struct AVFilterNegotiation {
      unsigned nb_mergers;
      const AVFilterFormatsMerger *mergers;
