@@ -1,7 +1,7 @@
-From ab80b1ba8607337dc075df63e831dcf2a4a6f820 Mon Sep 17 00:00:00 2001
+From 25823b80e7ecd155d190c84f78885e70c009f934 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 4 Jul 2022 16:09:57 +0800
-Subject: [PATCH 5/5] lavfi/format: add a hwmap auto conversion filter
+Subject: [PATCH 3/3] lavfi/format: add a hwmap auto conversion filter
 
 When two formats lists cannot be merged, a scale filter is
 auto-inserted. However, when it comes to hardware map, we have to
@@ -15,10 +15,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 6 insertions(+), 1 deletion(-)
 
 diff --git a/libavfilter/avfiltergraph.c b/libavfilter/avfiltergraph.c
-index 0d555e73b5..bd37fb28d2 100644
+index d3ecdda070..db79ef0f5f 100644
 --- a/libavfilter/avfiltergraph.c
 +++ b/libavfilter/avfiltergraph.c
-@@ -402,7 +402,8 @@ static int insert_auto_filter(AVFilterContext **convert, AVFilterGraph *graph,
+@@ -400,7 +400,8 @@ static int insert_auto_filter(AVFilterContext **convert, AVFilterGraph *graph,
      AVFilterContext *ctx;
      AVFilterLink *inlink, *outlink;
      char inst_name[30];
@@ -29,10 +29,10 @@ index 0d555e73b5..bd37fb28d2 100644
  
      if (!(filter = avfilter_get_by_name(name))) {
 diff --git a/libavfilter/formats.c b/libavfilter/formats.c
-index c3b4039b58..6e1c51a87c 100644
+index 63adf2d485..54fd17477f 100644
 --- a/libavfilter/formats.c
 +++ b/libavfilter/formats.c
-@@ -352,6 +352,10 @@ static const AVFilterFormatsFilter filters_video[] = {
+@@ -386,6 +386,10 @@ static const AVFilterFormatsFilter filters_video[] = {
          .conversion_filter = "scale",
          .conversion_opts_offset = offsetof(AVFilterGraph, scale_sws_opts),
      },
