@@ -1,4 +1,4 @@
-From bd451c9f8996da61aaaa3364be1d4a938d521e96 Mon Sep 17 00:00:00 2001
+From 00017dacf0704414b28271d564588d416576cc0f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:40 +0800
 Subject: [PATCH] lavc/hevc_vaapi: enable sub frame support
@@ -39,10 +39,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  5 files changed, 153 insertions(+), 6 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index ab8c12e364..58b5e4c44d 100644
+index ceac769c52..1e43d77e69 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
-@@ -160,6 +160,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
+@@ -161,6 +161,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
      av_log(avctx, AV_LOG_DEBUG, "Decode to surface %#x.\n",
             pic->output_surface);
  
@@ -53,7 +53,7 @@ index ab8c12e364..58b5e4c44d 100644
      vas = vaBeginPicture(ctx->hwctx->display, ctx->va_context,
                           pic->output_surface);
      if (vas != VA_STATUS_SUCCESS) {
-@@ -461,6 +465,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -467,6 +471,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
      AVHWDeviceContext    *device = (AVHWDeviceContext*)device_ref->data;
      AVVAAPIDeviceContext *hwctx = device->hwctx;
  
@@ -63,7 +63,7 @@ index ab8c12e364..58b5e4c44d 100644
      codec_desc = avcodec_descriptor_get(avctx->codec_id);
      if (!codec_desc) {
          err = AVERROR(EINVAL);
-@@ -539,8 +546,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -545,8 +552,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
          }
      }
  
@@ -88,7 +88,7 @@ index ab8c12e364..58b5e4c44d 100644
                           va_config);
      if (vas != VA_STATUS_SUCCESS) {
          av_log(avctx, AV_LOG_ERROR, "Failed to create decode "
-@@ -585,10 +607,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -591,10 +613,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
  
      if (frames_ref) {
          AVHWFramesContext *frames = (AVHWFramesContext *)frames_ref->data;
@@ -137,7 +137,7 @@ index 6beda14e52..fbac7e7a8e 100644
  
  typedef struct VAAPIDecodeContext {
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 0e5da15e53..b99486fda4 100644
+index 3bdd2dd1b8..b900066f7e 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -38,6 +38,7 @@ typedef struct VAAPIDecodePictureHEVC {
@@ -196,10 +196,10 @@ index 0e5da15e53..b99486fda4 100644
  
  fail:
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 90c2c191d9..79ac0b49c9 100644
+index 2c75f5f5b1..a37efbaba3 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
-@@ -49,8 +49,7 @@
+@@ -58,8 +58,7 @@ typedef HRESULT (WINAPI *PFN_CREATE_DXGI_FACTORY)(REFIID riid, void **ppFactory)
  #include "hwcontext_vaapi.h"
  #include "mem.h"
  #include "pixdesc.h"
@@ -209,7 +209,7 @@ index 90c2c191d9..79ac0b49c9 100644
  
  typedef struct VAAPIDevicePriv {
  #if HAVE_VAAPI_X11
-@@ -82,6 +81,8 @@ typedef struct VAAPIFramesContext {
+@@ -101,6 +100,8 @@ typedef struct VAAPIFramesContext {
      // Caches whether VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2 is unsupported for
      // surface imports.
      int prime_2_import_unsupported;
@@ -218,23 +218,23 @@ index 90c2c191d9..79ac0b49c9 100644
  } VAAPIFramesContext;
  
  typedef struct VAAPIMapping {
-@@ -530,7 +531,7 @@ static AVBufferRef *vaapi_pool_alloc(void *opaque, size_t size)
+@@ -549,7 +550,7 @@ static AVBufferRef *vaapi_pool_alloc(void *opaque, size_t size)
      return ref;
  }
  
 -static int vaapi_frames_init(AVHWFramesContext *hwfc)
 +static int vaapi_hw_frames_init(AVHWFramesContext *hwfc)
  {
-     AVVAAPIFramesContext  *avfc = hwfc->hwctx;
-     VAAPIFramesContext     *ctx = hwfc->internal->priv;
-@@ -682,17 +683,57 @@ fail:
+     VAAPIFramesContext     *ctx = hwfc->hwctx;
+     AVVAAPIFramesContext  *avfc = &ctx->p;
+@@ -701,17 +702,57 @@ fail:
      return err;
  }
  
 +static int vaapi_frames_init(AVHWFramesContext *hwfc)
 +{
-+    VAAPIFramesContext *ctx = hwfc->internal->priv;
-+    AVVAAPIFramesContext *avfc = hwfc->hwctx;
++    VAAPIFramesContext *ctx = hwfc->hwctx;
++    AVVAAPIFramesContext *avfc = &ctx->p;
 +    AVHWFramesContext *sub_frames_ctx;
 +    int ret;
 +
@@ -267,8 +267,8 @@ index 90c2c191d9..79ac0b49c9 100644
 +
  static void vaapi_frames_uninit(AVHWFramesContext *hwfc)
  {
-     AVVAAPIFramesContext *avfc = hwfc->hwctx;
-     VAAPIFramesContext    *ctx = hwfc->internal->priv;
+     VAAPIFramesContext    *ctx = hwfc->hwctx;
+     AVVAAPIFramesContext *avfc = &ctx->p;
  
 +    av_buffer_unref(&ctx->sub_frames_ref);
      av_freep(&avfc->surface_ids);
@@ -277,15 +277,15 @@ index 90c2c191d9..79ac0b49c9 100644
  
  static int vaapi_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame)
  {
-+    VAAPIFramesContext *ctx = hwfc->internal->priv;
-+    AVVAAPIFramesContext *avfc = hwfc->hwctx;
++    VAAPIFramesContext *ctx = hwfc->hwctx;
++    AVVAAPIFramesContext *avfc = &ctx->p;
 +    AVFrame *sub_frame;
 +    int ret;
 +
      frame->buf[0] = av_buffer_pool_get(hwfc->pool);
      if (!frame->buf[0])
          return AVERROR(ENOMEM);
-@@ -702,6 +743,21 @@ static int vaapi_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame)
+@@ -721,6 +762,21 @@ static int vaapi_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame)
      frame->width   = hwfc->width;
      frame->height  = hwfc->height;
  
