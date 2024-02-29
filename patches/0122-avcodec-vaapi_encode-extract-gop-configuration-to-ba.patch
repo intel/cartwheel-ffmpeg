@@ -1,7 +1,7 @@
-From 506ba50ff606efd1e8e39040f9965134668cbfb8 Mon Sep 17 00:00:00 2001
+From aca4543e0da350549c2e36e94eeed34931203f73 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 29 Dec 2023 10:00:02 +0800
-Subject: [PATCH 6/9] avcodec/vaapi_encode: extract gop configuration to base
+Subject: [PATCH 4/8] avcodec/vaapi_encode: extract gop configuration to base
  layer
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
@@ -12,10 +12,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 61 insertions(+), 48 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index c20c47bf55..bb9fe70239 100644
+index f3bf072e74..158318d78e 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -782,6 +782,60 @@ int ff_hw_base_rc_mode_configure(AVCodecContext *avctx, const HWBaseEncodeRCMode
+@@ -638,6 +638,60 @@ end:
      return 0;
  }
  
@@ -77,12 +77,12 @@ index c20c47bf55..bb9fe70239 100644
  {
      HWBaseEncodeContext *ctx = avctx->priv_data;
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
-index 57cfa12e73..d6d2fc03c5 100644
+index 014e56a04c..764385ab5a 100644
 --- a/libavcodec/hw_base_encode.h
 +++ b/libavcodec/hw_base_encode.h
-@@ -276,6 +276,9 @@ int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
- int ff_hw_base_rc_mode_configure(AVCodecContext *avctx, const HWBaseEncodeRCMode *rc_mode,
-                                  int default_quality, HWBaseEncodeRCConfigure *rc_conf);
+@@ -234,6 +234,9 @@ int ff_hw_base_encode_set_output_property(AVCodecContext *avctx, HWBaseEncodePic
+ 
+ int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
  
 +int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
 +                                  int flags, int prediction_pre_only);
@@ -91,10 +91,10 @@ index 57cfa12e73..d6d2fc03c5 100644
  
  int ff_hw_base_encode_close(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 30e5deac08..0bce3ce105 100644
+index 6da8c8a157..0f72fe5cb3 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1443,7 +1443,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1567,7 +1567,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
      VAStatus vas;
      VAConfigAttrib attr = { VAConfigAttribEncMaxRefFrames };
      uint32_t ref_l0, ref_l1;
@@ -103,7 +103,7 @@ index 30e5deac08..0bce3ce105 100644
  
      vas = vaGetConfigAttributes(ctx->hwctx->display,
                                  ctx->va_profile,
-@@ -1507,53 +1507,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1631,53 +1631,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
      }
  #endif
  

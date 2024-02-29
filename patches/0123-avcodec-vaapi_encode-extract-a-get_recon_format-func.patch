@@ -1,7 +1,7 @@
-From 691db3a64caf7d14b11e9e3a618954ba7c2ec229 Mon Sep 17 00:00:00 2001
+From 410d64c58dec7c0e825914853c8b02c9b68f73c7 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 29 Dec 2023 10:37:42 +0800
-Subject: [PATCH 7/9] avcodec/vaapi_encode: extract a get_recon_format function
+Subject: [PATCH 5/8] avcodec/vaapi_encode: extract a get_recon_format function
  to base layer
 
 Get constraints and set recon frame format can be shared with other HW
@@ -16,10 +16,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 63 insertions(+), 48 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index bb9fe70239..7497e0397e 100644
+index 158318d78e..22345db851 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -836,6 +836,64 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
+@@ -692,6 +692,64 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
      return 0;
  }
  
@@ -85,10 +85,10 @@ index bb9fe70239..7497e0397e 100644
  {
      HWBaseEncodeContext *ctx = avctx->priv_data;
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
-index d6d2fc03c5..3d026ee23e 100644
+index 764385ab5a..383bc68280 100644
 --- a/libavcodec/hw_base_encode.h
 +++ b/libavcodec/hw_base_encode.h
-@@ -279,6 +279,8 @@ int ff_hw_base_rc_mode_configure(AVCodecContext *avctx, const HWBaseEncodeRCMode
+@@ -237,6 +237,8 @@ int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
  int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
                                    int flags, int prediction_pre_only);
  
@@ -98,10 +98,10 @@ index d6d2fc03c5..3d026ee23e 100644
  
  int ff_hw_base_encode_close(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 0bce3ce105..84a81559e1 100644
+index 0f72fe5cb3..8503742430 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1898,9 +1898,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2022,9 +2022,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      HWBaseEncodeContext *base_ctx = avctx->priv_data;
      VAAPIEncodeContext       *ctx = avctx->priv_data;
      AVVAAPIHWConfig *hwconfig = NULL;
@@ -112,7 +112,7 @@ index 0bce3ce105..84a81559e1 100644
  
      hwconfig = av_hwdevice_hwconfig_alloc(base_ctx->device_ref);
      if (!hwconfig) {
-@@ -1909,52 +1908,9 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2033,52 +2032,9 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      }
      hwconfig->config_id = ctx->va_config;
  
@@ -167,7 +167,7 @@ index 0bce3ce105..84a81559e1 100644
  
      base_ctx->recon_frames_ref = av_hwframe_ctx_alloc(base_ctx->device_ref);
      if (!base_ctx->recon_frames_ref) {
-@@ -1978,7 +1934,6 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2102,7 +2058,6 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      err = 0;
    fail:
      av_freep(&hwconfig);

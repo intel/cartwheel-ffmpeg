@@ -1,18 +1,18 @@
-From e2f3a84b510a36f8486c262bcf620f359b38159f Mon Sep 17 00:00:00 2001
+From e6f33dcdb0dbeb2dfe9e0495250278f4f25bcb62 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 26 Sep 2023 10:11:50 +0800
-Subject: [PATCH 8/9] avutil/hwcontext_d3d12va: add Flags for resource creation
+Subject: [PATCH 7/8] avutil/hwcontext_d3d12va: add Flags for resource creation
 
 Flags field is added to support diffferent resource creation.
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
  libavutil/hwcontext_d3d12va.c | 2 +-
- libavutil/hwcontext_d3d12va.h | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ libavutil/hwcontext_d3d12va.h | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/libavutil/hwcontext_d3d12va.c b/libavutil/hwcontext_d3d12va.c
-index 414dd44290..0d94f48543 100644
+index 3acd5ac43a..b9984a4151 100644
 --- a/libavutil/hwcontext_d3d12va.c
 +++ b/libavutil/hwcontext_d3d12va.c
 @@ -237,7 +237,7 @@ static AVBufferRef *d3d12va_pool_alloc(void *opaque, size_t size)
@@ -20,23 +20,26 @@ index 414dd44290..0d94f48543 100644
          .SampleDesc       = {.Count = 1, .Quality = 0 },
          .Layout           = D3D12_TEXTURE_LAYOUT_UNKNOWN,
 -        .Flags            = D3D12_RESOURCE_FLAG_NONE,
-+        .Flags            = hwctx->Flags,
++        .Flags            = hwctx->flags,
      };
  
      frame = av_mallocz(sizeof(AVD3D12VAFrame));
 diff --git a/libavutil/hwcontext_d3d12va.h b/libavutil/hwcontext_d3d12va.h
-index ff06e6f2ef..dc1c17d3f9 100644
+index ff06e6f2ef..608dbac97f 100644
 --- a/libavutil/hwcontext_d3d12va.h
 +++ b/libavutil/hwcontext_d3d12va.h
-@@ -129,6 +129,11 @@ typedef struct AVD3D12VAFramesContext {
+@@ -129,6 +129,14 @@ typedef struct AVD3D12VAFramesContext {
       * If unset, will be automatically set.
       */
      DXGI_FORMAT format;
 +
 +    /**
-+     * This field is used for resource creation.
++     * This field is used to specify options for working with resources.
++     * If unset, this will be D3D12_RESOURCE_FLAG_NONE.
++     *
++     * @see: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_resource_flags.
 +     */
-+    D3D12_RESOURCE_FLAGS Flags;
++    D3D12_RESOURCE_FLAGS flags;
  } AVD3D12VAFramesContext;
  
  #endif /* AVUTIL_HWCONTEXT_D3D12VA_H */

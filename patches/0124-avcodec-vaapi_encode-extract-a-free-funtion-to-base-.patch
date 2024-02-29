@@ -1,0 +1,74 @@
+From 031a828db3b631990a1528f40df38b71f2bd292a Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Mon, 19 Feb 2024 22:09:11 +0800
+Subject: [PATCH 6/8] avcodec/vaapi_encode: extract a free funtion to base
+ layer
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/hw_base_encode.c | 11 +++++++++++
+ libavcodec/hw_base_encode.h |  2 ++
+ libavcodec/vaapi_encode.c   |  6 +-----
+ 3 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
+index 22345db851..8540362ee4 100644
+--- a/libavcodec/hw_base_encode.c
++++ b/libavcodec/hw_base_encode.c
+@@ -750,6 +750,17 @@ fail:
+     return err;
+ }
+ 
++int ff_hw_base_encode_free(AVCodecContext *avctx, HWBaseEncodePicture *pic)
++{
++    av_frame_free(&pic->input_image);
++    av_frame_free(&pic->recon_image);
++
++    av_buffer_unref(&pic->opaque_ref);
++    av_freep(&pic->priv_data);
++
++    return 0;
++}
++
+ int ff_hw_base_encode_init(AVCodecContext *avctx)
+ {
+     HWBaseEncodeContext *ctx = avctx->priv_data;
+diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
+index 383bc68280..1ed1895566 100644
+--- a/libavcodec/hw_base_encode.h
++++ b/libavcodec/hw_base_encode.h
+@@ -239,6 +239,8 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
+ 
+ int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enum AVPixelFormat *fmt);
+ 
++int ff_hw_base_encode_free(AVCodecContext *avctx, HWBaseEncodePicture *pic);
++
+ int ff_hw_base_encode_init(AVCodecContext *avctx);
+ 
+ int ff_hw_base_encode_close(AVCodecContext *avctx);
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index 8503742430..b79b15fb4c 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -874,17 +874,13 @@ static int vaapi_encode_free(AVCodecContext *avctx,
+             av_freep(&pic->slices[i].codec_slice_params);
+     }
+ 
+-    av_frame_free(&base_pic->input_image);
+-    av_frame_free(&base_pic->recon_image);
+-
+-    av_buffer_unref(&base_pic->opaque_ref);
++    ff_hw_base_encode_free(avctx, base_pic);
+ 
+     av_freep(&pic->param_buffers);
+     av_freep(&pic->slices);
+     // Output buffer should already be destroyed.
+     av_assert0(pic->output_buffer == VA_INVALID_ID);
+ 
+-    av_freep(&base_pic->priv_data);
+     av_freep(&pic->codec_picture_params);
+     av_freep(&pic->roi);
+ 
+-- 
+2.41.0.windows.1
+
