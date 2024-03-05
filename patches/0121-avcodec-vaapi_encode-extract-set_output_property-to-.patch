@@ -1,7 +1,7 @@
-From 51936d7bee14a09ec59074f3de8818bfc7d66b36 Mon Sep 17 00:00:00 2001
+From bfb3ad7109d3e2335c88636a72496d674913f2f7 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 28 Dec 2023 18:17:33 +0800
-Subject: [PATCH 4/9] avcodec/vaapi_encode: extract set_output_property to base
+Subject: [PATCH 3/8] avcodec/vaapi_encode: extract set_output_property to base
  layer
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
@@ -12,10 +12,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 45 insertions(+), 42 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index 62adda2fc3..f0e4ef9655 100644
+index 204b80bc8c..f3bf072e74 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -385,6 +385,46 @@ static int hw_base_encode_clear_old(AVCodecContext *avctx)
+@@ -383,6 +383,46 @@ static int hw_base_encode_clear_old(AVCodecContext *avctx)
      return 0;
  }
  
@@ -63,10 +63,10 @@ index 62adda2fc3..f0e4ef9655 100644
                                        const AVFrame *frame)
  {
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
-index be4c6b034e..d215d6a32b 100644
+index 15be66f9e7..014e56a04c 100644
 --- a/libavcodec/hw_base_encode.h
 +++ b/libavcodec/hw_base_encode.h
-@@ -237,6 +237,9 @@ typedef struct HWBaseEncodeContext {
+@@ -229,6 +229,9 @@ typedef struct HWBaseEncodeContext {
      AVPacket        *tail_pkt;
  } HWBaseEncodeContext;
  
@@ -77,10 +77,10 @@ index be4c6b034e..d215d6a32b 100644
  
  int ff_hw_base_encode_init(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index e2f968c36d..2d839a1202 100644
+index 586d3ce860..6da8c8a157 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -668,47 +668,6 @@ fail_at_end:
+@@ -657,47 +657,6 @@ fail_at_end:
      return err;
  }
  
@@ -128,12 +128,12 @@ index e2f968c36d..2d839a1202 100644
  static int vaapi_encode_get_coded_buffer_size(AVCodecContext *avctx, VABufferID buf_id)
  {
      VAAPIEncodeContext *ctx = avctx->priv_data;
-@@ -860,7 +819,8 @@ static int vaapi_encode_output(AVCodecContext *avctx,
+@@ -849,7 +808,8 @@ static int vaapi_encode_output(AVCodecContext *avctx,
      av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
             base_pic->display_order, base_pic->encode_order);
  
--    vaapi_encode_set_output_property(avctx, base_pic, pkt_ptr);
-+    ff_hw_base_encode_set_output_property(avctx, base_pic, pkt_ptr,
+-    vaapi_encode_set_output_property(avctx, (HWBaseEncodePicture*)base_pic, pkt_ptr);
++    ff_hw_base_encode_set_output_property(avctx, (HWBaseEncodePicture*)base_pic, pkt_ptr,
 +                                          ctx->codec->flags & FLAG_TIMESTAMP_NO_DELAY);
  
  end:
