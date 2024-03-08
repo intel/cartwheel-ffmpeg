@@ -1,7 +1,7 @@
-From b7b8f3577d5cc714d4dfe36474f630626d87e81f Mon Sep 17 00:00:00 2001
+From b505a6447b29d1b1cc53b8993e8ad1b542315fef Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 22 Aug 2023 13:26:36 +0800
-Subject: [PATCH 8/8] avcodec: add D3D12VA hardware HEVC encoder
+Subject: [PATCH 46/46] avcodec: add D3D12VA hardware HEVC encoder
 
 This implementation is based on D3D12 Video Encoding Spec:
 https://microsoft.github.io/DirectX-Specs/d3d/D3D12VideoEncoding.html
@@ -24,10 +24,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_encode_hevc.c
 
 diff --git a/configure b/configure
-index 504db37f75..cc731cc826 100755
+index 15c391bf05..19664e455a 100755
 --- a/configure
 +++ b/configure
-@@ -2571,6 +2571,7 @@ CONFIG_EXTRA="
+@@ -2575,6 +2575,7 @@ CONFIG_EXTRA="
      tpeldsp
      vaapi_1
      vaapi_encode
@@ -35,7 +35,7 @@ index 504db37f75..cc731cc826 100755
      vc1dsp
      videodsp
      vp3dsp
-@@ -3215,6 +3216,7 @@ wmv3_vaapi_hwaccel_select="vc1_vaapi_hwaccel"
+@@ -3218,6 +3219,7 @@ wmv3_vaapi_hwaccel_select="vc1_vaapi_hwaccel"
  wmv3_vdpau_hwaccel_select="vc1_vdpau_hwaccel"
  
  # hardware-accelerated codecs
@@ -43,7 +43,7 @@ index 504db37f75..cc731cc826 100755
  mediafoundation_deps="mftransform_h MFCreateAlignedMemoryBuffer"
  omx_deps="libdl pthreads"
  omx_rpi_select="omx"
-@@ -3282,6 +3284,7 @@ h264_v4l2m2m_encoder_deps="v4l2_m2m h264_v4l2_m2m"
+@@ -3284,6 +3286,7 @@ h264_v4l2m2m_encoder_deps="v4l2_m2m h264_v4l2_m2m"
  hevc_amf_encoder_deps="amf"
  hevc_cuvid_decoder_deps="cuvid"
  hevc_cuvid_decoder_select="hevc_mp4toannexb_bsf"
@@ -51,7 +51,7 @@ index 504db37f75..cc731cc826 100755
  hevc_mediacodec_decoder_deps="mediacodec"
  hevc_mediacodec_decoder_select="hevc_mp4toannexb_bsf hevc_parser"
  hevc_mediacodec_encoder_deps="mediacodec"
-@@ -6627,6 +6630,9 @@ check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
+@@ -6625,6 +6628,9 @@ check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
  check_type "windows.h d3d11.h" "ID3D11VideoContext"
  check_type "windows.h d3d12.h" "ID3D12Device"
  check_type "windows.h d3d12video.h" "ID3D12VideoDecoder"
@@ -62,18 +62,18 @@ index 504db37f75..cc731cc826 100755
  check_type "d3d9.h dxva2api.h" DXVA2_ConfigPictureDecode -D_WIN32_WINNT=0x0602
  check_func_headers mfapi.h MFCreateAlignedMemoryBuffer -lmfplat
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index c1b3dff055..965aaba80e 100644
+index 971b4d4794..331d5d9be1 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
-@@ -86,6 +86,7 @@ OBJS-$(CONFIG_CBS_MPEG2)               += cbs_mpeg2.o
+@@ -84,6 +84,7 @@ OBJS-$(CONFIG_CBS_JPEG)                += cbs_jpeg.o
+ OBJS-$(CONFIG_CBS_MPEG2)               += cbs_mpeg2.o
  OBJS-$(CONFIG_CBS_VP8)                 += cbs_vp8.o vp8data.o
  OBJS-$(CONFIG_CBS_VP9)                 += cbs_vp9.o
- OBJS-$(CONFIG_CRYSTALHD)               += crystalhd.o
 +OBJS-$(CONFIG_D3D12VA_ENCODE)          += d3d12va_encode.o hw_base_encode.o
  OBJS-$(CONFIG_DEFLATE_WRAPPER)         += zlib_wrapper.o
  OBJS-$(CONFIG_DOVI_RPU)                += dovi_rpu.o
  OBJS-$(CONFIG_ERROR_RESILIENCE)        += error_resilience.o
-@@ -437,6 +438,7 @@ OBJS-$(CONFIG_HEVC_DECODER)            += hevcdec.o hevc_mvs.o \
+@@ -435,6 +436,7 @@ OBJS-$(CONFIG_HEVC_DECODER)            += hevcdec.o hevc_mvs.o \
                                            h274.o
  OBJS-$(CONFIG_HEVC_AMF_ENCODER)        += amfenc_hevc.o
  OBJS-$(CONFIG_HEVC_CUVID_DECODER)      += cuviddec.o
@@ -81,7 +81,7 @@ index c1b3dff055..965aaba80e 100644
  OBJS-$(CONFIG_HEVC_MEDIACODEC_DECODER) += mediacodecdec.o
  OBJS-$(CONFIG_HEVC_MEDIACODEC_ENCODER) += mediacodecenc.o
  OBJS-$(CONFIG_HEVC_MF_ENCODER)         += mfenc.o mf_utils.o
-@@ -1267,7 +1269,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
+@@ -1263,7 +1265,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
  
  SKIPHEADERS-$(CONFIG_AMF)              += amfenc.h
  SKIPHEADERS-$(CONFIG_D3D11VA)          += d3d11va.h dxva2_internal.h
@@ -91,10 +91,10 @@ index c1b3dff055..965aaba80e 100644
  SKIPHEADERS-$(CONFIG_JNI)              += ffjni.h
  SKIPHEADERS-$(CONFIG_LCMS2)            += fflcms2.h
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index ef8c3a6d7d..9a34974141 100644
+index 2386b450a6..7b5093233c 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -865,6 +865,7 @@ extern const FFCodec ff_h264_vaapi_encoder;
+@@ -855,6 +855,7 @@ extern const FFCodec ff_h264_vaapi_encoder;
  extern const FFCodec ff_h264_videotoolbox_encoder;
  extern const FFCodec ff_hevc_amf_encoder;
  extern const FFCodec ff_hevc_cuvid_decoder;
@@ -2954,5 +2954,5 @@ index 0000000000..4e4c405395
 +    .p.wrapper_name = "d3d12va",
 +};
 -- 
-2.41.0.windows.1
+2.34.1
 

@@ -1,7 +1,7 @@
-From 442dc01f6e7c79a6c87b0766685c2b41888f5d0a Mon Sep 17 00:00:00 2001
+From 85b7306c95d044c090bbfb2636639687be7fd070 Mon Sep 17 00:00:00 2001
 From: Soft Works <softworkz@hotmail.com>
 Date: Thu, 25 Nov 2021 02:41:32 +0000
-Subject: [PATCH 09/41] avutils/hwcontext: When deriving a hwdevice, search for
+Subject: [PATCH 09/46] avutils/hwcontext: When deriving a hwdevice, search for
  existing device in both directions
 
 The test /libavutil/tests/hwdevice checks that when deriving a device
@@ -58,50 +58,74 @@ Tested-by: Wenbin Chen <wenbin.chen@intel.com>
 Signed-off-by: softworkz <softworkz@hotmail.com>
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
- libavutil/hwcontext.c          | 38 ++++++++++++++++++++++++++++++++++
+ libavutil/hwcontext.c          | 55 ++++++++++++++++++++++++----------
  libavutil/hwcontext.h          |  1 +
- libavutil/hwcontext_internal.h |  6 ++++++
- libavutil/hwcontext_qsv.c      | 13 +++++++++---
- 4 files changed, 55 insertions(+), 3 deletions(-)
+ libavutil/hwcontext_internal.h | 21 +++++++++++++
+ libavutil/hwcontext_qsv.c      | 15 ++++++++--
+ 4 files changed, 74 insertions(+), 18 deletions(-)
 
 diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
-index e23bad230f..7d9b97b0ca 100644
+index fa99a0d8a4..b5e280844c 100644
 --- a/libavutil/hwcontext.c
 +++ b/libavutil/hwcontext.c
-@@ -127,6 +127,7 @@ static const AVClass hwdevice_ctx_class = {
- static void hwdevice_ctx_free(void *opaque, uint8_t *data)
+@@ -84,21 +84,6 @@ static const char *const hw_type_names[] = {
+     [AV_HWDEVICE_TYPE_VULKAN] = "vulkan",
+ };
+ 
+-typedef struct FFHWDeviceContext {
+-    /**
+-     * The public AVHWDeviceContext. See hwcontext.h for it.
+-     */
+-    AVHWDeviceContext p;
+-
+-    const HWContextType *hw_type;
+-
+-    /**
+-     * For a derived device, a reference to the original device
+-     * context it was derived from.
+-     */
+-    AVBufferRef *source_device;
+-} FFHWDeviceContext;
+-
+ enum AVHWDeviceType av_hwdevice_find_type_by_name(const char *name)
  {
-     AVHWDeviceContext *ctx = (AVHWDeviceContext*)data;
+     int type;
+@@ -143,6 +128,7 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
+ {
+     FFHWDeviceContext *ctxi = (FFHWDeviceContext*)data;
+     AVHWDeviceContext *ctx  = &ctxi->p;
 +    int i;
  
      /* uninit might still want access the hw context and the user
       * free() callback might destroy it, so uninit has to be called first */
-@@ -137,6 +138,8 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
+@@ -153,6 +139,8 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
          ctx->free(ctx);
  
-     av_buffer_unref(&ctx->internal->source_device);
+     av_buffer_unref(&ctxi->source_device);
 +    for (i = 0; i < AV_HWDEVICE_TYPE_NB; i++)
-+        av_buffer_unref(&ctx->internal->derived_devices[i]);
++        av_buffer_unref(&ctxi->derived_devices[i]);
  
      av_freep(&ctx->hwctx);
-     av_freep(&ctx->internal->priv);
-@@ -652,6 +655,26 @@ fail:
+     av_freep(&ctx);
+@@ -633,6 +621,28 @@ fail:
      return ret;
  }
  
 +static AVBufferRef* find_derived_hwdevice_ctx(AVBufferRef *src_ref, enum AVHWDeviceType type)
 +{
 +    AVBufferRef *tmp_ref;
++    FFHWDeviceContext *src_ctxi;
 +    AVHWDeviceContext *src_ctx;
 +    int i;
 +
-+    src_ctx = (AVHWDeviceContext*)src_ref->data;
++    src_ctxi = (FFHWDeviceContext *)src_ref->data;
++    src_ctx = &src_ctxi->p;
 +    if (src_ctx->type == type)
 +        return src_ref;
 +
 +    for (i = 0; i < AV_HWDEVICE_TYPE_NB; i++)
-+        if (src_ctx->internal->derived_devices[i]) {
-+            tmp_ref = find_derived_hwdevice_ctx(src_ctx->internal->derived_devices[i], type);
++        if (src_ctxi->derived_devices[i]) {
++            tmp_ref = find_derived_hwdevice_ctx(src_ctxi->derived_devices[i], type);
 +            if (tmp_ref)
 +                return tmp_ref;
 +        }
@@ -112,8 +136,8 @@ index e23bad230f..7d9b97b0ca 100644
  int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
                                          enum AVHWDeviceType type,
                                          AVBufferRef *src_ref,
-@@ -675,6 +698,16 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
-         tmp_ref = tmp_ctx->internal->source_device;
+@@ -656,6 +666,16 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
+         tmp_ref = tmp_ctx->source_device;
      }
  
 +    tmp_ref = find_derived_hwdevice_ctx(src_ref, type);
@@ -129,12 +153,12 @@ index e23bad230f..7d9b97b0ca 100644
      dst_ref = av_hwdevice_ctx_alloc(type);
      if (!dst_ref) {
          ret = AVERROR(ENOMEM);
-@@ -696,6 +729,11 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
+@@ -676,6 +696,11 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
                      ret = AVERROR(ENOMEM);
                      goto fail;
                  }
-+                tmp_ctx->internal->derived_devices[type] = av_buffer_ref(dst_ref);
-+                if (!tmp_ctx->internal->derived_devices[type]) {
++                tmp_ctx->derived_devices[type] = av_buffer_ref(dst_ref);
++                if (!tmp_ctx->derived_devices[type]) {
 +                    ret = AVERROR(ENOMEM);
 +                    goto fail;
 +                }
@@ -142,7 +166,7 @@ index e23bad230f..7d9b97b0ca 100644
                  if (ret < 0)
                      goto fail;
 diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
-index 2b33721a97..e3e5fa5527 100644
+index bac30debae..ab05297c59 100644
 --- a/libavutil/hwcontext.h
 +++ b/libavutil/hwcontext.h
 @@ -38,6 +38,7 @@ enum AVHWDeviceType {
@@ -152,29 +176,42 @@ index 2b33721a97..e3e5fa5527 100644
 +    AV_HWDEVICE_TYPE_NB,          ///< number of hw device types, not part of API/ABI.
  };
  
- typedef struct AVHWDeviceInternal AVHWDeviceInternal;
+ /**
 diff --git a/libavutil/hwcontext_internal.h b/libavutil/hwcontext_internal.h
-index 4df516ee6a..a0433015ba 100644
+index e32b786238..55a6f82d4a 100644
 --- a/libavutil/hwcontext_internal.h
 +++ b/libavutil/hwcontext_internal.h
-@@ -109,6 +109,12 @@ struct AVHWDeviceInternal {
-      * context it was derived from.
-      */
-     AVBufferRef *source_device;
+@@ -164,4 +164,25 @@ extern const HWContextType ff_hwcontext_type_videotoolbox;
+ extern const HWContextType ff_hwcontext_type_mediacodec;
+ extern const HWContextType ff_hwcontext_type_vulkan;
+ 
++typedef struct FFHWDeviceContext {
++    /**
++     * The public AVHWDeviceContext. See hwcontext.h for it.
++     */
++    AVHWDeviceContext p;
++
++    const HWContextType *hw_type;
++
++    /**
++     * For a derived device, a reference to the original device
++     * context it was derived from.
++     */
++    AVBufferRef *source_device;
 +
 +    /**
 +     * An array of reference to device contexts which
 +     * were derived from this device.
 +     */
 +    AVBufferRef *derived_devices[AV_HWDEVICE_TYPE_NB];
- };
- 
- struct AVHWFramesInternal {
++} FFHWDeviceContext;
++
+ #endif /* AVUTIL_HWCONTEXT_INTERNAL_H */
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index a67552b5ac..2fe8733eb1 100644
+index 378cd5e826..c17eff89da 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -355,7 +355,7 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)
+@@ -365,7 +365,7 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)
      av_buffer_unref(&s->child_frames_ref);
  }
  
@@ -183,7 +220,7 @@ index a67552b5ac..2fe8733eb1 100644
  {
  }
  
-@@ -368,7 +368,7 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, size_t size)
+@@ -378,7 +378,7 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, size_t size)
      if (s->nb_surfaces_used < hwctx->nb_surfaces) {
          s->nb_surfaces_used++;
          return av_buffer_create((uint8_t*)(s->surfaces_internal + s->nb_surfaces_used - 1),
@@ -192,15 +229,17 @@ index a67552b5ac..2fe8733eb1 100644
      }
  
      return NULL;
-@@ -2238,8 +2238,15 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
+@@ -2248,8 +2248,17 @@ static int qsv_device_create(AVHWDeviceContext *ctx, const char *device,
      child_device = (AVHWDeviceContext*)priv->child_device_ctx->data;
  
      impl = choose_implementation(device, child_device_type);
 +    ret = qsv_device_derive_from_child(ctx, impl, child_device, 0);
 +    if (ret >= 0) {
-+        ctx->internal->source_device = av_buffer_ref(priv->child_device_ctx);
-+        child_device->internal->derived_devices[ctx->type] = av_buffer_create((uint8_t*)ctx, sizeof(*ctx), qsv_release_dummy, ctx, 0);
-+        if (!child_device->internal->derived_devices[ctx->type])
++        FFHWDeviceContext *fctx = (FFHWDeviceContext*)ctx;
++        FFHWDeviceContext *fchild_device = (FFHWDeviceContext*)child_device;
++        fctx->source_device = av_buffer_ref(priv->child_device_ctx);
++        fchild_device->derived_devices[ctx->type] = av_buffer_create((uint8_t*)fctx, sizeof(*fctx), qsv_release_dummy, fctx, 0);
++        if (!fchild_device->derived_devices[ctx->type])
 +            return AVERROR(ENOMEM);
 +    }
  

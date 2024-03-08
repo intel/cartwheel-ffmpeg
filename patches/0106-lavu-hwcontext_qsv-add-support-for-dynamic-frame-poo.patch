@@ -1,8 +1,8 @@
-From dfd2c8dab752f5872208baace3f5b4f41c0a313d Mon Sep 17 00:00:00 2001
+From f1c64fc4383968e3bd008e126dde536410bd8206 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 20 Dec 2023 15:10:42 +0800
-Subject: [PATCH 106/114] lavu/hwcontext_qsv: add support for dynamic frame
- pool in qsv_map_to
+Subject: [PATCH 27/46] lavu/hwcontext_qsv: add support for dynamic frame pool
+ in qsv_map_to
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
@@ -10,10 +10,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 129 insertions(+), 2 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 7b66d6a3f1..2dc1a9b78c 100644
+index 2cddaa2616..abc63fe2d6 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -2088,8 +2088,8 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+@@ -2098,8 +2098,8 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
      }
  }
  
@@ -24,7 +24,7 @@ index 7b66d6a3f1..2dc1a9b78c 100644
  {
      AVQSVFramesContext *hwctx = dst_ctx->hwctx;
      int i, err, index = -1;
-@@ -2148,6 +2148,133 @@ static int qsv_map_to(AVHWFramesContext *dst_ctx,
+@@ -2158,6 +2158,133 @@ static int qsv_map_to(AVHWFramesContext *dst_ctx,
      return 0;
  }
  
@@ -32,7 +32,7 @@ index 7b66d6a3f1..2dc1a9b78c 100644
 +{
 +    mfxFrameSurface1 *surfaces_internal = (mfxFrameSurface1 *)hwmap->priv;
 +    mfxHDLPair *handle_pairs_internal = (mfxHDLPair *)surfaces_internal->Data.MemId;
-+    AVHWFramesContext *src_ctx = (AVHWFramesContext *)ctx->internal->source_frames->data;
++    AVHWFramesContext *src_ctx = (AVHWFramesContext *)ffhwframesctx(ctx)->source_frames->data;
 +
 +    switch (src_ctx->format) {
 +#if CONFIG_VAAPI
