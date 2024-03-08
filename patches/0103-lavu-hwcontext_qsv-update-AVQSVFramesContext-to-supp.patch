@@ -1,7 +1,7 @@
-From 1429902f6fa43698a1b22db0a8486cb1541f3306 Mon Sep 17 00:00:00 2001
+From 761c5e723146efeac142715f85f84cbe1adb00e0 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 20 Dec 2023 15:10:39 +0800
-Subject: [PATCH 103/114] lavu/hwcontext_qsv: update AVQSVFramesContext to
+Subject: [PATCH 24/46] lavu/hwcontext_qsv: update AVQSVFramesContext to
  support dynamic frame pools
 
 Add AVQSVFramesContext.info and update the description
@@ -16,19 +16,19 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  2 files changed, 29 insertions(+), 6 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 2fe8733eb1..b4ba095631 100644
+index c17eff89da..38a23810d0 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -613,7 +613,7 @@ static mfxStatus frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
-     QSVFramesContext       *s = ctx->internal->priv;
-     AVQSVFramesContext *hwctx = ctx->hwctx;
+@@ -623,7 +623,7 @@ static mfxStatus frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
+     QSVFramesContext       *s = ctx->hwctx;
+     AVQSVFramesContext *hwctx = &s->p;
      mfxFrameInfo *i  = &req->Info;
 -    mfxFrameInfo *i1 = &hwctx->surfaces[0].Info;
 +    mfxFrameInfo *i1 = hwctx->nb_surfaces ? &hwctx->surfaces[0].Info : hwctx->info;
  
      if (!(req->Type & MFX_MEMTYPE_VIDEO_MEMORY_PROCESSOR_TARGET) ||
          !(req->Type & (MFX_MEMTYPE_FROM_VPPIN | MFX_MEMTYPE_FROM_VPPOUT)) ||
-@@ -1173,7 +1173,7 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
+@@ -1183,7 +1183,7 @@ static int qsv_init_internal_session(AVHWFramesContext *ctx,
                                MFX_IOPATTERN_OUT_SYSTEM_MEMORY;
      par.AsyncDepth = 1;
  

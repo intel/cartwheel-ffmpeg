@@ -1,8 +1,8 @@
-From 4038bb16e128bf8f62a4852a24e31d0cdc1a2e40 Mon Sep 17 00:00:00 2001
+From efe61b78dde2ccf89fd383b590dca130afe94738 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 20 Dec 2023 15:10:41 +0800
-Subject: [PATCH 105/114] lavu/hwcontext_qsv: add support for dynamic frame
- pool in qsv_frames_derive_to
+Subject: [PATCH 26/46] lavu/hwcontext_qsv: add support for dynamic frame pool
+ in qsv_frames_derive_to
 
 Allow the source is a dynamic frame pool
 
@@ -12,10 +12,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 54 insertions(+), 7 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index f719a20c97..7b66d6a3f1 100644
+index dafd7ba839..2cddaa2616 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -1938,18 +1938,52 @@ static int qsv_transfer_data_to(AVHWFramesContext *ctx, AVFrame *dst,
+@@ -1948,18 +1948,52 @@ static int qsv_transfer_data_to(AVHWFramesContext *ctx, AVFrame *dst,
      return 0;
  }
  
@@ -24,8 +24,8 @@ index f719a20c97..7b66d6a3f1 100644
 +static int qsv_dynamic_frames_derive_to(AVHWFramesContext *dst_ctx,
 +                                        AVHWFramesContext *src_ctx, int flags)
  {
-     QSVFramesContext *s = dst_ctx->internal->priv;
-     AVQSVFramesContext *dst_hwctx = dst_ctx->hwctx;
+     QSVFramesContext *s = dst_ctx->hwctx;
+     AVQSVFramesContext *dst_hwctx = &s->p;
 -    int i;
 +    mfxFrameSurface1 mfx_surf1;
  
@@ -69,13 +69,13 @@ index f719a20c97..7b66d6a3f1 100644
 +static int qsv_fixed_frames_derive_to(AVHWFramesContext *dst_ctx,
 +                                      AVHWFramesContext *src_ctx, int flags)
 +{
-+    QSVFramesContext *s = dst_ctx->internal->priv;
-+    AVQSVFramesContext *dst_hwctx = dst_ctx->hwctx;
++    QSVFramesContext *s = dst_ctx->hwctx;
++    AVQSVFramesContext *dst_hwctx = &s->p;
 +    int i;
  
      switch (src_ctx->device_ctx->type) {
  #if CONFIG_VAAPI
-@@ -2041,6 +2075,19 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
+@@ -2051,6 +2085,19 @@ static int qsv_frames_derive_to(AVHWFramesContext *dst_ctx,
      return 0;
  }
  

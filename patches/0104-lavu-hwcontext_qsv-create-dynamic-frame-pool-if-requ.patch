@@ -1,7 +1,7 @@
-From 9a052d5e205aae8f0d759ca33f025ef163651dfa Mon Sep 17 00:00:00 2001
+From 40cd11c5b4dd0f517ed02a8eb72d675854dbb562 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 20 Dec 2023 15:10:40 +0800
-Subject: [PATCH 104/114] lavu/hwcontext_qsv: create dynamic frame pool if
+Subject: [PATCH 25/46] lavu/hwcontext_qsv: create dynamic frame pool if
  required
 
 When AVHWFramesContext.initial_pool_size is 0, a dynamic frame pool is
@@ -15,10 +15,10 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  1 file changed, 154 insertions(+), 3 deletions(-)
 
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index b4ba095631..f719a20c97 100644
+index 38a23810d0..dafd7ba839 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
-@@ -104,8 +104,15 @@ typedef struct QSVFramesContext {
+@@ -114,8 +114,15 @@ typedef struct QSVFramesContext {
  #endif
      AVFrame realigned_upload_frame;
      AVFrame realigned_download_frame;
@@ -34,7 +34,7 @@ index b4ba095631..f719a20c97 100644
  static const struct {
      enum AVPixelFormat pix_fmt;
      uint32_t           fourcc;
-@@ -151,6 +158,8 @@ extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
+@@ -161,6 +168,8 @@ extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
                                            enum AVHWDeviceType base_dev_type,
                                            void **base_handle);
  
@@ -43,7 +43,7 @@ index b4ba095631..f719a20c97 100644
  /**
   * Caller needs to allocate enough space for base_handle pointer.
   **/
-@@ -359,7 +368,32 @@ static void qsv_release_dummy(void *opaque, uint8_t *data)
+@@ -369,7 +378,32 @@ static void qsv_release_dummy(void *opaque, uint8_t *data)
  {
  }
  
@@ -51,7 +51,7 @@ index b4ba095631..f719a20c97 100644
 +static void qsv_pool_release(void *opaque, uint8_t *data)
 +{
 +    AVHWFramesContext *ctx = (AVHWFramesContext*)opaque;
-+    QSVFramesContext *s = ctx->internal->priv;
++    QSVFramesContext *s = ctx->hwctx;
 +    QSVSurface *qsv_surface = (QSVSurface *)data;
 +    mfxHDLPair *hdl_pair = (mfxHDLPair *)qsv_surface->mfx_surface.Data.MemId;
 +    AVHWFramesContext *child_frames_ctx;
@@ -76,15 +76,15 @@ index b4ba095631..f719a20c97 100644
 +static AVBufferRef *qsv_fixed_pool_alloc(void *opaque, size_t size)
  {
      AVHWFramesContext    *ctx = (AVHWFramesContext*)opaque;
-     QSVFramesContext       *s = ctx->internal->priv;
-@@ -374,6 +408,104 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, size_t size)
+     QSVFramesContext       *s = ctx->hwctx;
+@@ -384,6 +418,104 @@ static AVBufferRef *qsv_pool_alloc(void *opaque, size_t size)
      return NULL;
  }
  
 +static AVBufferRef *qsv_dynamic_pool_alloc(void *opaque, size_t size)
 +{
 +    AVHWFramesContext    *ctx = (AVHWFramesContext*)opaque;
-+    QSVFramesContext       *s = ctx->internal->priv;
++    QSVFramesContext       *s = ctx->hwctx;
 +    AVHWFramesContext *child_frames_ctx;
 +    QSVSurface *qsv_surface = NULL;
 +    mfxHDLPair *handle_pairs_internal = NULL;
@@ -181,8 +181,8 @@ index b4ba095631..f719a20c97 100644
 +
  static int qsv_init_child_ctx(AVHWFramesContext *ctx)
  {
-     AVQSVFramesContext     *hwctx = ctx->hwctx;
-@@ -562,9 +694,28 @@ static int qsv_init_pool(AVHWFramesContext *ctx, uint32_t fourcc)
+     QSVDeviceContext *device_priv = ctx->device_ctx->hwctx;
+@@ -572,9 +704,28 @@ static int qsv_init_pool(AVHWFramesContext *ctx, uint32_t fourcc)
  
      int i, ret = 0;
  
@@ -198,9 +198,9 @@ index b4ba095631..f719a20c97 100644
 +        if (ret < 0)
 +            return ret;
 +
-+        ctx->internal->pool_internal = av_buffer_pool_init2(sizeof(mfxFrameSurface1),
-+                                                            ctx, qsv_pool_alloc, NULL);
-+        if (!ctx->internal->pool_internal)
++        ffhwframesctx(ctx)->pool_internal = av_buffer_pool_init2(sizeof(mfxFrameSurface1),
++                                                                 ctx, qsv_pool_alloc, NULL);
++        if (!ffhwframesctx(ctx)->pool_internal)
 +            return AVERROR(ENOMEM);
 +
 +        memset(&mfx_surf1, 0, sizeof(mfx_surf1));
