@@ -1,0 +1,305 @@
+From 638b5fe4aca3b2149b87d77fea1d3c96469fe71f Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Tue, 5 Mar 2024 16:14:12 +0800
+Subject: [PATCH 2/5] libavfilter/dnn_backend_openvino: Add remote_context
+ support
+
+Add remote_context support, which can be used to directly input
+vaSurface without uploading frames.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavfilter/dnn/dnn_backend_openvino.c | 207 +++++++++++++++++++++++--
+ 1 file changed, 191 insertions(+), 16 deletions(-)
+
+diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
+index 50e3d9cdae..ab763eda42 100644
+--- a/libavfilter/dnn/dnn_backend_openvino.c
++++ b/libavfilter/dnn/dnn_backend_openvino.c
+@@ -30,6 +30,10 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/detection_bbox.h"
++#include "libavutil/hwcontext.h"
++#if CONFIG_VAAPI
++#include "libavutil/hwcontext_vaapi.h"
++#endif
+ #include "../internal.h"
+ #include "safe_queue.h"
+ #if HAVE_OPENVINO2
+@@ -67,6 +71,7 @@ typedef struct OVModel{
+     ov_output_const_port_t** output_ports;
+     ov_preprocess_output_info_t* output_info;
+     ov_preprocess_prepostprocessor_t* preprocess;
++    ov_remote_context_t *remote_context;
+ #else
+     ie_core_t *core;
+     ie_network_t *network;
+@@ -78,6 +83,7 @@ typedef struct OVModel{
+     Queue *task_queue;          // holds TaskItem
+     Queue *lltask_queue;     // holds LastLevelTaskItem
+     int nb_outputs;
++    int use_remote_context;
+ } OVModel;
+ 
+ // one request for one call to openvino
+@@ -193,6 +199,101 @@ static int get_datatype_size(DNNDataType dt)
+     }
+ }
+ 
++#if HAVE_OPENVINO2
++static int fill_model_input_remote_ov(OVModel *ov_model, OVRequestItem *request)
++{
++    char surface_str[20];
++    char *port_name;
++    int nb_planes;
++    LastLevelTaskItem *lltask;
++    ov_element_type_e precision;
++    ov_shape_t input_shape = {0};
++    ov_status_e status;
++    ov_tensor_t* tensor[2] = { NULL };
++    OVContext *ctx = &ov_model->ctx;
++    size_t surface_id;
++    TaskItem *task;
++
++    lltask = ff_queue_pop_front(ov_model->lltask_queue);
++    av_assert0(lltask);
++    request->lltasks[0] = lltask;
++    request->lltask_count = 1;
++    task = lltask->task;
++
++    if (task->input_name)
++        av_log(ctx, AV_LOG_WARNING, "The input name is ignored when hardware frame is used\n");
++
++    assert(task->in_frame->hw_frames_ctx);
++    switch(((AVHWFramesContext*)task->in_frame->hw_frames_ctx->data)->sw_format) {
++    case AV_PIX_FMT_NV12:
++        nb_planes = 2;
++        break;
++    default:
++        av_log(ctx, AV_LOG_ERROR, "This sw_format is not supported.\n");
++        return AVERROR(EINVAL);
++    }
++    surface_id = (size_t)task->in_frame->data[3];
++    for (int i = 0; i < nb_planes; i++) {
++        if (ov_model->input_port) {
++            ov_output_const_port_free(ov_model->input_port);
++            ov_model->input_port = NULL;
++        }
++        status = ov_model_const_input_by_index(ov_model->ov_model, i, &ov_model->input_port);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to get input port index.\n");
++            return ov2_map_error(status, NULL);
++        }
++        status = ov_port_get_any_name(ov_model->input_port, &port_name);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to get input port name.\n");
++            return ov2_map_error(status, NULL);
++        }
++        av_log(ctx, AV_LOG_VERBOSE, "OpenVINO model input: %s\n", port_name);
++        ov_free(port_name);
++        port_name = NULL;
++
++        status = ov_const_port_get_shape(ov_model->input_port, &input_shape);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to get input port shape.\n");
++            return ov2_map_error(status, NULL);
++        }
++        status = ov_port_get_element_type(ov_model->input_port, &precision);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to get input port data type.\n");
++            ov_shape_free(&input_shape);
++            return ov2_map_error(status, NULL);
++        }
++        sprintf(surface_str, "%ld", surface_id);
++        status = ov_remote_context_create_tensor(ov_model->remote_context,
++                                                 precision,
++                                                 input_shape,
++                                                 6,
++                                                 &tensor[i],
++                                                 "SHARED_MEM_TYPE",
++                                                 "VA_SURFACE",
++                                                 "DEV_OBJECT_HANDLE",
++                                                 surface_str,
++                                                 "VA_PLANE",
++                                                 i == 0 ? "0" : "1");
++        ov_shape_free(&input_shape);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to create tensor from remote context.\n");
++            return ov2_map_error(status, NULL);
++        }
++        status = ov_infer_request_set_tensor_by_const_port(request->infer_request,
++                                                           ov_model->input_port,
++                                                           tensor[i]);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to Set an input tensor for the model.\n");
++            return ov2_map_error(status, NULL);
++        }
++    }
++    for (int i = 0; i < nb_planes; i++)
++        ov_tensor_free(tensor[i]);
++    return 0;
++}
++#endif
++
+ static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
+ {
+     DNNData input;
+@@ -596,11 +697,13 @@ static void dnn_free_model_ov(DNNModel **model)
+ 
+ static int set_model_input_info(OVModel *ov_model, const char *input_name)
+ {
++    AVHWFramesContext *hw_frame_ctx = NULL;
+     int ret = 0;
+     OVContext *ctx = &ov_model->ctx;
+     ov_status_e status;
+     ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
+     ov_preprocess_input_model_info_t* input_model_info = NULL;
++    ov_preprocess_preprocess_steps_t* input_process_steps = NULL;
+     ov_layout_t* NHWC_layout = NULL;
+     ov_layout_t* NCHW_layout = NULL;
+     const char* NHWC_desc = "NHWC";
+@@ -668,27 +771,65 @@ static int set_model_input_info(OVModel *ov_model, const char *input_name)
+         ret = ov2_map_error(status, NULL);
+         goto err;
+     }
+-    // set preprocess steps.
+-    if (fabsf(ctx->options.scale - 1) > 1e-6f || fabsf(ctx->options.mean) > 1e-6f) {
+-        ov_preprocess_preprocess_steps_t* input_process_steps = NULL;
+-        status = ov_preprocess_input_info_get_preprocess_steps(ov_model->input_info, &input_process_steps);
++
++    if (ov_model->model->filter_ctx->inputs[0]->hw_frames_ctx) {
++        hw_frame_ctx = (AVHWFramesContext *)ov_model->model->filter_ctx->inputs[0]->hw_frames_ctx->data;
++#if CONFIG_VAAPI
++        if (hw_frame_ctx->device_ctx->type != AV_HWDEVICE_TYPE_VAAPI)
++#endif
++        {
++            avpriv_report_missing_feature(ctx, "This hardware frame is not supported.\n");
++            goto err;
++        }
++        ov_model->use_remote_context = 1;
++        status = ov_preprocess_input_tensor_info_set_color_format_with_subname(input_tensor_info,
++                                                                               NV12_TWO_PLANES,
++                                                                               2,
++                                                                               "y",
++                                                                               "uv");
+         if (status != OK) {
+-            av_log(ctx, AV_LOG_ERROR, "Failed to get preprocess steps\n");
++            av_log(ctx, AV_LOG_ERROR, "Failed to set input color format\n");
+             ret = ov2_map_error(status, NULL);
+             goto err;
+         }
+-        status = ov_preprocess_preprocess_steps_convert_element_type(input_process_steps, F32);
+-        status |= ov_preprocess_preprocess_steps_mean(input_process_steps, ctx->options.mean);
+-        status |= ov_preprocess_preprocess_steps_scale(input_process_steps, ctx->options.scale);
++        status = ov_preprocess_input_tensor_info_set_memory_type(input_tensor_info, "GPU_SURFACE");
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to set input memory type\n");
++            ret = ov2_map_error(status, NULL);
++            goto err;
++        }
++        status = ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info,
++                                                                          hw_frame_ctx->height,
++                                                                          hw_frame_ctx->width);
+         if (status != OK) {
+-            av_log(ctx, AV_LOG_ERROR, "Failed to set preprocess steps\n");
+-            ov_preprocess_preprocess_steps_free(input_process_steps);
+-            input_process_steps = NULL;
++            av_log(ctx, AV_LOG_ERROR, "Failed to set spatial static shape\n");
+             ret = ov2_map_error(status, NULL);
+             goto err;
+         }
+-        ov_preprocess_preprocess_steps_free(input_process_steps);
+-        input_process_steps = NULL;
++    }
++    // set preprocess steps.
++    status = ov_preprocess_input_info_get_preprocess_steps(ov_model->input_info, &input_process_steps);
++    if (status != OK) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to get preprocess steps\n");
++        ret = ov2_map_error(status, NULL);
++        goto err;
++    }
++    if (fabsf(ctx->options.scale - 1) > 1e-6f || fabsf(ctx->options.mean) > 1e-6f) {
++        status = ov_preprocess_preprocess_steps_convert_element_type(input_process_steps, F32);
++        status |= ov_preprocess_preprocess_steps_mean(input_process_steps, ctx->options.mean);
++        status |= ov_preprocess_preprocess_steps_scale(input_process_steps, ctx->options.scale);
++    }
++    if (ov_model->use_remote_context) {
++        status |= ov_preprocess_preprocess_steps_convert_color(input_process_steps,
++                                                                  RGB);
++        status |= ov_preprocess_preprocess_steps_resize(input_process_steps, RESIZE_LINEAR);
++    }
++    ov_preprocess_preprocess_steps_free(input_process_steps);
++    input_process_steps = NULL;
++    if (status != OK) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to set preprocess steps\n");
++        ret = ov2_map_error(status, NULL);
++        goto err;
+     }
+ err:
+     if (NCHW_layout)
+@@ -861,8 +1002,36 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+         port_name = NULL;
+     }
+     //compile network
+-    status = ov_core_compile_model(ov_model->core, ov_model->ov_model, device, 0, &ov_model->compiled_model);
++    if (ov_model->model->filter_ctx->inputs[0]->hw_frames_ctx) {
++        AVHWFramesContext *hw_frame_ctx = (AVHWFramesContext *)ov_model->model->filter_ctx->inputs[0]->hw_frames_ctx->data;
++        status = NOT_IMPLEMENTED;
++#if CONFIG_VAAPI
++        if (hw_frame_ctx->device_ctx->type == AV_HWDEVICE_TYPE_VAAPI) {
++            AVVAAPIDeviceContext *vaapi_ctx = (AVVAAPIDeviceContext *)hw_frame_ctx->device_ctx->hwctx;
++            status = ov_core_create_context(ov_model->core,
++                                            device,
++                                            4,
++                                            &ov_model->remote_context,
++                                            "CONTEXT_TYPE",
++                                            "VA_SHARED",
++                                            "VA_DEVICE",
++                                            vaapi_ctx->display);
++        }
++#endif
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to create remote context.\n");
++            goto err;
++        }
++        status = ov_core_compile_model_with_context(ov_model->core,
++                                            ov_model->ov_model,
++                                            ov_model->remote_context,
++                                            0,
++                                            &ov_model->compiled_model);
++    } else {
++        status = ov_core_compile_model(ov_model->core, ov_model->ov_model, device, 0, &ov_model->compiled_model);
++    }
+     if (status != OK) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to compile model.\n");
+         ret = ov2_map_error(status, NULL);
+         goto err;
+     }
+@@ -1043,7 +1212,10 @@ static int execute_model_ov(OVRequestItem *request, Queue *inferenceq)
+     ov_model = task->model;
+     ctx = &ov_model->ctx;
+ 
+-    ret = fill_model_input_ov(ov_model, request);
++    if (ov_model->use_remote_context)
++        ret = fill_model_input_remote_ov(ov_model, request);
++    else
++        ret = fill_model_input_ov(ov_model, request);
+     if (ret != 0) {
+         goto err;
+     }
+@@ -1655,7 +1827,10 @@ static int dnn_flush_ov(const DNNModel *model)
+         return AVERROR(EINVAL);
+     }
+ 
+-    ret = fill_model_input_ov(ov_model, request);
++    if (ov_model->use_remote_context)
++        ret = fill_model_input_remote_ov(ov_model, request);
++    else
++        ret = fill_model_input_ov(ov_model, request);
+     if (ret != 0) {
+         av_log(ctx, AV_LOG_ERROR, "Failed to fill model input.\n");
+         return ret;
+-- 
+2.34.1
+

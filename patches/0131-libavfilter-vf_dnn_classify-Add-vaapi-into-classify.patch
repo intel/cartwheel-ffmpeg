@@ -1,0 +1,70 @@
+From 197cad7d9d5db45bbdcf2bb41846bcb920170e57 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Tue, 5 Mar 2024 16:46:12 +0800
+Subject: [PATCH 5/5] libavfilter/vf_dnn_classify: Add vaapi into classify
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavfilter/vf_dnn_classify.c | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/libavfilter/vf_dnn_classify.c b/libavfilter/vf_dnn_classify.c
+index 11389c029d..1ef7dc5fa6 100644
+--- a/libavfilter/vf_dnn_classify.c
++++ b/libavfilter/vf_dnn_classify.c
+@@ -200,6 +200,9 @@ static const enum AVPixelFormat pix_fmts[] = {
+     AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
+     AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
+     AV_PIX_FMT_NV12,
++#if CONFIG_VAAPI
++    AV_PIX_FMT_VAAPI,
++#endif
+     AV_PIX_FMT_NONE
+ };
+ 
+@@ -294,6 +297,31 @@ static av_cold void dnn_classify_uninit(AVFilterContext *context)
+     free_classify_labels(ctx);
+ }
+ 
++static int config_output(AVFilterLink *outlink)
++{
++    AVFilterContext *context = outlink->src;
++    AVFilterLink *inlink = context->inputs[0];
++    DnnClassifyContext *classify_ctx = context->priv;
++    if (inlink->hw_frames_ctx) {
++        if (inlink->format == AV_PIX_FMT_VAAPI &&
++            classify_ctx->dnnctx.backend_type == DNN_OV)
++            outlink->hw_frames_ctx = av_buffer_ref(inlink->hw_frames_ctx);
++        else {
++            av_log(classify_ctx, AV_LOG_ERROR, "The dnn_backend doesn't support this pixel format\n");
++            return AVERROR_PATCHWELCOME;
++        }
++    }
++    return 0;
++}
++
++static const AVFilterPad dnn_classify_outputs[] = {
++    {
++        .name         = "default",
++        .type         = AVMEDIA_TYPE_VIDEO,
++        .config_props = config_output,
++    },
++};
++
+ const AVFilter ff_vf_dnn_classify = {
+     .name          = "dnn_classify",
+     .description   = NULL_IF_CONFIG_SMALL("Apply DNN classify filter to the input."),
+@@ -301,8 +329,9 @@ const AVFilter ff_vf_dnn_classify = {
+     .init          = dnn_classify_init,
+     .uninit        = dnn_classify_uninit,
+     FILTER_INPUTS(ff_video_default_filterpad),
+-    FILTER_OUTPUTS(ff_video_default_filterpad),
++    FILTER_OUTPUTS(dnn_classify_outputs),
+     FILTER_PIXFMTS_ARRAY(pix_fmts),
+     .priv_class    = &dnn_classify_class,
+     .activate      = dnn_classify_activate,
++    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
+ };
+-- 
+2.34.1
+
