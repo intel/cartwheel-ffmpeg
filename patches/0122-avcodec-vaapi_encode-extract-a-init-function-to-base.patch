@@ -1,0 +1,126 @@
+From 19591a2671b3bb633ea5493ec672803f347306ec Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Thu, 14 Mar 2024 13:57:58 +0800
+Subject: [PATCH 04/11] avcodec/vaapi_encode: extract a init function to base
+ layer
+
+Move the base_ctx parameter initialization to base layer.
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/hw_base_encode.c | 33 +++++++++++++++++++++++++++++++++
+ libavcodec/hw_base_encode.h |  2 ++
+ libavcodec/vaapi_encode.c   | 36 ++++--------------------------------
+ 3 files changed, 39 insertions(+), 32 deletions(-)
+
+diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
+index dcba902f44..71ead512c0 100644
+--- a/libavcodec/hw_base_encode.c
++++ b/libavcodec/hw_base_encode.c
+@@ -597,3 +597,36 @@ end:
+ 
+     return 0;
+ }
++
++int ff_hw_base_encode_init(AVCodecContext *avctx)
++{
++    HWBaseEncodeContext *ctx = avctx->priv_data;
++
++    ctx->frame = av_frame_alloc();
++    if (!ctx->frame)
++        return AVERROR(ENOMEM);
++
++    if (!avctx->hw_frames_ctx) {
++        av_log(avctx, AV_LOG_ERROR, "A hardware frames reference is "
++               "required to associate the encoding device.\n");
++        return AVERROR(EINVAL);
++    }
++
++    ctx->input_frames_ref = av_buffer_ref(avctx->hw_frames_ctx);
++    if (!ctx->input_frames_ref)
++        return AVERROR(ENOMEM);
++
++    ctx->input_frames = (AVHWFramesContext *)ctx->input_frames_ref->data;
++
++    ctx->device_ref = av_buffer_ref(ctx->input_frames->device_ref);
++    if (!ctx->device_ref)
++        return AVERROR(ENOMEM);
++
++    ctx->device = (AVHWDeviceContext *)ctx->device_ref->data;
++
++    ctx->tail_pkt = av_packet_alloc();
++    if (!ctx->tail_pkt)
++        return AVERROR(ENOMEM);
++
++    return 0;
++}
+diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
+index c9df95f952..c9c8fb43c9 100644
+--- a/libavcodec/hw_base_encode.h
++++ b/libavcodec/hw_base_encode.h
+@@ -226,6 +226,8 @@ typedef struct HWBaseEncodeContext {
+ 
+ int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
+ 
++int ff_hw_base_encode_init(AVCodecContext *avctx);
++
+ #define HW_BASE_ENCODE_COMMON_OPTIONS \
+     { "idr_interval", \
+       "Distance (in I-frames) between key frames", \
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index d75aad78cf..4dfcae30f6 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -2219,45 +2219,17 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+     VAStatus vas;
+     int err;
+ 
++    err = ff_hw_base_encode_init(avctx);
++    if (err < 0)
++        goto fail;
++
+     ctx->va_config  = VA_INVALID_ID;
+     ctx->va_context = VA_INVALID_ID;
+ 
+     base_ctx->op = &vaapi_op;
+ 
+-    /* If you add something that can fail above this av_frame_alloc(),
+-     * modify ff_vaapi_encode_close() accordingly. */
+-    base_ctx->frame = av_frame_alloc();
+-    if (!base_ctx->frame) {
+-        return AVERROR(ENOMEM);
+-    }
+-
+-    if (!avctx->hw_frames_ctx) {
+-        av_log(avctx, AV_LOG_ERROR, "A hardware frames reference is "
+-               "required to associate the encoding device.\n");
+-        return AVERROR(EINVAL);
+-    }
+-
+-    base_ctx->input_frames_ref = av_buffer_ref(avctx->hw_frames_ctx);
+-    if (!base_ctx->input_frames_ref) {
+-        err = AVERROR(ENOMEM);
+-        goto fail;
+-    }
+-    base_ctx->input_frames = (AVHWFramesContext*)base_ctx->input_frames_ref->data;
+-
+-    base_ctx->device_ref = av_buffer_ref(base_ctx->input_frames->device_ref);
+-    if (!base_ctx->device_ref) {
+-        err = AVERROR(ENOMEM);
+-        goto fail;
+-    }
+-    base_ctx->device = (AVHWDeviceContext*)base_ctx->device_ref->data;
+     ctx->hwctx = base_ctx->device->hwctx;
+ 
+-    base_ctx->tail_pkt = av_packet_alloc();
+-    if (!base_ctx->tail_pkt) {
+-        err = AVERROR(ENOMEM);
+-        goto fail;
+-    }
+-
+     err = vaapi_encode_profile_entrypoint(avctx);
+     if (err < 0)
+         goto fail;
+-- 
+2.41.0.windows.1
+

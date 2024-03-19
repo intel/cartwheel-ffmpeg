@@ -1,7 +1,7 @@
-From 395eef1995c90184e7c2f9d6cd357ff303301af4 Mon Sep 17 00:00:00 2001
+From b94c6252e08ec84320d28f96882e6ec6413a5559 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 2 Jan 2024 11:08:46 +0800
-Subject: [PATCH 1/8] avcodec/vaapi_encode: move pic->input_surface
+Subject: [PATCH 01/11] avcodec/vaapi_encode: move pic->input_surface
  initialization to encode_alloc
 
 When allocating the VAAPIEncodePicture, pic->input_surface can be
@@ -14,7 +14,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 808b79c0c7..bd29dbf0b4 100644
+index 940f0678a5..bd8c624d7f 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -878,7 +878,8 @@ static int vaapi_encode_discard(AVCodecContext *avctx,
