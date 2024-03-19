@@ -1,8 +1,8 @@
-From bfb3ad7109d3e2335c88636a72496d674913f2f7 Mon Sep 17 00:00:00 2001
+From ece3048fd266e73ae8c632554635881a6e575f1f Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 28 Dec 2023 18:17:33 +0800
-Subject: [PATCH 3/8] avcodec/vaapi_encode: extract set_output_property to base
- layer
+Subject: [PATCH 06/11] avcodec/vaapi_encode: extract set_output_property to
+ base layer
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
@@ -12,11 +12,11 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 45 insertions(+), 42 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index 204b80bc8c..f3bf072e74 100644
+index 754f990ed0..c7aed019fa 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -383,6 +383,46 @@ static int hw_base_encode_clear_old(AVCodecContext *avctx)
-     return 0;
+@@ -490,6 +490,46 @@ fail:
+     return err;
  }
  
 +int ff_hw_base_encode_set_output_property(AVCodecContext *avctx,
@@ -59,14 +59,14 @@ index 204b80bc8c..f3bf072e74 100644
 +    return 0;
 +}
 +
- static int hw_base_encode_check_frame(AVCodecContext *avctx,
-                                       const AVFrame *frame)
+ int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
  {
+     HWBaseEncodeContext *ctx = avctx->priv_data;
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
-index 15be66f9e7..014e56a04c 100644
+index 436767b706..3af696a21a 100644
 --- a/libavcodec/hw_base_encode.h
 +++ b/libavcodec/hw_base_encode.h
-@@ -229,6 +229,9 @@ typedef struct HWBaseEncodeContext {
+@@ -224,6 +224,9 @@ typedef struct HWBaseEncodeContext {
      AVPacket        *tail_pkt;
  } HWBaseEncodeContext;
  
@@ -77,7 +77,7 @@ index 15be66f9e7..014e56a04c 100644
  
  int ff_hw_base_encode_init(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 586d3ce860..6da8c8a157 100644
+index 65d2e43c42..fdc03db614 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -657,47 +657,6 @@ fail_at_end:

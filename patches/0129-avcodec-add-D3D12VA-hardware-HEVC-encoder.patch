@@ -1,7 +1,7 @@
-From b505a6447b29d1b1cc53b8993e8ad1b542315fef Mon Sep 17 00:00:00 2001
+From 614faeb818071ab4889c0e429c60d82f29cb8434 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 22 Aug 2023 13:26:36 +0800
-Subject: [PATCH 46/46] avcodec: add D3D12VA hardware HEVC encoder
+Subject: [PATCH 11/11] avcodec: add D3D12VA hardware HEVC encoder
 
 This implementation is based on D3D12 Video Encoding Spec:
 https://microsoft.github.io/DirectX-Specs/d3d/D3D12VideoEncoding.html
@@ -15,16 +15,16 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  configure                        |    6 +
  libavcodec/Makefile              |    4 +-
  libavcodec/allcodecs.c           |    1 +
- libavcodec/d3d12va_encode.c      | 1554 ++++++++++++++++++++++++++++++
- libavcodec/d3d12va_encode.h      |  321 ++++++
- libavcodec/d3d12va_encode_hevc.c |  958 ++++++++++++++++++
- 6 files changed, 2843 insertions(+), 1 deletion(-)
+ libavcodec/d3d12va_encode.c      | 1550 ++++++++++++++++++++++++++++++
+ libavcodec/d3d12va_encode.h      |  321 +++++++
+ libavcodec/d3d12va_encode_hevc.c |  957 ++++++++++++++++++
+ 6 files changed, 2838 insertions(+), 1 deletion(-)
  create mode 100644 libavcodec/d3d12va_encode.c
  create mode 100644 libavcodec/d3d12va_encode.h
  create mode 100644 libavcodec/d3d12va_encode_hevc.c
 
 diff --git a/configure b/configure
-index 15c391bf05..19664e455a 100755
+index b79db56292..b00fd929e5 100755
 --- a/configure
 +++ b/configure
 @@ -2575,6 +2575,7 @@ CONFIG_EXTRA="
@@ -35,7 +35,7 @@ index 15c391bf05..19664e455a 100755
      vc1dsp
      videodsp
      vp3dsp
-@@ -3218,6 +3219,7 @@ wmv3_vaapi_hwaccel_select="vc1_vaapi_hwaccel"
+@@ -3219,6 +3220,7 @@ wmv3_vaapi_hwaccel_select="vc1_vaapi_hwaccel"
  wmv3_vdpau_hwaccel_select="vc1_vdpau_hwaccel"
  
  # hardware-accelerated codecs
@@ -43,7 +43,7 @@ index 15c391bf05..19664e455a 100755
  mediafoundation_deps="mftransform_h MFCreateAlignedMemoryBuffer"
  omx_deps="libdl pthreads"
  omx_rpi_select="omx"
-@@ -3284,6 +3286,7 @@ h264_v4l2m2m_encoder_deps="v4l2_m2m h264_v4l2_m2m"
+@@ -3285,6 +3287,7 @@ h264_v4l2m2m_encoder_deps="v4l2_m2m h264_v4l2_m2m"
  hevc_amf_encoder_deps="amf"
  hevc_cuvid_decoder_deps="cuvid"
  hevc_cuvid_decoder_select="hevc_mp4toannexb_bsf"
@@ -51,7 +51,7 @@ index 15c391bf05..19664e455a 100755
  hevc_mediacodec_decoder_deps="mediacodec"
  hevc_mediacodec_decoder_select="hevc_mp4toannexb_bsf hevc_parser"
  hevc_mediacodec_encoder_deps="mediacodec"
-@@ -6625,6 +6628,9 @@ check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
+@@ -6623,6 +6626,9 @@ check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
  check_type "windows.h d3d11.h" "ID3D11VideoContext"
  check_type "windows.h d3d12.h" "ID3D12Device"
  check_type "windows.h d3d12video.h" "ID3D12VideoDecoder"
@@ -62,7 +62,7 @@ index 15c391bf05..19664e455a 100755
  check_type "d3d9.h dxva2api.h" DXVA2_ConfigPictureDecode -D_WIN32_WINNT=0x0602
  check_func_headers mfapi.h MFCreateAlignedMemoryBuffer -lmfplat
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 971b4d4794..331d5d9be1 100644
+index cbfae5f182..cdda3f0d0a 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -84,6 +84,7 @@ OBJS-$(CONFIG_CBS_JPEG)                += cbs_jpeg.o
@@ -104,10 +104,10 @@ index 2386b450a6..7b5093233c 100644
  extern const FFCodec ff_hevc_mf_encoder;
 diff --git a/libavcodec/d3d12va_encode.c b/libavcodec/d3d12va_encode.c
 new file mode 100644
-index 0000000000..2b8078a8dd
+index 0000000000..88a08efa76
 --- /dev/null
 +++ b/libavcodec/d3d12va_encode.c
-@@ -0,0 +1,1554 @@
+@@ -0,0 +1,1550 @@
 +/*
 + * Direct3D 12 HW acceleration video encoder
 + *
@@ -801,8 +801,7 @@ index 0000000000..2b8078a8dd
 +    av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
 +           base_pic->display_order, base_pic->encode_order);
 +
-+    ff_hw_base_encode_set_output_property(avctx, (HWBaseEncodePicture *)base_pic, pkt_ptr,
-+                                          ctx->codec->flags & FLAG_TIMESTAMP_NO_DELAY);
++    ff_hw_base_encode_set_output_property(avctx, (HWBaseEncodePicture *)base_pic, pkt_ptr, 0);
 +
 +    return 0;
 +}
@@ -1645,7 +1644,6 @@ index 0000000000..2b8078a8dd
 +    }
 +
 +    av_fifo_freep2(&ctx->allocator_queue);
-+    av_fifo_freep2(&base_ctx->encode_fifo);
 +
 +    D3D12_OBJECT_RELEASE(ctx->sync_ctx.fence);
 +    if (ctx->sync_ctx.event)
@@ -1655,8 +1653,6 @@ index 0000000000..2b8078a8dd
 +    D3D12_OBJECT_RELEASE(ctx->encoder);
 +    D3D12_OBJECT_RELEASE(ctx->video_device3);
 +    D3D12_OBJECT_RELEASE(ctx->device3);
-+
-+    av_buffer_unref(&base_ctx->recon_frames_ref);
 +
 +    ff_hw_base_encode_close(avctx);
 +
@@ -1991,10 +1987,10 @@ index 0000000000..10e2d87035
 +#endif /* AVCODEC_D3D12VA_ENCODE_H */
 diff --git a/libavcodec/d3d12va_encode_hevc.c b/libavcodec/d3d12va_encode_hevc.c
 new file mode 100644
-index 0000000000..4e4c405395
+index 0000000000..aec0d9dcec
 --- /dev/null
 +++ b/libavcodec/d3d12va_encode_hevc.c
-@@ -0,0 +1,958 @@
+@@ -0,0 +1,957 @@
 +/*
 + * Direct3D 12 HW acceleration video encoder
 + *
@@ -2695,7 +2691,6 @@ index 0000000000..4e4c405395
 +static int d3d12va_encode_hevc_init_picture_params(AVCodecContext *avctx,
 +                                                   D3D12VAEncodePicture *pic)
 +{
-+    HWBaseEncodeContext                             *base_ctx = avctx->priv_data;
 +    HWBaseEncodePicture                             *base_pic = (HWBaseEncodePicture *)pic;
 +    D3D12VAEncodeHEVCPicture                            *hpic = base_pic->priv_data;
 +    HWBaseEncodePicture                                 *prev = base_pic->prev;
@@ -2954,5 +2949,5 @@ index 0000000000..4e4c405395
 +    .p.wrapper_name = "d3d12va",
 +};
 -- 
-2.34.1
+2.41.0.windows.1
 

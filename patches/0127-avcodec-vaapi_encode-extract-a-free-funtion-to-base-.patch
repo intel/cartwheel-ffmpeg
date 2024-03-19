@@ -1,7 +1,7 @@
-From 031a828db3b631990a1528f40df38b71f2bd292a Mon Sep 17 00:00:00 2001
+From cff93279c8723737e580e6ba92f6e99ac6a8a53c Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 19 Feb 2024 22:09:11 +0800
-Subject: [PATCH 6/8] avcodec/vaapi_encode: extract a free funtion to base
+Subject: [PATCH 09/11] avcodec/vaapi_encode: extract a free funtion to base
  layer
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
@@ -12,7 +12,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 14 insertions(+), 5 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index 22345db851..8540362ee4 100644
+index d21137b64a..ad221ae4b0 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
 @@ -750,6 +750,17 @@ fail:
@@ -34,10 +34,10 @@ index 22345db851..8540362ee4 100644
  {
      HWBaseEncodeContext *ctx = avctx->priv_data;
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
-index 383bc68280..1ed1895566 100644
+index 9957786a3f..225ca68d3e 100644
 --- a/libavcodec/hw_base_encode.h
 +++ b/libavcodec/hw_base_encode.h
-@@ -239,6 +239,8 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
+@@ -234,6 +234,8 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
  
  int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enum AVPixelFormat *fmt);
  
@@ -47,7 +47,7 @@ index 383bc68280..1ed1895566 100644
  
  int ff_hw_base_encode_close(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 8503742430..b79b15fb4c 100644
+index 0ac7e258e8..de40ad52d1 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
 @@ -874,17 +874,13 @@ static int vaapi_encode_free(AVCodecContext *avctx,
