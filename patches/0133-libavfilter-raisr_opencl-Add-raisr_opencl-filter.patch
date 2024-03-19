@@ -1,0 +1,328 @@
+From cbbd9dcb7ec291090a4306ba168e4f93ce3c0610 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Thu, 6 Apr 2023 13:48:23 +0800
+Subject: [PATCH 2/2] libavfilter/raisr_opencl: Add raisr_opencl filter
+
+Add raisr_opencl filter. It uses the same algorithm as raisr filter but
+it uses cl_mem as input and output, which helps to build high speed
+pipeline.
+For details please refer to https://github.com/OpenVisualCloud/Video-Super-Resolution-Library
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ configure                     |   1 +
+ libavfilter/Makefile          |   1 +
+ libavfilter/allfilters.c      |   1 +
+ libavfilter/vf_raisr_opencl.c | 264 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 267 insertions(+)
+ create mode 100644 libavfilter/vf_raisr_opencl.c
+
+diff --git a/configure b/configure
+index 300ee61840..241e707092 100755
+--- a/configure
++++ b/configure
+@@ -3834,6 +3834,7 @@ procamp_vaapi_filter_deps="vaapi"
+ program_opencl_filter_deps="opencl"
+ pullup_filter_deps="gpl"
+ raisr_filter_deps="libipp"
++raisr_opencl_filter_deps="opencl libipp"
+ remap_opencl_filter_deps="opencl"
+ removelogo_filter_deps="avcodec avformat swscale"
+ repeatfields_filter_deps="gpl"
+diff --git a/libavfilter/Makefile b/libavfilter/Makefile
+index f6ad88dd99..5a27cd567f 100644
+--- a/libavfilter/Makefile
++++ b/libavfilter/Makefile
+@@ -440,6 +440,7 @@ OBJS-$(CONFIG_PULLUP_FILTER)                 += vf_pullup.o
+ OBJS-$(CONFIG_QP_FILTER)                     += vf_qp.o
+ OBJS-$(CONFIG_QUIRC_FILTER)                  += vf_quirc.o
+ OBJS-$(CONFIG_RAISR_FILTER)                  += vf_raisr.o
++OBJS-$(CONFIG_RAISR_OPENCL_FILTER)           += vf_raisr_opencl.o opencl.o
+ OBJS-$(CONFIG_RANDOM_FILTER)                 += vf_random.o
+ OBJS-$(CONFIG_READEIA608_FILTER)             += vf_readeia608.o
+ OBJS-$(CONFIG_READVITC_FILTER)               += vf_readvitc.o
+diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
+index 276f1a38a2..06e5402393 100644
+--- a/libavfilter/allfilters.c
++++ b/libavfilter/allfilters.c
+@@ -416,6 +416,7 @@ extern const AVFilter ff_vf_qp;
+ extern const AVFilter ff_vf_qrencode;
+ extern const AVFilter ff_vf_quirc;
+ extern const AVFilter ff_vf_raisr;
++extern const AVFilter ff_vf_raisr_opencl;
+ extern const AVFilter ff_vf_random;
+ extern const AVFilter ff_vf_readeia608;
+ extern const AVFilter ff_vf_readvitc;
+diff --git a/libavfilter/vf_raisr_opencl.c b/libavfilter/vf_raisr_opencl.c
+new file mode 100644
+index 0000000000..1a38984190
+--- /dev/null
++++ b/libavfilter/vf_raisr_opencl.c
+@@ -0,0 +1,264 @@
++/*
++ * Intel Library for Video Super Resolution ffmpeg plugin
++ *
++ * Copyright (c) 2023 Intel Corporation
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include "raisr/RaisrHandler.h"
++#include "raisr/RaisrDefaults.h"
++#include "libavutil/opt.h"
++#include "avfilter.h"
++#include "internal.h"
++#include "opencl.h"
++#include "libavutil/pixdesc.h"
++#include "video.h"
++
++#define MIN_RATIO 1
++#define MAX_RATIO 4
++#define DEFAULT_RATIO 2
++
++typedef struct RaisrOpenCLContext {
++    OpenCLFilterContext ocf;
++
++    int initialised;
++    float ratio;
++    int bits;
++    char *filterfolder;
++    BlendingMode blending;
++    int passes;
++    int mode;
++    RangeType range;
++    enum AVPixelFormat sw_format;
++} RaisrOpenCLContext;
++
++
++static int raisr_opencl_init(AVFilterContext *avctx)
++{
++    RaisrOpenCLContext *ctx = avctx->priv;
++    RNLERRORTYPE err;
++
++    err = RNLHandler_SetOpenCLContext(ctx->ocf.hwctx->context, ctx->ocf.hwctx->device_id, 0, 0);
++    if (err != RNLErrorNone) {
++        av_log(avctx, AV_LOG_ERROR, "RNLHandler_SetExternalOpenCLContext failed\n");
++        return AVERROR(ENAVAIL);
++    }
++
++    err = RNLHandler_Init(ctx->filterfolder, ctx->ratio, ctx->bits, ctx->range, 1,
++                          OpenCLExternal, ctx->passes, ctx->mode);
++    if (err != RNLErrorNone) {
++        av_log(avctx, AV_LOG_ERROR, "RNLInit failed\n");
++        return AVERROR(ENAVAIL);
++    }
++    return 0;
++}
++
++static int raisr_opencl_filter_frame(AVFilterLink *inlink, AVFrame *input)
++{
++    AVFilterContext    *avctx = inlink->dst;
++    AVFilterLink     *outlink = avctx->outputs[0];
++    RaisrOpenCLContext *ctx = avctx->priv;
++    AVFrame *output = NULL;
++    const AVPixFmtDescriptor *desc;
++    int err, wsub, hsub;
++    int nb_planes = 0;
++    VideoDataType vdt_in[3] = { 0 };
++    VideoDataType vdt_out[3] = { 0 };
++
++    av_log(ctx, AV_LOG_DEBUG, "Filter input: %s, %ux%u (%"PRId64").\n",
++           av_get_pix_fmt_name(input->format),
++           input->width, input->height, input->pts);
++
++    if (!input->hw_frames_ctx)
++        return AVERROR(EINVAL);
++
++    output = ff_get_video_buffer(outlink, outlink->w, outlink->h);
++    if (!output) {
++        err = AVERROR(ENOMEM);
++        goto fail;
++    }
++    desc = av_pix_fmt_desc_get(ctx->sw_format);
++    if (!desc) {
++        err = AVERROR(EINVAL);
++        goto fail;
++    }
++
++    for(int p = 0; p < desc->nb_components; p++)
++        if (desc->comp[p].plane > nb_planes)
++            nb_planes = desc->comp[p].plane;
++
++    for (int p = 0; p <= nb_planes; p++) {
++        wsub = p ? 1 << desc->log2_chroma_w : 1;
++        hsub = p ? 1 << desc->log2_chroma_h : 1;
++        vdt_in[p].pData = input->data[p];
++        vdt_in[p].width = input->width / wsub;
++        vdt_in[p].height = input->height / hsub;
++        vdt_in[p].step = input->linesize[p];
++        vdt_in[p].bitShift = desc->comp[p].shift;
++        // fill in the output video data type structure
++        vdt_out[p].pData = output->data[p];
++        vdt_out[p].width = input->width * ctx->ratio / wsub;
++        vdt_out[p].height = input->height * ctx->ratio / hsub;
++        vdt_out[p].step = output->linesize[p];
++        vdt_out[p].bitShift = desc->comp[p].shift;
++    }
++
++    if (!ctx->initialised) {
++        err = RNLHandler_SetRes(&vdt_in[0], &vdt_in[1], &vdt_in[2],
++                                &vdt_out[0], &vdt_out[1], &vdt_out[2]);
++        if (err != RNLErrorNone) {
++            av_log(ctx, AV_LOG_ERROR, "RNLHandler_SetRes error\n");
++            err = AVERROR(ENOMEM);
++            goto fail;
++        }
++        ctx->initialised = 1;
++    }
++
++    err = RNLHandler_Process(&vdt_in[0], &vdt_in[1], &vdt_in[2],
++                             &vdt_out[0], &vdt_out[1], &vdt_out[2],
++                             ctx->blending);
++    if (err != RNLErrorNone) {
++        av_log(ctx, AV_LOG_ERROR, "RNLHandler_Process error\n");
++        err = AVERROR(ENOMEM);
++        goto fail;
++    }
++
++    err = av_frame_copy_props(output, input);
++    if (err < 0)
++        goto fail;
++
++    av_frame_free(&input);
++
++    av_log(ctx, AV_LOG_DEBUG, "Filter output: %s, %ux%u (%"PRId64").\n",
++           av_get_pix_fmt_name(output->format),
++           output->width, output->height, output->pts);
++
++    return ff_filter_frame(outlink, output);
++
++fail:
++    av_frame_free(&input);
++    av_frame_free(&output);
++    return err;
++}
++
++static int raisr_filter_config_input(AVFilterLink *inlink)
++{
++    AVHWFramesContext *input_frames;
++    int err;
++
++    err = ff_opencl_filter_config_input(inlink);
++    if (err < 0)
++        return err;
++
++    input_frames = (AVHWFramesContext*)inlink->hw_frames_ctx->data;
++    if (input_frames->format != AV_PIX_FMT_OPENCL)
++        return AVERROR(EINVAL);
++
++    if (input_frames->sw_format != AV_PIX_FMT_NV12 &&
++        input_frames->sw_format != AV_PIX_FMT_YUV420P &&
++        input_frames->sw_format != AV_PIX_FMT_P010)
++        return AVERROR(EINVAL);
++
++    return 0;
++}
++
++static int raisr_opencl_config_output(AVFilterLink *outlink)
++{
++    AVFilterContext *avctx = outlink->src;
++    AVFilterLink *inlink = avctx->inputs[0];
++    RaisrOpenCLContext *ctx = avctx->priv;
++    AVHWFramesContext *input_frames;
++    const AVPixFmtDescriptor *desc;
++    int err;
++
++    ctx->ocf.output_width = inlink->w * ctx->ratio;
++    ctx->ocf.output_height = inlink->h * ctx->ratio;
++
++    err = ff_opencl_filter_config_output(outlink);
++    if (err < 0)
++        return err;
++
++    input_frames = (AVHWFramesContext*)inlink->hw_frames_ctx->data;
++    ctx->sw_format = (enum AVPixelFormat)input_frames->sw_format;
++    desc = av_pix_fmt_desc_get(ctx->sw_format);
++    if (desc && desc->comp[0].depth != ctx->bits) {
++        av_log(ctx, AV_LOG_ERROR, "input pixel doesn't match model's bitdepth\n");
++        return AVERROR(EINVAL);
++    }
++
++    err = raisr_opencl_init(avctx);
++    if (err < 0)
++        return err;
++
++    return 0;
++}
++
++static av_cold void raisr_opencl_uninit(AVFilterContext *avctx)
++{
++    RNLHandler_Deinit();
++    ff_opencl_filter_uninit(avctx);
++}
++
++#define OFFSET(x) offsetof(RaisrOpenCLContext, x)
++#define FLAGS (AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
++static const AVOption raisr_opencl_options[] = {
++    {"ratio", "ratio of the upscaling, between 1 and 4", OFFSET(ratio),
++        AV_OPT_TYPE_FLOAT, {.dbl = DEFAULT_RATIO}, MIN_RATIO, MAX_RATIO, FLAGS},
++    {"bits", "bit depth", OFFSET(bits), AV_OPT_TYPE_INT, {.i64 = 8}, 8, 10, FLAGS},
++    {"range", "input color range", OFFSET(range), AV_OPT_TYPE_INT, {.i64 = VideoRange}, VideoRange, FullRange, FLAGS, "range"},
++        { "video", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = VideoRange  },   INT_MIN, INT_MAX, FLAGS, "range" },
++        { "full",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = FullRange  },    INT_MIN, INT_MAX, FLAGS, "range" },
++    {"filterfolder", "absolute filter folder path", OFFSET(filterfolder), AV_OPT_TYPE_STRING, {.str = "filters_2x/filters_lowres"}, 0, 0, FLAGS},
++    {"blending", "CT blending mode (1: Randomness, 2: CountOfBitsChanged)",
++      OFFSET(blending), AV_OPT_TYPE_INT, {.i64 = CountOfBitsChanged}, Randomness, CountOfBitsChanged, FLAGS, "blending"},
++        { "Randomness",         NULL, 0, AV_OPT_TYPE_CONST, { .i64 = Randomness  },            INT_MIN, INT_MAX, FLAGS, "blending" },
++        { "CountOfBitsChanged", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = CountOfBitsChanged   },   INT_MIN, INT_MAX, FLAGS, "blending" },
++    {"passes", "passes to run (1: one pass, 2: two pass)", OFFSET(passes), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 2, FLAGS},
++    {"mode", "mode for two pass (1: upscale in 1st pass, 2: upscale in 2nd pass)", OFFSET(mode), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 2, FLAGS},
++    {NULL}
++};
++
++AVFILTER_DEFINE_CLASS(raisr_opencl);
++
++static const AVFilterPad raisr_opencl_inputs[] = {
++    {
++        .name         = "default",
++        .type         = AVMEDIA_TYPE_VIDEO,
++        .filter_frame = &raisr_opencl_filter_frame,
++        .config_props = &raisr_filter_config_input,
++    },
++};
++
++static const AVFilterPad raisr_opencl_outputs[] = {
++    {
++        .name         = "default",
++        .type         = AVMEDIA_TYPE_VIDEO,
++        .config_props = &raisr_opencl_config_output,
++    },
++};
++
++const AVFilter ff_vf_raisr_opencl = {
++    .name           = "raisr_opencl",
++    .description    = NULL_IF_CONFIG_SMALL("Raisr"),
++    .priv_size      = sizeof(RaisrOpenCLContext),
++    .priv_class     = &raisr_opencl_class,
++    .init           = &ff_opencl_filter_init,
++    .uninit         = &raisr_opencl_uninit,
++    FILTER_INPUTS(raisr_opencl_inputs),
++    FILTER_OUTPUTS(raisr_opencl_outputs),
++    FILTER_SINGLE_PIXFMT(AV_PIX_FMT_OPENCL),
++    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
++};
+-- 
+2.34.1
+
