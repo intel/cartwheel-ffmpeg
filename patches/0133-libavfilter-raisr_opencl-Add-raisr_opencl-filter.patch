@@ -1,4 +1,4 @@
-From cbbd9dcb7ec291090a4306ba168e4f93ce3c0610 Mon Sep 17 00:00:00 2001
+From b020f4e309dd642e1e8de94ade62bf5063fd1b63 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Thu, 6 Apr 2023 13:48:23 +0800
 Subject: [PATCH 2/2] libavfilter/raisr_opencl: Add raisr_opencl filter
@@ -10,22 +10,23 @@ For details please refer to https://github.com/OpenVisualCloud/Video-Super-Resol
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- configure                     |   1 +
+ configure                     |   2 +
  libavfilter/Makefile          |   1 +
  libavfilter/allfilters.c      |   1 +
  libavfilter/vf_raisr_opencl.c | 264 ++++++++++++++++++++++++++++++++++
- 4 files changed, 267 insertions(+)
+ 4 files changed, 268 insertions(+)
  create mode 100644 libavfilter/vf_raisr_opencl.c
 
 diff --git a/configure b/configure
-index 300ee61840..241e707092 100755
+index dd1bd621a9..a21e3a09fb 100755
 --- a/configure
 +++ b/configure
-@@ -3834,6 +3834,7 @@ procamp_vaapi_filter_deps="vaapi"
- program_opencl_filter_deps="opencl"
+@@ -3837,6 +3837,8 @@ program_opencl_filter_deps="opencl"
  pullup_filter_deps="gpl"
- raisr_filter_deps="libipp"
-+raisr_opencl_filter_deps="opencl libipp"
+ raisr_filter_suggest="libipp"
+ raisr_filter_deps="libraisr"
++raisr_opencl_filter_suggest="libipp"
++raisr_opencl_filter_deps="opencl libraisr"
  remap_opencl_filter_deps="opencl"
  removelogo_filter_deps="avcodec avformat swscale"
  repeatfields_filter_deps="gpl"
