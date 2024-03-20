@@ -1,0 +1,416 @@
+From aaeb6db36d845b4b13b950ef09c69a3a3a14bf7f Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Mon, 16 Oct 2023 11:01:19 +0800
+Subject: [PATCH] Add build option
+
+---
+ CMakeLists.txt          | 15 ++++++++++-
+ Library/CMakeLists.txt  | 56 +++++++++++++++++++++++------------------
+ Library/Raisr.cpp       | 40 +++++++++++++++++++++++------
+ Library/Raisr_globals.h |  9 ++++++-
+ 4 files changed, 86 insertions(+), 34 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8812857..7263a94 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -76,7 +76,20 @@ endforeach()
+ 
+ endif(UNIX)
+ 
+-option( ENABLE_RAISR_OPENCL "Build with OpenCL?" OFF )
++option( ENABLE_RAISR_CPU "Build with IPP?" ON )
++if (ENABLE_RAISR_CPU)
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_RAISR_CPU")
++endif()
++
++if (NOT DEFINED ENABLE_RAISR_OPENCL)
++    find_package (PkgConfig REQUIRED)
++    pkg_check_modules (OPENCL QUIET OpenCL)
++    if (${OPENCL_FOUND})
++        set(ENABLE_RAISR_OPENCL ON)
++    else()
++        set(ENABLE_RAISR_OPENCL OFF)
++    endif()
++endif()
+ if (ENABLE_RAISR_OPENCL)
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_RAISR_OPENCL")
+ endif()
+diff --git a/Library/CMakeLists.txt b/Library/CMakeLists.txt
+index cdfd085..0857f5a 100644
+--- a/Library/CMakeLists.txt
++++ b/Library/CMakeLists.txt
+@@ -1,15 +1,19 @@
+-set(SOURCES Raisr_AVX256.cpp Raisr.cpp RaisrHandler.cpp)
+-set(HEADERS Raisr_globals.h Raisr_AVX256.h Raisr.h ThreadPool.h RaisrHandler.h RaisrDefaults.h)
++set(SOURCES Raisr.cpp RaisrHandler.cpp)
++set(HEADERS Raisr_globals.h Raisr.h ThreadPool.h RaisrHandler.h RaisrDefaults.h)
+ 
+-if( HAVE_AVX512FP16 )
+-message("Building AVX512FP16 library")
+-list(APPEND SOURCES Raisr_AVX512FP16.cpp Raisr_AVX512FP16.h)
+-endif()
+-if( HAVE_AVX512 )
+-message("Building AVX512 library")
+-list(APPEND SOURCES Raisr_AVX512.cpp Raisr_AVX512.h)
+-else()
+-message("Building AVX2 only")
++if (ENABLE_RAISR_CPU)
++    list(APPEND SOURCES Raisr_AVX256.cpp)
++    list(APPEND HEADERS Raisr_AVX256.h)
++    if( HAVE_AVX512FP16 )
++    message("Building AVX512FP16 library")
++    list(APPEND SOURCES Raisr_AVX512FP16.cpp Raisr_AVX512FP16.h)
++    endif()
++    if( HAVE_AVX512 )
++    message("Building AVX512 library")
++    list(APPEND SOURCES Raisr_AVX512.cpp Raisr_AVX512.h)
++    else()
++    message("Building AVX2 only")
++    endif()
+ endif()
+ 
+ if (ENABLE_RAISR_OPENCL)
+@@ -25,20 +29,22 @@ add_library(raisr STATIC ${SOURCES} ${HEADERS})
+ 
+ # Link our library
+ # for IPP
+-if( UNIX )
+-include_directories($ENV{IPPROOT}/include)
+-find_library(IPP_CORE libippcore.a PATHS $ENV{IPPROOT}/lib/intel64)
+-find_library(IPP_VM libippvm.a PATHS     $ENV{IPPROOT}/lib/intel64)
+-find_library(IPP_S libipps.a PATHS       $ENV{IPPROOT}/lib/intel64)
+-find_library(IPP_I libippi.a PATHS       $ENV{IPPROOT}/lib/intel64)
+-find_package(Threads REQUIRED)
+-else()
+-include_directories("C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/include")
+-find_library(IPP_CORE ippcore.lib PATHS "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
+-find_library(IPP_VM ippvm.lib PATHS     "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
+-find_library(IPP_S ipps.lib PATHS       "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
+-find_library(IPP_I ippi.lib PATHS       "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
+-endif(UNIX)
++if (ENABLE_RAISR_CPU)
++    if( UNIX )
++    include_directories($ENV{IPPROOT}/include)
++    find_library(IPP_CORE libippcore.a PATHS $ENV{IPPROOT}/lib/intel64)
++    find_library(IPP_VM libippvm.a PATHS     $ENV{IPPROOT}/lib/intel64)
++    find_library(IPP_S libipps.a PATHS       $ENV{IPPROOT}/lib/intel64)
++    find_library(IPP_I libippi.a PATHS       $ENV{IPPROOT}/lib/intel64)
++    find_package(Threads REQUIRED)
++    else()
++    include_directories("C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/include")
++    find_library(IPP_CORE ippcore.lib PATHS "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
++    find_library(IPP_VM ippvm.lib PATHS     "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
++    find_library(IPP_S ipps.lib PATHS       "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
++    find_library(IPP_I ippi.lib PATHS       "C:/Program Files (x86)/Intel/oneAPI/ipp/2021.2.0/lib/intel64")
++    endif(UNIX)
++endif()
+ target_link_libraries(raisr ${IPP_I} ${IPP_VM} ${IPP_S} ${IPP_CORE} ${CMAKE_THREAD_LIBS_INIT} ${OPENCL_LIBRARIES})
+   include(GNUInstallDirs)
+   install(DIRECTORY "." DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/raisr" FILES_MATCHING PATTERN "*.h")
+diff --git a/Library/Raisr.cpp b/Library/Raisr.cpp
+index d327305..0cedbec 100644
+--- a/Library/Raisr.cpp
++++ b/Library/Raisr.cpp
+@@ -7,13 +7,10 @@
+ 
+ #include "Raisr.h"
+ #include "Raisr_globals.h"
+-#include "Raisr_AVX256.h"
+-#include "Raisr_AVX256.cpp"
+ #include <fstream>
+ #include <iterator>
+ #include <iostream>
+ #include <sstream>
+-#include <ipp.h>
+ #include <cstring>
+ #include <cmath>
+ #include <vector>
+@@ -22,6 +19,10 @@
+ #include "cpuid.h"
+ #include <chrono>
+ 
++#ifdef ENABLE_RAISR_CPU
++#include <ipp.h>
++#include "Raisr_AVX256.h"
++#include "Raisr_AVX256.cpp"
+ #ifdef __AVX512F__
+ #include "Raisr_AVX512.h"
+ #include "Raisr_AVX512.cpp"
+@@ -30,6 +31,7 @@
+ #include "Raisr_AVX512FP16.h"
+ #include "Raisr_AVX512FP16.cpp"
+ #endif
++#endif
+ 
+ #ifdef ENABLE_RAISR_OPENCL
+ #include "Raisr_OpenCL.h"
+@@ -115,6 +117,7 @@ static bool machine_supports_feature(MachineVendorType vendor, ASMType type)
+     return ret;
+ }
+ 
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+ void inline Convert_8u16f_8bit(Ipp8u *input, _Float16 *output, int cols, int rows) {
+     for (int j = 0; j < rows; j++) {
+@@ -151,6 +154,7 @@ void inline Convert_8u16f_10bit(Ipp16u *input, _Float16 *output, int cols, int r
+     }
+ }
+ #endif
++#endif
+ 
+ template <typename DT>
+ static void createGaussianKernel(int n, double sigma, DT *result)
+@@ -446,6 +450,7 @@ static RNLERRORTYPE ReadTrainedData(std::string hashtablePath, std::string QStrP
+     return RNLErrorNone;
+ }
+ 
++#ifdef ENABLE_RAISR_CPU
+ static IppStatus ippInit(IppiSize srcSize, Ipp32s srcStep, IppiSize dstSize, Ipp32s dstStep, IppiResizeSpec_32f **pSpec, Ipp8u **pBuffer)
+ {
+     int specSize = 0, initSize = 0, bufSize = 0;
+@@ -1301,6 +1306,7 @@ RNLERRORTYPE processSegment(VideoDataType *srcY, VideoDataType *final_outY, Blen
+ #endif
+     return RNLErrorNone;
+ }
++#endif
+ 
+ /************************************************************
+  *   API functions
+@@ -1368,7 +1374,7 @@ RNLERRORTYPE RNLProcess(VideoDataType *inY, VideoDataType *inCr, VideoDataType *
+         return ret;
+     }
+ #endif
+-
++#ifdef ENABLE_RAISR_CPU
+     if (!inCb || !inCb->pData || !outCb ||!outCb->pData)
+         return RNLErrorBadParameter;
+ 
+@@ -1406,6 +1412,7 @@ RNLERRORTYPE RNLProcess(VideoDataType *inY, VideoDataType *inCr, VideoDataType *
+     {
+         result.get();
+     }
++#endif
+ 
+     return RNLErrorNone;
+ }
+@@ -1492,6 +1499,7 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+     {
+         gUsePixelType = false;
+     }
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+     if ( gAsmType > AVX512_FP16 || gAsmType < AVX2 ) gAsmType = AVX512_FP16;
+ #else
+@@ -1523,6 +1531,7 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+             gAsmType = AVX2;
+         }
+     }
++#endif
+ #endif
+     if (gAsmType == OpenCL || gAsmType == OpenCLExternal) {
+ #ifdef ENABLE_RAISR_OPENCL
+@@ -1532,6 +1541,7 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+         return RNLErrorBadParameter;
+ #endif
+     }
++#ifdef ENABLE_RAISR_CPU
+     if (gAsmType == AVX2) {
+         if (machine_supports_feature(gMachineVendorType, AVX2)) {
+             std::cout << "ASM Type: AVX2\n";
+@@ -1540,6 +1550,7 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+             return RNLErrorBadParameter;
+         }
+     }
++#endif
+     gBitDepth = bitDepth;
+ 
+     // Read config file
+@@ -1591,6 +1602,7 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+     g64AlinedgPatchAreaSize = ((patchAreaSize + 64 - 1) / 64) * 64;
+     configFile.close();
+ 
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+     if (gAsmType == AVX512_FP16) {
+         if (RNLErrorNone != ReadTrainedData<_Float16>(hashtablePath, QStrPath, QCohPath, 1 /*first pass*/, gFilterBuckets_fp16, &gFilterBuffer_fp16, gQStr_fp16, gQCoh_fp16))
+@@ -1598,6 +1610,7 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+         if (gPasses == 2 && RNLErrorNone != ReadTrainedData<_Float16>(std::move(hashtablePath), std::move(QStrPath), std::move(QCohPath), 2 /*second pass*/, gFilterBuckets2_fp16, &gFilterBuffer2_fp16, gQStr2_fp16, gQCoh2_fp16))
+             return RNLErrorBadParameter;
+     } else
++#endif
+ #endif
+     {
+     if (RNLErrorNone != ReadTrainedData<float>(hashtablePath, QStrPath, QCohPath, 1 /*first pass*/, gFilterBuckets, &gFilterBuffer, gQStr, gQCoh))
+@@ -1611,12 +1624,14 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+     if (gPatchSize != defaultPatchSize)
+     {
+         float *kernel;
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+         if (gAsmType == AVX512_FP16) {
+             kernel = new float[gPatchSize/2];
+             createGaussianKernel<_Float16>(gPatchSize, sigma, (_Float16*)kernel);
+             gPGaussian = new float[patchAreaSize]; // 2 x n^2 array
+         } else
++#endif
+ #endif
+         {
+             kernel = new float[gPatchSize];
+@@ -1628,10 +1643,12 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+         {
+             for (int colkernel = 0; colkernel < gPatchSize; colkernel++)
+             {
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+                 if (gAsmType == AVX512_FP16) {
+                     ((_Float16*)gPGaussian)[rowkernel * gPatchSize + colkernel] = ((_Float16*)kernel)[rowkernel] * ((_Float16*)kernel)[colkernel];
+                 } else
++#endif
+ #endif
+                 {
+                     gPGaussian[rowkernel * gPatchSize + colkernel] = kernel[rowkernel] * kernel[colkernel];
+@@ -1639,10 +1656,12 @@ RNLERRORTYPE RNLInit(std::string &modelPath,
+             }
+         }
+         // append
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+         if (gAsmType == AVX512_FP16) {
+             memcpy((_Float16*)gPGaussian + patchAreaSize, (_Float16*)gPGaussian, patchAreaSize * sizeof(_Float16));
+         } else
++#endif
+ #endif
+         {
+             memcpy(gPGaussian + patchAreaSize, gPGaussian, patchAreaSize * sizeof(float));
+@@ -1696,7 +1715,6 @@ RNLERRORTYPE RNLSetRes(VideoDataType *inY, VideoDataType *inCr, VideoDataType *i
+                        VideoDataType *outY, VideoDataType *outCr, VideoDataType *outCb)
+ {
+     int rows, cols, step;
+-    IppStatus status = ippStsNoErr;
+ #ifdef ENABLE_RAISR_OPENCL
+     if (gAsmType == OpenCL || gAsmType == OpenCLExternal) {
+         RNLERRORTYPE ret = RNLErrorNone;
+@@ -1736,10 +1754,11 @@ RNLERRORTYPE RNLSetRes(VideoDataType *inY, VideoDataType *inCr, VideoDataType *i
+         gIntermediateY->height = rows;
+     }
+ 
++#ifdef ENABLE_RAIRS_IPP
+     // multi-threaded patch-based approach
+     // 1. split image into segments and store info in the buffer context
+     // 2. init IPP for each segment
+-
++    IppStatus status = ippStsNoErr;
+     gIppCtx.pbufferY = new Ipp8u *[gThreadCount];
+     gIppCtx.specY = new IppiResizeSpec_32f *[gThreadCount];
+ 
+@@ -1838,6 +1857,7 @@ RNLERRORTYPE RNLSetRes(VideoDataType *inY, VideoDataType *inCr, VideoDataType *i
+         std::cout << "[RAISR ERROR] ippInit fialed for UV! status=" << status << std::endl;
+         return RNLErrorBadParameter;
+     }
++#endif
+ 
+     return RNLErrorNone;
+ }
+@@ -1867,7 +1887,7 @@ RNLERRORTYPE RNLDeinit()
+ 	return RNLErrorNone;
+     }
+ #endif
+-
++#ifdef ENABLE_RAIRS_IPP
+     for (int threadIdx = 0; threadIdx < gThreadCount; threadIdx++)
+     {
+ 	if (gIppCtx.specY[threadIdx])
+@@ -1891,14 +1911,18 @@ RNLERRORTYPE RNLDeinit()
+         ippsFree(gIppCtx.specUV);
+     if (gIppCtx.pbufferUV)
+         ippsFree(gIppCtx.pbufferUV);
++#endif
++    SAFE_DELETE(gPool);
+ 
+     if (gPasses == 2)
+     {
++#ifdef ENABLE_RASISR_IPP
+         SAFE_ARR_DELETE(gIppCtx.segZones[1]);
+ #ifdef __AVX512FP16__
+         if (gAsmType == AVX512_FP16) {
+             SAFE_ARR_DELETE(gFilterBuffer2_fp16);
+         } else
++#endif
+ #endif
+         {
+         SAFE_ARR_DELETE(gFilterBuffer2);
+@@ -1907,10 +1931,12 @@ RNLERRORTYPE RNLDeinit()
+ 	    SAFE_ARR_DELETE(gIntermediateY->pData);
+         SAFE_DELETE(gIntermediateY);
+     }
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+         if (gAsmType == AVX512_FP16) {
+             SAFE_ARR_DELETE(gFilterBuffer_fp16);
+         } else
++#endif
+ #endif
+         {
+             SAFE_ARR_DELETE(gFilterBuffer);
+diff --git a/Library/Raisr_globals.h b/Library/Raisr_globals.h
+index 3c92f0d..61c13fe 100644
+--- a/Library/Raisr_globals.h
++++ b/Library/Raisr_globals.h
+@@ -6,7 +6,9 @@
+  */
+ #pragma once  
+ 
++#ifdef ENABLE_RAISR_CPU
+ #include <ipp.h>
++#endif
+ #include "ThreadPool.h"
+ #include "RaisrDefaults.h"
+ #ifdef ENABLE_RAISR_OPENCL
+@@ -97,6 +99,7 @@ int unrollSizePatchBased = 8;
+                                 |    .....................................................
+                                 |    .....................................................
+ */
++#ifdef ENABLE_RAISR_CPU
+ struct segZone
+ {
+     // zone to perform cheap up scale
+@@ -125,7 +128,7 @@ struct ippContext
+     Ipp8u **pbufferY;     // working buffer is always 8u
+     Ipp8u *pbufferUV;     // working buffer is always 8u
+ };
+-
++#endif
+ enum class CHANNEL
+ {
+     NONE = 0,
+@@ -136,8 +139,10 @@ enum class CHANNEL
+ /************************************************************
+  *   global variables
+  ************************************************************/
++#ifdef ENABLE_RAISR_CPU
+ // IPP context
+ ippContext gIppCtx;
++#endif
+ 
+ #ifdef ENABLE_RAISR_OPENCL
+ RaisrOpenCLContext gOpenCLContext = { 0 };
+@@ -169,6 +174,7 @@ float *gFilterBuffer;
+ float *gFilterBuffer2;
+ 
+ // used for FP16 implementation
++#ifdef ENABLE_RAISR_CPU
+ #ifdef __AVX512FP16__
+ 
+ std::vector<_Float16> gQStr_fp16;
+@@ -181,6 +187,7 @@ std::vector<std::vector<_Float16 *>> gFilterBuckets2_fp16;
+ _Float16 *gFilterBuffer_fp16;
+ _Float16 *gFilterBuffer2_fp16;
+ #endif
++#endif
+ 
+ VideoDataType *gIntermediateY; // Buffer to hold intermediate result for two pass
+ volatile int threadStatus[120];
+-- 
+2.34.1
+
