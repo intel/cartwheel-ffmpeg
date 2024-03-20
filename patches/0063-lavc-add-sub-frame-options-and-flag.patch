@@ -1,7 +1,7 @@
-From d9059c743f427a7076e35d4ef18e3831ae1b6f61 Mon Sep 17 00:00:00 2001
+From b43a5fdf9cf870ad0ee8e2b5fae9956013bcb519 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:39 +0800
-Subject: [PATCH 11/46] lavc: add sub frame options and flag
+Subject: [PATCH 11/50] lavc: add sub frame options and flag
 
 Note: remove version bump in libavcodec/version.h compare to version
 submitted to community:
@@ -43,7 +43,7 @@ index 6bdeb664e7..fdcfdcaea3 100644
  @end table
  
 diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index 21fc74707f..80371a2369 100644
+index 83dc487251..f89a063e98 100644
 --- a/libavcodec/avcodec.h
 +++ b/libavcodec/avcodec.h
 @@ -419,6 +419,12 @@ typedef struct RcOverride{
@@ -59,10 +59,10 @@ index 21fc74707f..80371a2369 100644
  /**
   * The decoder will keep a reference to the frame and may reuse it later.
   */
-@@ -2062,6 +2068,13 @@ typedef struct AVCodecContext {
-      * Number of entries in side_data_prefer_packet.
+@@ -2075,6 +2081,13 @@ typedef struct AVCodecContext {
       */
-     unsigned nb_side_data_prefer_packet;
+     AVFrameSideData  **decoded_side_data;
+     int             nb_decoded_side_data;
 +    /**
 +     * Set sub frame's parameters like: width/height/format etc.
 +     *

@@ -1,28 +1,28 @@
-From 1dcbac79a2e335c293ba139696fe27004ed6c118 Mon Sep 17 00:00:00 2001
+From 6404025c8256a2e428bb4aa6e5968a77e0a94b03 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 14 Nov 2023 16:38:52 +0800
-Subject: [PATCH 1/2] libavfilter/dnn/dnn_backend_torch: Add async to torch
+Subject: [PATCH 36/50] libavfilter/dnn/dnn_backend_torch: Add async to torch
  backend
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavfilter/dnn/dnn_backend_torch.cpp | 104 +++++++++++++++-----------
- 1 file changed, 62 insertions(+), 42 deletions(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 58 ++++++++++++++++++---------
+ 1 file changed, 40 insertions(+), 18 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index f54493d742..9b1da97c9f 100644
+index a0537246e8..d59524f44d 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -40,6 +40,8 @@ typedef struct THOptions{
      char *device_name;
-     c10::DeviceType device_type;
      int optimize;
+     c10::DeviceType device_type;
 +    uint8_t async;
 +    uint32_t nireq;
  } THOptions;
  
  typedef struct THContext {
-@@ -76,6 +78,7 @@ typedef struct THRequestItem {
+@@ -76,11 +78,14 @@ typedef struct THRequestItem {
  static const AVOption dnn_th_options[] = {
      { "device", "device to run model", OFFSET(options.device_name), AV_OPT_TYPE_STRING, { .str = "cpu" }, 0, 0, FLAGS },
      { "optimize", "turn on graph executor optimization", OFFSET(options.optimize), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS},
@@ -30,24 +30,41 @@ index f54493d742..9b1da97c9f 100644
      { NULL }
  };
  
-@@ -84,6 +87,7 @@ AVFILTER_DEFINE_CLASS(dnn_th);
- static int execute_model_th(THRequestItem *request, Queue *lltask_queue);
- static int th_start_inference(void *args);
- static void infer_completion_callback(void *args);
-+static void dnn_free_model_th(DNNModel **model);
+ AVFILTER_DEFINE_CLASS(dnn_th);
  
++static void dnn_free_model_th(DNNModel **model);
++
  static int extract_lltask_from_task(TaskItem *task, Queue *lltask_queue)
  {
-@@ -219,6 +223,8 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
-         return NULL;
-     }
+     THModel *th_model = (THModel *)task->model;
+@@ -393,6 +398,7 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+     LastLevelTaskItem *lltask;
+     TaskItem *task = NULL;
+     int ret = 0;
++    THContext *ctx;
  
-+    th_model->model = model;
-+    model->model = th_model;
-     th_model->ctx.c_class = &dnn_th_class;
-     ctx = &th_model->ctx;
-     //parse options
-@@ -258,27 +264,41 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+     if (ff_queue_size(lltask_queue) == 0) {
+         destroy_request_item(&request);
+@@ -407,13 +413,17 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+     }
+     task = lltask->task;
+     th_model = (THModel *)task->model;
++    ctx = &th_model->ctx;
+ 
+     ret = fill_model_input_th(th_model, request);
+     if ( ret != 0) {
+         goto err;
+     }
+     if (task->async) {
+-        avpriv_report_missing_feature(&th_model->ctx, "LibTorch async");
++        if (ff_dnn_start_inference_async(ctx, &request->exec_module) != 0) {
++            goto err;
++        }
++        return 0;
+     } else {
+         ret = th_start_inference((void *)(request));
+         if (ret != 0) {
+@@ -539,29 +549,41 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
      }
      first_param = *th_model->jit_model->named_parameters().begin();
  
@@ -66,9 +83,7 @@ index f54493d742..9b1da97c9f 100644
 -    item = (THRequestItem *)av_mallocz(sizeof(THRequestItem));
 -    if (!item) {
 -        goto fail;
-+    if (ctx->options.nireq <= 0) {
-+        ctx->options.nireq = 1;
-     }
+-    }
 -    item->lltask = NULL;
 -    item->infer_request = th_create_inference_request();
 -    if (!item->infer_request) {
@@ -78,6 +93,8 @@ index f54493d742..9b1da97c9f 100644
 -    item->exec_module.start_inference = &th_start_inference;
 -    item->exec_module.callback = &infer_completion_callback;
 -    item->exec_module.args = item;
++    if (ctx->options.nireq <= 0)
++        ctx->options.nireq = 1;
  
 -    if (ff_safe_queue_push_back(th_model->request_queue, item) < 0) {
 -        goto fail;
@@ -101,59 +118,11 @@ index f54493d742..9b1da97c9f 100644
 +        }
 +        item = NULL;
      }
+-    item = NULL;
  
      th_model->task_queue = ff_queue_create();
-@@ -298,8 +318,6 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
-     } else {
-         th_model->model_type = UNKNOWN_MODEL;
-     }
--    th_model->model = model;
--    model->model = th_model;
-     model->get_input = &get_input_th;
-     model->get_output = &get_output_th;
-     model->options = NULL;
-@@ -309,12 +327,8 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
- 
- fail:
-     destroy_request_item(&item);
--    ff_queue_destroy(th_model->task_queue);
--    ff_queue_destroy(th_model->lltask_queue);
--    ff_safe_queue_destroy(th_model->request_queue);
--    av_freep(&th_model);
--    av_freep(&model);
-     av_freep(&item);
-+    dnn_free_model_th(&model);
-     return NULL;
- }
- 
-@@ -517,6 +531,7 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
-     TaskItem *task = NULL;
-     int ret = 0;
-     torch::NoGradGuard no_grad;
-+    THContext *ctx;
- 
-     if (ff_queue_size(lltask_queue) == 0) {
-         destroy_request_item(&request);
-@@ -531,13 +546,17 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
-     }
-     task = lltask->task;
-     th_model = (THModel *)task->model;
-+    ctx = &th_model->ctx;
- 
-     ret = fill_model_input_th(th_model, request);
-     if ( ret != 0) {
-         goto err;
-     }
-     if (task->async) {
--        avpriv_report_missing_feature(&th_model->ctx, "LibTorch async");
-+        if (ff_dnn_start_inference_async(ctx, &request->exec_module) != 0) {
-+            goto err;
-+        }
-+        return 0;
-     } else {
-         ret = th_start_inference((void *)(request));
-         if (ret != 0) {
-@@ -574,7 +593,7 @@ static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_p
+     if (!th_model->task_queue) {
+@@ -617,7 +639,7 @@ static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_p
          return AVERROR(ENOMEM);
      }
  
@@ -162,55 +131,6 @@ index f54493d742..9b1da97c9f 100644
      if (ret != 0) {
          av_freep(&task);
          av_log(ctx, AV_LOG_ERROR, "unable to fill task.\n");
-@@ -631,28 +650,29 @@ static DNNAsyncStatusType dnn_get_result_th(const DNNModel *model, AVFrame **in,
- static void dnn_free_model_th(DNNModel **model)
- {
-     THModel *th_model;
--    if(*model) {
--        th_model = (THModel *) (*model)->model;
--        while (ff_safe_queue_size(th_model->request_queue) != 0) {
--            THRequestItem *item = (THRequestItem *)ff_safe_queue_pop_front(th_model->request_queue);
--            destroy_request_item(&item);
--        }
--        ff_safe_queue_destroy(th_model->request_queue);
-+    if (!model || !*model)
-+        return;
- 
--        while (ff_queue_size(th_model->lltask_queue) != 0) {
--            LastLevelTaskItem *item = (LastLevelTaskItem *)ff_queue_pop_front(th_model->lltask_queue);
--            av_freep(&item);
--        }
--        ff_queue_destroy(th_model->lltask_queue);
-+    th_model = (THModel *) (*model)->model;
-+    while (ff_safe_queue_size(th_model->request_queue) != 0) {
-+        THRequestItem *item = (THRequestItem *)ff_safe_queue_pop_front(th_model->request_queue);
-+        destroy_request_item(&item);
-+    }
-+    ff_safe_queue_destroy(th_model->request_queue);
- 
--        while (ff_queue_size(th_model->task_queue) != 0) {
--            TaskItem *item = (TaskItem *)ff_queue_pop_front(th_model->task_queue);
--            av_frame_free(&item->in_frame);
--            av_frame_free(&item->out_frame);
--            av_freep(&item);
--        }
--        ff_queue_destroy(th_model->task_queue);
-+    while (ff_queue_size(th_model->lltask_queue) != 0) {
-+        LastLevelTaskItem *item = (LastLevelTaskItem *)ff_queue_pop_front(th_model->lltask_queue);
-+        av_freep(&item);
-     }
-+    ff_queue_destroy(th_model->lltask_queue);
-+
-+    while (ff_queue_size(th_model->task_queue) != 0) {
-+        TaskItem *item = (TaskItem *)ff_queue_pop_front(th_model->task_queue);
-+        av_frame_free(&item->in_frame);
-+        av_frame_free(&item->out_frame);
-+        av_freep(&item);
-+    }
-+    ff_queue_destroy(th_model->task_queue);
-     delete th_model->jit_model;
-     av_opt_free(&th_model->ctx);
-     av_freep(&th_model);
 -- 
 2.34.1
 

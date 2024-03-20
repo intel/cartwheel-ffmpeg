@@ -1,7 +1,7 @@
-From 5916d680e07ffa7fcef8c114ec1b1ec24bc22759 Mon Sep 17 00:00:00 2001
+From b8476cc7e202534d085a6f1a2608a1500f2f9a54 Mon Sep 17 00:00:00 2001
 From: Anand Bodas <anand.v.bodas@intel.com>
 Date: Thu, 14 Oct 2021 18:15:54 +0530
-Subject: [PATCH 1/2] ffmpeg raisr filter
+Subject: [PATCH 49/50] ffmpeg raisr filter
 
 Add raisr filter, which is a real-time SR algorithm. It is
 accelerated by AVX2/AVX512/OpenCL.
@@ -10,15 +10,15 @@ For details please refer to https://github.com/OpenVisualCloud/Video-Super-Resol
 Signed-off-by: Anand Bodas <anand.v.bodas@intel.com>
 Signed-off-by: Jun Tian <jun.tian@intel.com>
 ---
- configure                |  15 ++
+ configure                |  13 ++
  libavfilter/Makefile     |   1 +
  libavfilter/allfilters.c |   1 +
  libavfilter/vf_raisr.c   | 348 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 365 insertions(+)
+ 4 files changed, 363 insertions(+)
  create mode 100644 libavfilter/vf_raisr.c
 
 diff --git a/configure b/configure
-index b00fd929e5..300ee61840 100755
+index de38b0c0ba..e712e04c93 100755
 --- a/configure
 +++ b/configure
 @@ -240,6 +240,7 @@ External library support:
@@ -45,11 +45,10 @@ index b00fd929e5..300ee61840 100755
  remap_opencl_filter_deps="opencl"
  removelogo_filter_deps="avcodec avformat swscale"
  repeatfields_filter_deps="gpl"
-@@ -6873,6 +6876,18 @@ enabled libopus           && {
+@@ -6873,6 +6876,16 @@ enabled libopus           && {
          require_pkg_config libopus opus opus_multistream.h opus_multistream_surround_encoder_create
      }
  }
-+
 +if enabled libipp; then
 +   ipp_header_for_check='ippcore.h'
 +   case $target_os in
@@ -60,10 +59,9 @@ index b00fd929e5..300ee61840 100755
 +   check_lib libipp "$ipp_header_for_check" ippInit -Wl,--start-group -lippi -lipps -lippcore -lippvm -Wl,--end-group ||
 +   die "ERROR: Intel IPP not found"
 +fi
-+
  enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
- enabled librabbitmq       && require_pkg_config librabbitmq "librabbitmq >= 0.7.1" amqp.h amqp_new_connection
+ enabled libqrencode       && require_pkg_config libqrencode libqrencode qrencode.h QRcode_encodeString
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
 index b913fa590b..f6ad88dd99 100644
 --- a/libavfilter/Makefile
