@@ -1,4 +1,4 @@
-From b94c6252e08ec84320d28f96882e6ec6413a5559 Mon Sep 17 00:00:00 2001
+From 77a7132c29e0473acfeade068466c6f9076f7648 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 2 Jan 2024 11:08:46 +0800
 Subject: [PATCH 01/11] avcodec/vaapi_encode: move pic->input_surface

@@ -1,4 +1,4 @@
-From a92d2524269b4f0fc74d118dc51aaf1451de3267 Mon Sep 17 00:00:00 2001
+From 5a91042a3742a8cdaaaea8cb8ecbfc94d12d5f97 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 29 Dec 2023 10:00:02 +0800
 Subject: [PATCH 07/11] avcodec/vaapi_encode: extract gop configuration to base

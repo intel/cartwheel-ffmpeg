@@ -1,4 +1,4 @@
-From 360af894582acf1bcec80535665ac11255eb4cc9 Mon Sep 17 00:00:00 2001
+From 14ade43949df0bf8c81555afc57c092b1c1ca18c Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 29 Dec 2023 10:37:42 +0800
 Subject: [PATCH 08/11] avcodec/vaapi_encode: extract a get_recon_format

@@ -1,4 +1,4 @@
-From 068d3f1fd07d6be6d2692ce105859ef851391ff2 Mon Sep 17 00:00:00 2001
+From 0d0f7de8117183c63cf8437a7796f624343259ef Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 14 Mar 2024 12:01:48 +0800
 Subject: [PATCH 02/11] avcodec/vaapi_encode: introduce a base layer for vaapi
