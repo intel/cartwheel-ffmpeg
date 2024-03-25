@@ -1,4 +1,4 @@
-From 7542cf7c4a5858596f423555e3e9c495e17d9e9c Mon Sep 17 00:00:00 2001
+From 23dd77e4e6683703588d81a68e910cd73d9edfb8 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 26 Sep 2023 10:11:50 +0800
 Subject: [PATCH 10/11] avutil/hwcontext_d3d12va: add Flags for resource

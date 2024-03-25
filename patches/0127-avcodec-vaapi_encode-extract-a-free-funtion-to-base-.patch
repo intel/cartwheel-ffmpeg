@@ -1,4 +1,4 @@
-From cff93279c8723737e580e6ba92f6e99ac6a8a53c Mon Sep 17 00:00:00 2001
+From 1dacee7ba54f59b88d06e1440b666ba840b00e97 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 19 Feb 2024 22:09:11 +0800
 Subject: [PATCH 09/11] avcodec/vaapi_encode: extract a free funtion to base

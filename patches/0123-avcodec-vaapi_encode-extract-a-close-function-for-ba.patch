@@ -1,4 +1,4 @@
-From 6dc5f0991de24404c0ad9fc14d856f214e9343d5 Mon Sep 17 00:00:00 2001
+From ebdfbeed7973b460074e094372f7cbf996899c02 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 14 Mar 2024 14:17:33 +0800
 Subject: [PATCH 05/11] avcodec/vaapi_encode: extract a close function for base

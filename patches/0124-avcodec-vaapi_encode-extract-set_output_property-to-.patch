@@ -1,4 +1,4 @@
-From ece3048fd266e73ae8c632554635881a6e575f1f Mon Sep 17 00:00:00 2001
+From c92b4a08024d6ceccba3c2c6c7f32d5f2067bfb3 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 28 Dec 2023 18:17:33 +0800
 Subject: [PATCH 06/11] avcodec/vaapi_encode: extract set_output_property to
