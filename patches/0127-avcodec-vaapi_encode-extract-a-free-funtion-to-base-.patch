@@ -1,21 +1,28 @@
-From 1dacee7ba54f59b88d06e1440b666ba840b00e97 Mon Sep 17 00:00:00 2001
+From 878ab612579fa1d50ab1d079e4f71630027fd933 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 19 Feb 2024 22:09:11 +0800
-Subject: [PATCH 09/11] avcodec/vaapi_encode: extract a free funtion to base
- layer
+Subject: [PATCH] avcodec/vaapi_encode: extract a free funtion to base layer
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
- libavcodec/hw_base_encode.c | 11 +++++++++++
+ libavcodec/hw_base_encode.c | 12 ++++++++++++
  libavcodec/hw_base_encode.h |  2 ++
  libavcodec/vaapi_encode.c   |  6 +-----
- 3 files changed, 14 insertions(+), 5 deletions(-)
+ 3 files changed, 15 insertions(+), 5 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index d21137b64a..ad221ae4b0 100644
+index d21137b64a..d1485b2f1d 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -750,6 +750,17 @@ fail:
+@@ -21,6 +21,7 @@
+ #include "libavutil/internal.h"
+ #include "libavutil/log.h"
+ #include "libavutil/pixdesc.h"
++#include "libavutil/mem.h"
+ 
+ #include "encode.h"
+ #include "avcodec.h"
+@@ -750,6 +751,17 @@ fail:
      return err;
  }
  
@@ -47,10 +54,10 @@ index 9957786a3f..225ca68d3e 100644
  
  int ff_hw_base_encode_close(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 0ac7e258e8..de40ad52d1 100644
+index e1763c48f4..c805c106c9 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -874,17 +874,13 @@ static int vaapi_encode_free(AVCodecContext *avctx,
+@@ -875,17 +875,13 @@ static int vaapi_encode_free(AVCodecContext *avctx,
              av_freep(&pic->slices[i].codec_slice_params);
      }
  
@@ -70,5 +77,5 @@ index 0ac7e258e8..de40ad52d1 100644
      av_freep(&pic->roi);
  
 -- 
-2.41.0.windows.1
+2.25.1
 
