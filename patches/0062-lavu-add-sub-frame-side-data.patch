@@ -1,7 +1,7 @@
-From 11d8f0bec8885b36d0a102d74dc0ba0ea534a996 Mon Sep 17 00:00:00 2001
+From 756612fcd3a945ac59d52920bb77ba1302a13a5f Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:38 +0800
-Subject: [PATCH 11/44] lavu: add sub frame side data
+Subject: [PATCH] lavu: add sub frame side data
 
 Sub frame side data allows attach another AVFrame as side data into
 the target AVFrame.
@@ -23,10 +23,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  create mode 100644 libavutil/sub_frame_metadata.h
 
 diff --git a/libavutil/Makefile b/libavutil/Makefile
-index 7828c94dc5..1201a08636 100644
+index 6e6fa8d800..1ec25a9d1e 100644
 --- a/libavutil/Makefile
 +++ b/libavutil/Makefile
-@@ -91,7 +91,8 @@ HEADERS = adler32.h                                                     \
+@@ -94,7 +94,8 @@ HEADERS = adler32.h                                                     \
            tea.h                                                         \
            tx.h                                                          \
            film_grain_params.h                                           \
@@ -36,7 +36,7 @@ index 7828c94dc5..1201a08636 100644
  
  ARCH_HEADERS = bswap.h                                                  \
                 intmath.h                                                \
-@@ -184,6 +185,7 @@ OBJS = adler32.o                                                        \
+@@ -190,6 +191,7 @@ OBJS = adler32.o                                                        \
         video_enc_params.o                                               \
         video_hint.o                                                     \
         film_grain_params.o                                              \
@@ -45,10 +45,18 @@ index 7828c94dc5..1201a08636 100644
  
  OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
 diff --git a/libavutil/frame.c b/libavutil/frame.c
-index b6cee2d886..db423990f0 100644
+index 930f01dc19..a48501a43d 100644
 --- a/libavutil/frame.c
 +++ b/libavutil/frame.c
-@@ -333,7 +333,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -56,6 +56,7 @@ static const AVSideDataDescriptor sd_props[] = {
+     [AV_FRAME_DATA_SPHERICAL]                   = { "Spherical Mapping",                            AV_SIDE_DATA_PROP_GLOBAL },
+     [AV_FRAME_DATA_ICC_PROFILE]                 = { "ICC profile",                                  AV_SIDE_DATA_PROP_GLOBAL },
+     [AV_FRAME_DATA_SEI_UNREGISTERED]            = { "H.26[45] User Data Unregistered SEI message",  AV_SIDE_DATA_PROP_MULTI },
++    [AV_FRAME_DATA_SUB_FRAME]                   = { "Sub frame Metadata" },
+ };
+ 
+ static void get_frame_defaults(AVFrame *frame)
+@@ -356,7 +357,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
          if (   sd_src->type == AV_FRAME_DATA_PANSCAN
              && (src->width != dst->width || src->height != dst->height))
              continue;
@@ -59,19 +67,11 @@ index b6cee2d886..db423990f0 100644
              sd_dst = av_frame_new_side_data(dst, sd_src->type,
                                              sd_src->size);
              if (!sd_dst) {
-@@ -960,6 +962,7 @@ const char *av_frame_side_data_name(enum AVFrameSideDataType type)
-     case AV_FRAME_DATA_DOVI_RPU_BUFFER:             return "Dolby Vision RPU Data";
-     case AV_FRAME_DATA_DOVI_METADATA:               return "Dolby Vision Metadata";
-     case AV_FRAME_DATA_AMBIENT_VIEWING_ENVIRONMENT: return "Ambient viewing environment";
-+    case AV_FRAME_DATA_SUB_FRAME:                   return "Sub frame Metadata";
-     }
-     return NULL;
- }
 diff --git a/libavutil/frame.h b/libavutil/frame.h
-index c0c1b23db7..92495aece4 100644
+index 3b6d746a16..31ae7fc08e 100644
 --- a/libavutil/frame.h
 +++ b/libavutil/frame.h
-@@ -224,6 +224,11 @@ enum AVFrameSideDataType {
+@@ -228,6 +228,11 @@ enum AVFrameSideDataType {
       * encoding.
       */
      AV_FRAME_DATA_VIDEO_HINT,
@@ -192,5 +192,5 @@ index 0000000000..621fb31e42
 +
 +#endif /* AVUTIL_SUB_FRAME_METADATA_H */
 -- 
-2.34.1
+2.25.1
 
