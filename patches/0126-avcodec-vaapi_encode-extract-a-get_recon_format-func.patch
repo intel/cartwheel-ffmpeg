@@ -1,4 +1,4 @@
-From 14ade43949df0bf8c81555afc57c092b1c1ca18c Mon Sep 17 00:00:00 2001
+From 7279f3a3c866998d23bc4882612c3874ca034999 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 29 Dec 2023 10:37:42 +0800
 Subject: [PATCH 08/11] avcodec/vaapi_encode: extract a get_recon_format
@@ -16,10 +16,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 63 insertions(+), 48 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index 8044b83292..d21137b64a 100644
+index a4223d90f0..af85bb99aa 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -692,6 +692,64 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
+@@ -693,6 +693,64 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
      return 0;
  }
  
@@ -98,10 +98,10 @@ index 39893a8cc5..9957786a3f 100644
  
  int ff_hw_base_encode_close(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 3bce87d819..0ac7e258e8 100644
+index 022a696697..18b8418ace 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -2033,9 +2033,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2051,9 +2051,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      HWBaseEncodeContext *base_ctx = avctx->priv_data;
      VAAPIEncodeContext       *ctx = avctx->priv_data;
      AVVAAPIHWConfig *hwconfig = NULL;
@@ -112,7 +112,7 @@ index 3bce87d819..0ac7e258e8 100644
  
      hwconfig = av_hwdevice_hwconfig_alloc(base_ctx->device_ref);
      if (!hwconfig) {
-@@ -2044,52 +2043,9 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2062,52 +2061,9 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      }
      hwconfig->config_id = ctx->va_config;
  
@@ -167,7 +167,7 @@ index 3bce87d819..0ac7e258e8 100644
  
      base_ctx->recon_frames_ref = av_hwframe_ctx_alloc(base_ctx->device_ref);
      if (!base_ctx->recon_frames_ref) {
-@@ -2113,7 +2069,6 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2131,7 +2087,6 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      err = 0;
    fail:
      av_freep(&hwconfig);

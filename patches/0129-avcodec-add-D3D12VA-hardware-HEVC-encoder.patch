@@ -1,4 +1,4 @@
-From d749489d90062e94ecf5fa6ae0cbdb27dddea56d Mon Sep 17 00:00:00 2001
+From 0c931fb5470cb9178147f118f88171872035bece Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 22 Aug 2023 13:26:36 +0800
 Subject: [PATCH 11/11] avcodec: add D3D12VA hardware HEVC encoder
@@ -24,10 +24,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_encode_hevc.c
 
 diff --git a/configure b/configure
-index 3c19a73347..b2563a006f 100755
+index c2a9b5e94d..d9563dfb4c 100755
 --- a/configure
 +++ b/configure
-@@ -2625,6 +2625,7 @@ CONFIG_EXTRA="
+@@ -2627,6 +2627,7 @@ CONFIG_EXTRA="
      tpeldsp
      vaapi_1
      vaapi_encode
@@ -35,7 +35,7 @@ index 3c19a73347..b2563a006f 100755
      vc1dsp
      videodsp
      vp3dsp
-@@ -3270,6 +3271,7 @@ wmv3_vaapi_hwaccel_select="vc1_vaapi_hwaccel"
+@@ -3272,6 +3273,7 @@ wmv3_vaapi_hwaccel_select="vc1_vaapi_hwaccel"
  wmv3_vdpau_hwaccel_select="vc1_vdpau_hwaccel"
  
  # hardware-accelerated codecs
@@ -43,7 +43,7 @@ index 3c19a73347..b2563a006f 100755
  mediafoundation_deps="mftransform_h MFCreateAlignedMemoryBuffer"
  omx_deps="libdl pthreads"
  omx_rpi_select="omx"
-@@ -3336,6 +3338,7 @@ h264_v4l2m2m_encoder_deps="v4l2_m2m h264_v4l2_m2m"
+@@ -3338,6 +3340,7 @@ h264_v4l2m2m_encoder_deps="v4l2_m2m h264_v4l2_m2m"
  hevc_amf_encoder_deps="amf"
  hevc_cuvid_decoder_deps="cuvid"
  hevc_cuvid_decoder_select="hevc_mp4toannexb_bsf"
@@ -51,7 +51,7 @@ index 3c19a73347..b2563a006f 100755
  hevc_mediacodec_decoder_deps="mediacodec"
  hevc_mediacodec_decoder_select="hevc_mp4toannexb_bsf hevc_parser"
  hevc_mediacodec_encoder_deps="mediacodec"
-@@ -6692,6 +6695,9 @@ check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
+@@ -6696,6 +6699,9 @@ check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
  check_type "windows.h d3d11.h" "ID3D11VideoContext"
  check_type "windows.h d3d12.h" "ID3D12Device"
  check_type "windows.h d3d12video.h" "ID3D12VideoDecoder"
@@ -62,7 +62,7 @@ index 3c19a73347..b2563a006f 100755
  check_type "d3d9.h dxva2api.h" DXVA2_ConfigPictureDecode -D_WIN32_WINNT=0x0602
  check_func_headers mfapi.h MFCreateAlignedMemoryBuffer -lmfplat
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index 79063a6ef4..e497e9c630 100644
+index a333a82aeb..1005143b76 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -84,6 +84,7 @@ OBJS-$(CONFIG_CBS_JPEG)                += cbs_jpeg.o
@@ -81,7 +81,7 @@ index 79063a6ef4..e497e9c630 100644
  OBJS-$(CONFIG_HEVC_MEDIACODEC_DECODER) += mediacodecdec.o
  OBJS-$(CONFIG_HEVC_MEDIACODEC_ENCODER) += mediacodecenc.o
  OBJS-$(CONFIG_HEVC_MF_ENCODER)         += mfenc.o mf_utils.o
-@@ -1263,7 +1265,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
+@@ -1261,7 +1263,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
  
  SKIPHEADERS-$(CONFIG_AMF)              += amfenc.h
  SKIPHEADERS-$(CONFIG_D3D11VA)          += d3d11va.h dxva2_internal.h
@@ -104,7 +104,7 @@ index 2386b450a6..7b5093233c 100644
  extern const FFCodec ff_hevc_mf_encoder;
 diff --git a/libavcodec/d3d12va_encode.c b/libavcodec/d3d12va_encode.c
 new file mode 100644
-index 0000000000..88a08efa76
+index 0000000000..1bd05d0117
 --- /dev/null
 +++ b/libavcodec/d3d12va_encode.c
 @@ -0,0 +1,1550 @@
@@ -134,6 +134,7 @@ index 0000000000..88a08efa76
 +#include "libavutil/common.h"
 +#include "libavutil/internal.h"
 +#include "libavutil/log.h"
++#include "libavutil/mem.h"
 +#include "libavutil/pixdesc.h"
 +#include "libavutil/hwcontext_d3d12va_internal.h"
 +#include "libavutil/hwcontext_d3d12va.h"
@@ -785,7 +786,6 @@ index 0000000000..88a08efa76
 +static int d3d12va_encode_output(AVCodecContext *avctx,
 +                                 const HWBaseEncodePicture *base_pic, AVPacket *pkt)
 +{
-+    D3D12VAEncodeContext *ctx = avctx->priv_data;
 +    D3D12VAEncodePicture *pic = (D3D12VAEncodePicture *)base_pic;
 +    AVPacket *pkt_ptr = pkt;
 +    int err;
@@ -1987,7 +1987,7 @@ index 0000000000..10e2d87035
 +#endif /* AVCODEC_D3D12VA_ENCODE_H */
 diff --git a/libavcodec/d3d12va_encode_hevc.c b/libavcodec/d3d12va_encode_hevc.c
 new file mode 100644
-index 0000000000..aec0d9dcec
+index 0000000000..280e1a86ec
 --- /dev/null
 +++ b/libavcodec/d3d12va_encode_hevc.c
 @@ -0,0 +1,957 @@
@@ -2014,6 +2014,7 @@ index 0000000000..aec0d9dcec
 + */
 +#include "libavutil/opt.h"
 +#include "libavutil/common.h"
++#include "libavutil/mem.h"
 +#include "libavutil/pixdesc.h"
 +#include "libavutil/hwcontext_d3d12va_internal.h"
 +
@@ -2871,7 +2872,6 @@ index 0000000000..aec0d9dcec
 +      { .i64 = value }, 0, 0, FLAGS, "profile"
 +    { PROFILE("main",               AV_PROFILE_HEVC_MAIN) },
 +    { PROFILE("main10",             AV_PROFILE_HEVC_MAIN_10) },
-+    { PROFILE("rext",               AV_PROFILE_HEVC_REXT) },
 +#undef PROFILE
 +
 +    { "tier", "Set tier (general_tier_flag)",

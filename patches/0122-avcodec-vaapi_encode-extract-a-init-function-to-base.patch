@@ -1,4 +1,4 @@
-From 97b2422351e8a322ab224026d01cac82680386fe Mon Sep 17 00:00:00 2001
+From 377a45d96562232ae2accfd6b0cd9b8ab441bb85 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 14 Mar 2024 13:57:58 +0800
 Subject: [PATCH 04/11] avcodec/vaapi_encode: extract a init function to base
@@ -14,10 +14,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 39 insertions(+), 32 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index dcba902f44..71ead512c0 100644
+index 1d9a255f69..14f3ecfc94 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -597,3 +597,36 @@ end:
+@@ -598,3 +598,36 @@ end:
  
      return 0;
  }
@@ -68,10 +68,10 @@ index c9df95f952..c9c8fb43c9 100644
      { "idr_interval", \
        "Distance (in I-frames) between key frames", \
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index d75aad78cf..4dfcae30f6 100644
+index 3e59370ad7..36b51a0f28 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -2219,45 +2219,17 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2237,45 +2237,17 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
      VAStatus vas;
      int err;
  

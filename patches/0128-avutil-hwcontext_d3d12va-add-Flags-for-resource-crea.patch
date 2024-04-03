@@ -1,4 +1,4 @@
-From 23dd77e4e6683703588d81a68e910cd73d9edfb8 Mon Sep 17 00:00:00 2001
+From cbb3ba7fe2150baa9f7a5e2a7facfdac65c69e91 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 26 Sep 2023 10:11:50 +0800
 Subject: [PATCH 10/11] avutil/hwcontext_d3d12va: add Flags for resource
@@ -13,10 +13,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/libavutil/hwcontext_d3d12va.c b/libavutil/hwcontext_d3d12va.c
-index 353807359b..3abe90247f 100644
+index cfc016315d..6507cf69c1 100644
 --- a/libavutil/hwcontext_d3d12va.c
 +++ b/libavutil/hwcontext_d3d12va.c
-@@ -246,7 +246,7 @@ static AVBufferRef *d3d12va_pool_alloc(void *opaque, size_t size)
+@@ -247,7 +247,7 @@ static AVBufferRef *d3d12va_pool_alloc(void *opaque, size_t size)
          .Format           = hwctx->format,
          .SampleDesc       = {.Count = 1, .Quality = 0 },
          .Layout           = D3D12_TEXTURE_LAYOUT_UNKNOWN,
