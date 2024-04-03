@@ -1,4 +1,4 @@
-From ebdfbeed7973b460074e094372f7cbf996899c02 Mon Sep 17 00:00:00 2001
+From 043c11075cd4792c4b9eaf6433aac951fd5b3661 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 14 Mar 2024 14:17:33 +0800
 Subject: [PATCH 05/11] avcodec/vaapi_encode: extract a close function for base
@@ -12,10 +12,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 19 insertions(+), 7 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index 71ead512c0..754f990ed0 100644
+index 14f3ecfc94..e62d7c65b8 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -630,3 +630,19 @@ int ff_hw_base_encode_init(AVCodecContext *avctx)
+@@ -631,3 +631,19 @@ int ff_hw_base_encode_init(AVCodecContext *avctx)
  
      return 0;
  }
@@ -49,10 +49,10 @@ index c9c8fb43c9..436767b706 100644
      { "idr_interval", \
        "Distance (in I-frames) between key frames", \
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 4dfcae30f6..65d2e43c42 100644
+index 36b51a0f28..f9760cdbe3 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -2423,16 +2423,10 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
+@@ -2441,16 +2441,10 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
          ctx->va_config = VA_INVALID_ID;
      }
  

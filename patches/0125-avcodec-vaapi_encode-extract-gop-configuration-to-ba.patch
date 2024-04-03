@@ -1,4 +1,4 @@
-From 5a91042a3742a8cdaaaea8cb8ecbfc94d12d5f97 Mon Sep 17 00:00:00 2001
+From 424d984c75cb80417e21df08ef4a61a7adbd2174 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Fri, 29 Dec 2023 10:00:02 +0800
 Subject: [PATCH 07/11] avcodec/vaapi_encode: extract gop configuration to base
@@ -12,10 +12,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 61 insertions(+), 48 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index c7aed019fa..8044b83292 100644
+index 793e6ea2dd..a4223d90f0 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -638,6 +638,60 @@ end:
+@@ -639,6 +639,60 @@ end:
      return 0;
  }
  
@@ -91,10 +91,10 @@ index 3af696a21a..39893a8cc5 100644
  
  int ff_hw_base_encode_close(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index fdc03db614..3bce87d819 100644
+index 31d123ede2..022a696697 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -1578,7 +1578,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1596,7 +1596,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
      VAStatus vas;
      VAConfigAttrib attr = { VAConfigAttribEncMaxRefFrames };
      uint32_t ref_l0, ref_l1;
@@ -103,7 +103,7 @@ index fdc03db614..3bce87d819 100644
  
      vas = vaGetConfigAttributes(ctx->hwctx->display,
                                  ctx->va_profile,
-@@ -1642,53 +1642,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -1660,53 +1660,9 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
      }
  #endif
  

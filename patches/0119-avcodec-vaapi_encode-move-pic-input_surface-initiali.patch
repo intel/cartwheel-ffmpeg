@@ -1,4 +1,4 @@
-From 77a7132c29e0473acfeade068466c6f9076f7648 Mon Sep 17 00:00:00 2001
+From 061eeda3b0f7808480b9ae6a89536dc9045aaff0 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 2 Jan 2024 11:08:46 +0800
 Subject: [PATCH 01/11] avcodec/vaapi_encode: move pic->input_surface
@@ -14,10 +14,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 940f0678a5..bd8c624d7f 100644
+index f54b2579ec..d4d885ed2f 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -878,7 +878,8 @@ static int vaapi_encode_discard(AVCodecContext *avctx,
+@@ -879,7 +879,8 @@ static int vaapi_encode_discard(AVCodecContext *avctx,
      return 0;
  }
  
@@ -27,7 +27,7 @@ index 940f0678a5..bd8c624d7f 100644
  {
      VAAPIEncodeContext *ctx = avctx->priv_data;
      VAAPIEncodePicture *pic;
-@@ -895,7 +896,7 @@ static VAAPIEncodePicture *vaapi_encode_alloc(AVCodecContext *avctx)
+@@ -896,7 +897,7 @@ static VAAPIEncodePicture *vaapi_encode_alloc(AVCodecContext *avctx)
          }
      }
  
@@ -36,7 +36,7 @@ index 940f0678a5..bd8c624d7f 100644
      pic->recon_surface = VA_INVALID_ID;
      pic->output_buffer = VA_INVALID_ID;
  
-@@ -1331,7 +1332,7 @@ static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
+@@ -1332,7 +1333,7 @@ static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
          if (err < 0)
              return err;
  
@@ -45,7 +45,7 @@ index 940f0678a5..bd8c624d7f 100644
          if (!pic)
              return AVERROR(ENOMEM);
  
-@@ -1344,7 +1345,6 @@ static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
+@@ -1345,7 +1346,6 @@ static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
          if (ctx->input_order == 0 || frame->pict_type == AV_PICTURE_TYPE_I)
              pic->force_idr = 1;
  

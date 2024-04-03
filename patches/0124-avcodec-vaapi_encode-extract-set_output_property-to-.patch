@@ -1,4 +1,4 @@
-From c92b4a08024d6ceccba3c2c6c7f32d5f2067bfb3 Mon Sep 17 00:00:00 2001
+From f15a66eeaf6b632e47b9d5fb76a5a15e28117841 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 28 Dec 2023 18:17:33 +0800
 Subject: [PATCH 06/11] avcodec/vaapi_encode: extract set_output_property to
@@ -12,10 +12,10 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 45 insertions(+), 42 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index 754f990ed0..c7aed019fa 100644
+index e62d7c65b8..793e6ea2dd 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -490,6 +490,46 @@ fail:
+@@ -491,6 +491,46 @@ fail:
      return err;
  }
  
@@ -77,10 +77,10 @@ index 436767b706..3af696a21a 100644
  
  int ff_hw_base_encode_init(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 65d2e43c42..fdc03db614 100644
+index f9760cdbe3..31d123ede2 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -657,47 +657,6 @@ fail_at_end:
+@@ -658,47 +658,6 @@ fail_at_end:
      return err;
  }
  
@@ -128,7 +128,7 @@ index 65d2e43c42..fdc03db614 100644
  static int vaapi_encode_get_coded_buffer_size(AVCodecContext *avctx, VABufferID buf_id)
  {
      VAAPIEncodeContext *ctx = avctx->priv_data;
-@@ -849,7 +808,8 @@ static int vaapi_encode_output(AVCodecContext *avctx,
+@@ -850,7 +809,8 @@ static int vaapi_encode_output(AVCodecContext *avctx,
      av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
             base_pic->display_order, base_pic->encode_order);
  

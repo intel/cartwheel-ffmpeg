@@ -1,4 +1,4 @@
-From 0d0f7de8117183c63cf8437a7796f624343259ef Mon Sep 17 00:00:00 2001
+From d7ccbd44994eb53b6eaedd1c4e4926a9713fbd63 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 14 Mar 2024 12:01:48 +0800
 Subject: [PATCH 02/11] avcodec/vaapi_encode: introduce a base layer for vaapi
@@ -270,10 +270,10 @@ index 0000000000..41b68aa073
 +
 +#endif /* AVCODEC_HW_BASE_ENCODE_H */
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index bd8c624d7f..289a661e35 100644
+index d4d885ed2f..8002df56ab 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -37,8 +37,6 @@ const AVCodecHWConfigInternal *const ff_vaapi_encode_hw_configs[] = {
+@@ -38,8 +38,6 @@ const AVCodecHWConfigInternal *const ff_vaapi_encode_hw_configs[] = {
      NULL,
  };
  
@@ -282,7 +282,7 @@ index bd8c624d7f..289a661e35 100644
  static int vaapi_encode_make_packed_header(AVCodecContext *avctx,
                                             VAAPIEncodePicture *pic,
                                             int type, char *data, size_t bit_len)
-@@ -139,22 +137,24 @@ static int vaapi_encode_make_misc_param_buffer(AVCodecContext *avctx,
+@@ -140,22 +138,24 @@ static int vaapi_encode_make_misc_param_buffer(AVCodecContext *avctx,
  static int vaapi_encode_wait(AVCodecContext *avctx,
                               VAAPIEncodePicture *pic)
  {
@@ -312,7 +312,7 @@ index bd8c624d7f..289a661e35 100644
          vas = vaSyncBuffer(ctx->hwctx->display,
                             pic->output_buffer,
                             VA_TIMEOUT_INFINITE);
-@@ -175,9 +175,9 @@ static int vaapi_encode_wait(AVCodecContext *avctx,
+@@ -176,9 +176,9 @@ static int vaapi_encode_wait(AVCodecContext *avctx,
      }
  
      // Input is definitely finished with now.
@@ -324,7 +324,7 @@ index bd8c624d7f..289a661e35 100644
      return 0;
  }
  
-@@ -264,9 +264,11 @@ static int vaapi_encode_make_tile_slice(AVCodecContext *avctx,
+@@ -265,9 +265,11 @@ static int vaapi_encode_make_tile_slice(AVCodecContext *avctx,
  }
  
  static int vaapi_encode_issue(AVCodecContext *avctx,
@@ -338,7 +338,7 @@ index bd8c624d7f..289a661e35 100644
      VAAPIEncodeSlice *slice;
      VAStatus vas;
      int err, i;
-@@ -275,52 +277,52 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -276,52 +278,52 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
      av_unused AVFrameSideData *sd;
  
      av_log(avctx, AV_LOG_DEBUG, "Issuing encode for pic %"PRId64"/%"PRId64" "
@@ -410,7 +410,7 @@ index bd8c624d7f..289a661e35 100644
      av_log(avctx, AV_LOG_DEBUG, "Recon surface is %#x.\n", pic->recon_surface);
  
      pic->output_buffer_ref = ff_refstruct_pool_get(ctx->output_buffer_pool);
-@@ -344,7 +346,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -345,7 +347,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
  
      pic->nb_param_buffers = 0;
  
@@ -419,7 +419,7 @@ index bd8c624d7f..289a661e35 100644
          err = vaapi_encode_make_param_buffer(avctx, pic,
                                               VAEncSequenceParameterBufferType,
                                               ctx->codec_sequence_params,
-@@ -353,7 +355,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -354,7 +356,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
              goto fail;
      }
  
@@ -428,7 +428,7 @@ index bd8c624d7f..289a661e35 100644
          for (i = 0; i < ctx->nb_global_params; i++) {
              err = vaapi_encode_make_misc_param_buffer(avctx, pic,
                                                        ctx->global_params_type[i],
-@@ -390,7 +392,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -391,7 +393,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
      }
  #endif
  
@@ -437,7 +437,7 @@ index bd8c624d7f..289a661e35 100644
          if (ctx->va_packed_headers & VA_ENC_PACKED_HEADER_SEQUENCE &&
              ctx->codec->write_sequence_header) {
              bit_len = 8 * sizeof(data);
-@@ -530,9 +532,9 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -531,9 +533,9 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
      }
  
  #if VA_CHECK_VERSION(1, 0, 0)
@@ -449,7 +449,7 @@ index bd8c624d7f..289a661e35 100644
          const AVRegionOfInterest *roi;
          uint32_t roi_size;
          VAEncMiscParameterBufferROI param_roi;
-@@ -543,11 +545,11 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -544,11 +546,11 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
          av_assert0(roi_size && sd->size % roi_size == 0);
          nb_roi = sd->size / roi_size;
          if (nb_roi > ctx->roi_max_regions) {
@@ -463,7 +463,7 @@ index bd8c624d7f..289a661e35 100644
              }
              nb_roi = ctx->roi_max_regions;
          }
-@@ -640,7 +642,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+@@ -641,7 +643,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
          }
      }
  
@@ -472,7 +472,7 @@ index bd8c624d7f..289a661e35 100644
  
      return 0;
  
-@@ -658,17 +660,18 @@ fail_at_end:
+@@ -659,17 +661,18 @@ fail_at_end:
      av_freep(&pic->param_buffers);
      av_freep(&pic->slices);
      av_freep(&pic->roi);
@@ -494,7 +494,7 @@ index bd8c624d7f..289a661e35 100644
  
      if (pic->type == PICTURE_TYPE_IDR)
          pkt->flags |= AV_PKT_FLAG_KEY;
-@@ -689,16 +692,16 @@ static int vaapi_encode_set_output_property(AVCodecContext *avctx,
+@@ -690,16 +693,16 @@ static int vaapi_encode_set_output_property(AVCodecContext *avctx,
          return 0;
      }
  
@@ -517,7 +517,7 @@ index bd8c624d7f..289a661e35 100644
      }
  
      return 0;
-@@ -817,9 +820,11 @@ end:
+@@ -818,9 +821,11 @@ end:
  }
  
  static int vaapi_encode_output(AVCodecContext *avctx,
@@ -531,7 +531,7 @@ index bd8c624d7f..289a661e35 100644
      AVPacket *pkt_ptr = pkt;
      int err;
  
-@@ -832,17 +837,17 @@ static int vaapi_encode_output(AVCodecContext *avctx,
+@@ -833,17 +838,17 @@ static int vaapi_encode_output(AVCodecContext *avctx,
          ctx->coded_buffer_ref = ff_refstruct_ref(pic->output_buffer_ref);
  
          if (pic->tail_size) {
@@ -553,7 +553,7 @@ index bd8c624d7f..289a661e35 100644
          }
      } else {
          err = vaapi_encode_get_coded_data(avctx, pic, pkt);
-@@ -851,9 +856,9 @@ static int vaapi_encode_output(AVCodecContext *avctx,
+@@ -852,9 +857,9 @@ static int vaapi_encode_output(AVCodecContext *avctx,
      }
  
      av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
@@ -565,7 +565,7 @@ index bd8c624d7f..289a661e35 100644
  
  end:
      ff_refstruct_unref(&pic->output_buffer_ref);
-@@ -864,12 +869,13 @@ end:
+@@ -865,12 +870,13 @@ end:
  static int vaapi_encode_discard(AVCodecContext *avctx,
                                  VAAPIEncodePicture *pic)
  {
@@ -580,7 +580,7 @@ index bd8c624d7f..289a661e35 100644
  
          ff_refstruct_unref(&pic->output_buffer_ref);
          pic->output_buffer = VA_INVALID_ID;
-@@ -878,8 +884,8 @@ static int vaapi_encode_discard(AVCodecContext *avctx,
+@@ -879,8 +885,8 @@ static int vaapi_encode_discard(AVCodecContext *avctx,
      return 0;
  }
  
@@ -591,7 +591,7 @@ index bd8c624d7f..289a661e35 100644
  {
      VAAPIEncodeContext *ctx = avctx->priv_data;
      VAAPIEncodePicture *pic;
-@@ -889,8 +895,8 @@ static VAAPIEncodePicture *vaapi_encode_alloc(AVCodecContext *avctx,
+@@ -890,8 +896,8 @@ static VAAPIEncodePicture *vaapi_encode_alloc(AVCodecContext *avctx,
          return NULL;
  
      if (ctx->codec->picture_priv_data_size > 0) {
@@ -602,7 +602,7 @@ index bd8c624d7f..289a661e35 100644
              av_freep(&pic);
              return NULL;
          }
-@@ -900,15 +906,16 @@ static VAAPIEncodePicture *vaapi_encode_alloc(AVCodecContext *avctx,
+@@ -901,15 +907,16 @@ static VAAPIEncodePicture *vaapi_encode_alloc(AVCodecContext *avctx,
      pic->recon_surface = VA_INVALID_ID;
      pic->output_buffer = VA_INVALID_ID;
  
@@ -622,7 +622,7 @@ index bd8c624d7f..289a661e35 100644
          vaapi_encode_discard(avctx, pic);
  
      if (pic->slices) {
-@@ -916,17 +923,17 @@ static int vaapi_encode_free(AVCodecContext *avctx,
+@@ -917,17 +924,17 @@ static int vaapi_encode_free(AVCodecContext *avctx,
              av_freep(&pic->slices[i].codec_slice_params);
      }
  
@@ -644,7 +644,7 @@ index bd8c624d7f..289a661e35 100644
      av_freep(&pic->codec_picture_params);
      av_freep(&pic->roi);
  
-@@ -936,8 +943,8 @@ static int vaapi_encode_free(AVCodecContext *avctx,
+@@ -937,8 +944,8 @@ static int vaapi_encode_free(AVCodecContext *avctx,
  }
  
  static void vaapi_encode_add_ref(AVCodecContext *avctx,
@@ -655,7 +655,7 @@ index bd8c624d7f..289a661e35 100644
                                   int is_ref, int in_dpb, int prev)
  {
      int refs = 0;
-@@ -970,7 +977,7 @@ static void vaapi_encode_add_ref(AVCodecContext *avctx,
+@@ -971,7 +978,7 @@ static void vaapi_encode_add_ref(AVCodecContext *avctx,
  }
  
  static void vaapi_encode_remove_refs(AVCodecContext *avctx,
@@ -664,7 +664,7 @@ index bd8c624d7f..289a661e35 100644
                                       int level)
  {
      int i;
-@@ -1006,14 +1013,14 @@ static void vaapi_encode_remove_refs(AVCodecContext *avctx,
+@@ -1007,14 +1014,14 @@ static void vaapi_encode_remove_refs(AVCodecContext *avctx,
  }
  
  static void vaapi_encode_set_b_pictures(AVCodecContext *avctx,
@@ -685,7 +685,7 @@ index bd8c624d7f..289a661e35 100644
      int i, len;
  
      av_assert0(start && end && start != end && start->next != end);
-@@ -1070,9 +1077,9 @@ static void vaapi_encode_set_b_pictures(AVCodecContext *avctx,
+@@ -1071,9 +1078,9 @@ static void vaapi_encode_set_b_pictures(AVCodecContext *avctx,
  }
  
  static void vaapi_encode_add_next_prev(AVCodecContext *avctx,
@@ -697,7 +697,7 @@ index bd8c624d7f..289a661e35 100644
      int i;
  
      if (!pic)
-@@ -1103,10 +1110,10 @@ static void vaapi_encode_add_next_prev(AVCodecContext *avctx,
+@@ -1104,10 +1111,10 @@ static void vaapi_encode_add_next_prev(AVCodecContext *avctx,
  }
  
  static int vaapi_encode_pick_next(AVCodecContext *avctx,
@@ -711,7 +711,7 @@ index bd8c624d7f..289a661e35 100644
      int i, b_counter, closed_gop_end;
  
      // If there are any B-frames already queued, the next one to encode
-@@ -1256,8 +1263,8 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
+@@ -1257,8 +1264,8 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
  
  static int vaapi_encode_clear_old(AVCodecContext *avctx)
  {
@@ -722,7 +722,7 @@ index bd8c624d7f..289a661e35 100644
  
      av_assert0(ctx->pic_start);
  
-@@ -1295,7 +1302,7 @@ static int vaapi_encode_clear_old(AVCodecContext *avctx)
+@@ -1296,7 +1303,7 @@ static int vaapi_encode_clear_old(AVCodecContext *avctx)
  static int vaapi_encode_check_frame(AVCodecContext *avctx,
                                      const AVFrame *frame)
  {
@@ -731,7 +731,7 @@ index bd8c624d7f..289a661e35 100644
  
      if ((frame->crop_top  || frame->crop_bottom ||
           frame->crop_left || frame->crop_right) && !ctx->crop_warned) {
-@@ -1320,8 +1327,8 @@ static int vaapi_encode_check_frame(AVCodecContext *avctx,
+@@ -1321,8 +1328,8 @@ static int vaapi_encode_check_frame(AVCodecContext *avctx,
  
  static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
  {
@@ -742,7 +742,7 @@ index bd8c624d7f..289a661e35 100644
      int err;
  
      if (frame) {
-@@ -1395,15 +1402,15 @@ fail:
+@@ -1396,15 +1403,15 @@ fail:
  
  int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
  {
@@ -761,7 +761,7 @@ index bd8c624d7f..289a661e35 100644
              if (tmp->type == PICTURE_TYPE_B && tmp->pts < ctx->tail_pkt->pts)
                  break;
              else if (!tmp->next) {
-@@ -1431,7 +1438,7 @@ start:
+@@ -1432,7 +1439,7 @@ start:
              return AVERROR(EAGAIN);
      }
  
@@ -770,7 +770,7 @@ index bd8c624d7f..289a661e35 100644
          if (av_fifo_can_write(ctx->encode_fifo)) {
              err = vaapi_encode_pick_next(avctx, &pic);
              if (!err) {
-@@ -1551,9 +1558,10 @@ static const VAEntrypoint vaapi_encode_entrypoints_low_power[] = {
+@@ -1552,9 +1559,10 @@ static const VAEntrypoint vaapi_encode_entrypoints_low_power[] = {
  
  static av_cold int vaapi_encode_profile_entrypoint(AVCodecContext *avctx)
  {
@@ -784,7 +784,7 @@ index bd8c624d7f..289a661e35 100644
      VAStatus vas;
      const VAEntrypoint *usable_entrypoints;
      const VAAPIEncodeProfile *profile;
-@@ -1576,10 +1584,10 @@ static av_cold int vaapi_encode_profile_entrypoint(AVCodecContext *avctx)
+@@ -1577,10 +1585,10 @@ static av_cold int vaapi_encode_profile_entrypoint(AVCodecContext *avctx)
          usable_entrypoints = vaapi_encode_entrypoints_normal;
      }
  
@@ -797,7 +797,7 @@ index bd8c624d7f..289a661e35 100644
          return AVERROR(EINVAL);
      }
      depth = desc->comp[0].depth;
-@@ -1772,7 +1780,8 @@ static const VAAPIEncodeRCMode vaapi_encode_rc_modes[] = {
+@@ -1773,7 +1781,8 @@ static const VAAPIEncodeRCMode vaapi_encode_rc_modes[] = {
  
  static av_cold int vaapi_encode_init_rate_control(AVCodecContext *avctx)
  {
@@ -807,7 +807,7 @@ index bd8c624d7f..289a661e35 100644
      uint32_t supported_va_rc_modes;
      const VAAPIEncodeRCMode *rc_mode;
      int64_t rc_bits_per_second;
-@@ -1860,10 +1869,10 @@ static av_cold int vaapi_encode_init_rate_control(AVCodecContext *avctx)
+@@ -1869,10 +1878,10 @@ static av_cold int vaapi_encode_init_rate_control(AVCodecContext *avctx)
          } \
      } while (0)
  
@@ -821,7 +821,7 @@ index bd8c624d7f..289a661e35 100644
          TRY_RC_MODE(RC_MODE_CQP, 1);
  
      if (ctx->codec->flags & FLAG_CONSTANT_QUALITY_ONLY)
-@@ -1958,8 +1967,8 @@ rc_mode_found:
+@@ -1967,8 +1976,8 @@ rc_mode_found:
      }
  
      if (rc_mode->quality) {
@@ -830,9 +830,9 @@ index bd8c624d7f..289a661e35 100644
 +        if (base_ctx->explicit_qp) {
 +            rc_quality = base_ctx->explicit_qp;
          } else if (avctx->global_quality > 0) {
-             rc_quality = avctx->global_quality;
-         } else {
-@@ -2015,10 +2024,10 @@ rc_mode_found:
+             if (avctx->flags & AV_CODEC_FLAG_QSCALE)
+                 rc_quality = avctx->global_quality / FF_QP2LAMBDA;
+@@ -2027,10 +2036,10 @@ rc_mode_found:
          return AVERROR(EINVAL);
      }
  
@@ -847,7 +847,7 @@ index bd8c624d7f..289a661e35 100644
  
      av_log(avctx, AV_LOG_VERBOSE, "RC mode: %s.\n", rc_mode->name);
  
-@@ -2170,7 +2179,8 @@ static av_cold int vaapi_encode_init_max_frame_size(AVCodecContext *avctx)
+@@ -2188,7 +2197,8 @@ static av_cold int vaapi_encode_init_max_frame_size(AVCodecContext *avctx)
  
  static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
  {
@@ -857,7 +857,7 @@ index bd8c624d7f..289a661e35 100644
      VAStatus vas;
      VAConfigAttrib attr = { VAConfigAttribEncMaxRefFrames };
      uint32_t ref_l0, ref_l1;
-@@ -2193,7 +2203,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -2211,7 +2221,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
          ref_l1 = attr.value >> 16 & 0xffff;
      }
  
@@ -866,7 +866,7 @@ index bd8c624d7f..289a661e35 100644
      prediction_pre_only = 0;
  
  #if VA_CHECK_VERSION(1, 9, 0)
-@@ -2229,7 +2239,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -2247,7 +2257,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
  
              if (attr.value & VA_PREDICTION_DIRECTION_BI_NOT_EMPTY) {
                  if (ref_l0 > 0 && ref_l1 > 0) {
@@ -875,7 +875,7 @@ index bd8c624d7f..289a661e35 100644
                      av_log(avctx, AV_LOG_VERBOSE, "Driver does not support P-frames, "
                             "replacing them with B-frames.\n");
                  }
-@@ -2241,7 +2251,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -2259,7 +2269,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
      if (ctx->codec->flags & FLAG_INTRA_ONLY ||
          avctx->gop_size <= 1) {
          av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
@@ -884,7 +884,7 @@ index bd8c624d7f..289a661e35 100644
      } else if (ref_l0 < 1) {
          av_log(avctx, AV_LOG_ERROR, "Driver does not support any "
                 "reference frames.\n");
-@@ -2249,41 +2259,41 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+@@ -2267,41 +2277,41 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
      } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
                 ref_l1 < 1 || avctx->max_b_frames < 1 ||
                 prediction_pre_only) {
@@ -941,7 +941,7 @@ index bd8c624d7f..289a661e35 100644
      }
  
      return 0;
-@@ -2397,6 +2407,7 @@ static av_cold int vaapi_encode_init_tile_slice_structure(AVCodecContext *avctx,
+@@ -2415,6 +2425,7 @@ static av_cold int vaapi_encode_init_tile_slice_structure(AVCodecContext *avctx,
  
  static av_cold int vaapi_encode_init_slice_structure(AVCodecContext *avctx)
  {
@@ -949,7 +949,7 @@ index bd8c624d7f..289a661e35 100644
      VAAPIEncodeContext *ctx = avctx->priv_data;
      VAConfigAttrib attr[3] = { { VAConfigAttribEncMaxSlices },
                                 { VAConfigAttribEncSliceStructure },
-@@ -2416,12 +2427,12 @@ static av_cold int vaapi_encode_init_slice_structure(AVCodecContext *avctx)
+@@ -2434,12 +2445,12 @@ static av_cold int vaapi_encode_init_slice_structure(AVCodecContext *avctx)
          return 0;
      }
  
@@ -967,7 +967,7 @@ index bd8c624d7f..289a661e35 100644
  
      if (avctx->slices <= 1 && !ctx->tile_rows && !ctx->tile_cols) {
          ctx->nb_slices  = 1;
-@@ -2596,7 +2607,8 @@ static av_cold int vaapi_encode_init_quality(AVCodecContext *avctx)
+@@ -2614,7 +2625,8 @@ static av_cold int vaapi_encode_init_quality(AVCodecContext *avctx)
  static av_cold int vaapi_encode_init_roi(AVCodecContext *avctx)
  {
  #if VA_CHECK_VERSION(1, 0, 0)
@@ -977,7 +977,7 @@ index bd8c624d7f..289a661e35 100644
      VAStatus vas;
      VAConfigAttrib attr = { VAConfigAttribEncROI };
  
-@@ -2611,14 +2623,14 @@ static av_cold int vaapi_encode_init_roi(AVCodecContext *avctx)
+@@ -2629,14 +2641,14 @@ static av_cold int vaapi_encode_init_roi(AVCodecContext *avctx)
      }
  
      if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
@@ -994,7 +994,7 @@ index bd8c624d7f..289a661e35 100644
              (ctx->va_rc_mode == VA_RC_CQP ||
               roi.bits.roi_rc_qp_delta_support);
      }
-@@ -2642,7 +2654,8 @@ static void vaapi_encode_free_output_buffer(FFRefStructOpaque opaque,
+@@ -2660,7 +2672,8 @@ static void vaapi_encode_free_output_buffer(FFRefStructOpaque opaque,
  static int vaapi_encode_alloc_output_buffer(FFRefStructOpaque opaque, void *obj)
  {
      AVCodecContext   *avctx = opaque.nc;
@@ -1004,7 +1004,7 @@ index bd8c624d7f..289a661e35 100644
      VABufferID *buffer_id = obj;
      VAStatus vas;
  
-@@ -2652,7 +2665,7 @@ static int vaapi_encode_alloc_output_buffer(FFRefStructOpaque opaque, void *obj)
+@@ -2670,7 +2683,7 @@ static int vaapi_encode_alloc_output_buffer(FFRefStructOpaque opaque, void *obj)
      // bound on that.
      vas = vaCreateBuffer(ctx->hwctx->display, ctx->va_context,
                           VAEncCodedBufferType,
@@ -1013,7 +1013,7 @@ index bd8c624d7f..289a661e35 100644
                           (1 << 16), 1, 0, buffer_id);
      if (vas != VA_STATUS_SUCCESS) {
          av_log(avctx, AV_LOG_ERROR, "Failed to create bitstream "
-@@ -2667,20 +2680,21 @@ static int vaapi_encode_alloc_output_buffer(FFRefStructOpaque opaque, void *obj)
+@@ -2685,20 +2698,21 @@ static int vaapi_encode_alloc_output_buffer(FFRefStructOpaque opaque, void *obj)
  
  static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
  {
@@ -1038,7 +1038,7 @@ index bd8c624d7f..289a661e35 100644
                                                        hwconfig);
      if (!constraints) {
          err = AVERROR(ENOMEM);
-@@ -2693,9 +2707,9 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2711,9 +2725,9 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      recon_format = AV_PIX_FMT_NONE;
      if (constraints->valid_sw_formats) {
          for (i = 0; constraints->valid_sw_formats[i] != AV_PIX_FMT_NONE; i++) {
@@ -1050,7 +1050,7 @@ index bd8c624d7f..289a661e35 100644
                  break;
              }
          }
-@@ -2706,18 +2720,18 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2724,18 +2738,18 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
          }
      } else {
          // No idea what to use; copy input format.
@@ -1075,7 +1075,7 @@ index bd8c624d7f..289a661e35 100644
                 constraints->min_width,  constraints->max_width,
                 constraints->min_height, constraints->max_height);
          err = AVERROR(EINVAL);
-@@ -2727,19 +2741,19 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2745,19 +2759,19 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
      av_freep(&hwconfig);
      av_hwframe_constraints_free(&constraints);
  
@@ -1103,7 +1103,7 @@ index bd8c624d7f..289a661e35 100644
      if (err < 0) {
          av_log(avctx, AV_LOG_ERROR, "Failed to initialise reconstructed "
                 "frame context: %d.\n", err);
-@@ -2755,7 +2769,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+@@ -2773,7 +2787,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
  
  av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
  {
@@ -1113,7 +1113,7 @@ index bd8c624d7f..289a661e35 100644
      AVVAAPIFramesContext *recon_hwctx = NULL;
      VAStatus vas;
      int err;
-@@ -2765,8 +2780,8 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2783,8 +2798,8 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
  
      /* If you add something that can fail above this av_frame_alloc(),
       * modify ff_vaapi_encode_close() accordingly. */
@@ -1124,7 +1124,7 @@ index bd8c624d7f..289a661e35 100644
          return AVERROR(ENOMEM);
      }
  
-@@ -2776,23 +2791,23 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2794,23 +2809,23 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
          return AVERROR(EINVAL);
      }
  
@@ -1157,7 +1157,7 @@ index bd8c624d7f..289a661e35 100644
          err = AVERROR(ENOMEM);
          goto fail;
      }
-@@ -2807,11 +2822,11 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2825,11 +2840,11 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
              goto fail;
      } else {
          // Assume 16x16 blocks.
@@ -1173,7 +1173,7 @@ index bd8c624d7f..289a661e35 100644
          }
      }
  
-@@ -2862,9 +2877,9 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2880,9 +2895,9 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
      if (err < 0)
          goto fail;
  
@@ -1185,7 +1185,7 @@ index bd8c624d7f..289a661e35 100644
                            VA_PROGRESSIVE,
                            recon_hwctx->surface_ids,
                            recon_hwctx->nb_surfaces,
-@@ -2891,8 +2906,8 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2909,8 +2924,8 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
              goto fail;
      }
  
@@ -1196,7 +1196,7 @@ index bd8c624d7f..289a661e35 100644
  
      if (ctx->codec->sequence_params_size > 0) {
          ctx->codec_sequence_params =
-@@ -2947,11 +2962,11 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+@@ -2965,11 +2980,11 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
      // check vaSyncBuffer function
      vas = vaSyncBuffer(ctx->hwctx->display, VA_INVALID_ID, 0);
      if (vas != VA_STATUS_ERROR_UNIMPLEMENTED) {
@@ -1213,7 +1213,7 @@ index bd8c624d7f..289a661e35 100644
              return AVERROR(ENOMEM);
      }
  #endif
-@@ -2964,15 +2979,16 @@ fail:
+@@ -2982,15 +2997,16 @@ fail:
  
  av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
  {
@@ -1234,7 +1234,7 @@ index bd8c624d7f..289a661e35 100644
          next = pic->next;
          vaapi_encode_free(avctx, pic);
      }
-@@ -2989,16 +3005,16 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
+@@ -3007,16 +3023,16 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
          ctx->va_config = VA_INVALID_ID;
      }
  
@@ -1592,7 +1592,7 @@ index 0eed9691ca..5fb3494432 100644
      { "auto", "Choose mode automatically based on other parameters", \
        0, AV_OPT_TYPE_CONST, { .i64 = RC_MODE_AUTO }, 0, 0, FLAGS, .unit = "rc_mode" }, \
 diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
-index a46b882ab9..512b4e3733 100644
+index 02a31b894d..a385b5771c 100644
 --- a/libavcodec/vaapi_encode_av1.c
 +++ b/libavcodec/vaapi_encode_av1.c
 @@ -109,20 +109,21 @@ static void vaapi_encode_av1_trace_write_log(void *ctx,
@@ -1632,7 +1632,7 @@ index a46b882ab9..512b4e3733 100644
          if (fabs(avctx->i_quant_factor) > 0.0)
              priv->q_idx_idr =
                  av_clip((fabs(avctx->i_quant_factor) * priv->q_idx_p  +
-@@ -355,6 +356,7 @@ static int vaapi_encode_av1_write_sequence_header(AVCodecContext *avctx,
+@@ -357,6 +358,7 @@ static int vaapi_encode_av1_write_sequence_header(AVCodecContext *avctx,
  
  static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
  {
@@ -1640,7 +1640,7 @@ index a46b882ab9..512b4e3733 100644
      VAAPIEncodeContext               *ctx = avctx->priv_data;
      VAAPIEncodeAV1Context           *priv = avctx->priv_data;
      AV1RawOBU                     *sh_obu = &priv->sh;
-@@ -367,7 +369,7 @@ static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
+@@ -369,7 +371,7 @@ static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
      memset(sh_obu, 0, sizeof(*sh_obu));
      sh_obu->header.obu_type = AV1_OBU_SEQUENCE_HEADER;
  
@@ -1649,7 +1649,7 @@ index a46b882ab9..512b4e3733 100644
      av_assert0(desc);
  
      sh->seq_profile  = avctx->profile;
-@@ -419,7 +421,7 @@ static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
+@@ -421,7 +423,7 @@ static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
              framerate = 0;
  
          level = ff_av1_guess_level(avctx->bit_rate, priv->tier,
@@ -1658,7 +1658,7 @@ index a46b882ab9..512b4e3733 100644
                                     priv->tile_rows * priv->tile_cols,
                                     priv->tile_cols, framerate);
          if (level) {
-@@ -436,8 +438,8 @@ static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
+@@ -438,8 +440,8 @@ static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
      vseq->seq_level_idx           = sh->seq_level_idx[0];
      vseq->seq_tier                = sh->seq_tier[0];
      vseq->order_hint_bits_minus_1 = sh->order_hint_bits_minus_1;
@@ -1669,7 +1669,7 @@ index a46b882ab9..512b4e3733 100644
  
      vseq->seq_fields.bits.enable_order_hint = sh->enable_order_hint;
  
-@@ -464,12 +466,13 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -466,12 +468,13 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
  {
      VAAPIEncodeContext              *ctx = avctx->priv_data;
      VAAPIEncodeAV1Context          *priv = avctx->priv_data;
@@ -1685,7 +1685,7 @@ index a46b882ab9..512b4e3733 100644
      VAAPIEncodeAV1Picture *href;
      int slot, i;
      int ret;
-@@ -478,24 +481,24 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -480,24 +483,24 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
  
      memset(fh_obu, 0, sizeof(*fh_obu));
      pic->nb_slices = priv->tile_groups;
@@ -1716,7 +1716,7 @@ index a46b882ab9..512b4e3733 100644
          href = ref->priv_data;
          hpic->slot = !href->slot;
          hpic->last_idr_frame = href->last_idr_frame;
-@@ -510,8 +513,8 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -512,8 +515,8 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
          vpic->ref_frame_ctrl_l0.fields.search_idx0 = AV1_REF_FRAME_LAST;
  
          /** set the 2nd nearest frame in L0 as Golden frame. */
@@ -1727,7 +1727,7 @@ index a46b882ab9..512b4e3733 100644
              href = ref->priv_data;
              fh->ref_frame_idx[3] = href->slot;
              fh->ref_order_hint[href->slot] = ref->display_order - href->last_idr_frame;
-@@ -519,7 +522,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -521,7 +524,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
          }
          break;
      case PICTURE_TYPE_B:
@@ -1736,7 +1736,7 @@ index a46b882ab9..512b4e3733 100644
          fh->frame_type = AV1_FRAME_INTER;
          fh->base_q_idx = priv->q_idx_b;
          fh->refresh_frame_flags = 0x0;
-@@ -532,7 +535,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -534,7 +537,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
          vpic->ref_frame_ctrl_l0.fields.search_idx0 = AV1_REF_FRAME_LAST;
          vpic->ref_frame_ctrl_l1.fields.search_idx0 = AV1_REF_FRAME_BWDREF;
  
@@ -1745,7 +1745,7 @@ index a46b882ab9..512b4e3733 100644
          href                           = ref->priv_data;
          hpic->last_idr_frame           = href->last_idr_frame;
          fh->primary_ref_frame          = href->slot;
-@@ -541,7 +544,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -543,7 +546,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
              fh->ref_frame_idx[i] = href->slot;
          }
  
@@ -1754,7 +1754,7 @@ index a46b882ab9..512b4e3733 100644
          href                           = ref->priv_data;
          fh->ref_order_hint[href->slot] = ref->display_order - href->last_idr_frame;
          for (i = AV1_REF_FRAME_GOLDEN; i < AV1_REFS_PER_FRAME; i++) {
-@@ -552,13 +555,13 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -554,13 +557,13 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
          av_assert0(0 && "invalid picture type");
      }
  
@@ -1770,7 +1770,7 @@ index a46b882ab9..512b4e3733 100644
      fh->tile_cols                 = priv->tile_cols;
      fh->tile_rows                 = priv->tile_rows;
      fh->tile_cols_log2            = priv->tile_cols_log2;
-@@ -624,13 +627,13 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -626,13 +629,13 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
          vpic->reference_frames[i] = VA_INVALID_SURFACE;
  
      for (i = 0; i < MAX_REFERENCE_LIST_NUM; i++) {
@@ -1787,7 +1787,7 @@ index a46b882ab9..512b4e3733 100644
          }
      }
  
-@@ -651,7 +654,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+@@ -653,7 +656,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
          vpic->bit_offset_cdef_params         = priv->cdef_start_offset;
          vpic->size_in_bits_cdef_params       = priv->cdef_param_size;
          vpic->size_in_bits_frame_hdr_obu     = priv->fh_data_len;
@@ -1796,7 +1796,7 @@ index a46b882ab9..512b4e3733 100644
                                                 priv->sh_data_len / 8 : 0) +
                                                 (fh_obu->header.obu_extension_flag ?
                                                 2 : 1));
-@@ -693,14 +696,15 @@ static int vaapi_encode_av1_write_picture_header(AVCodecContext *avctx,
+@@ -695,14 +698,15 @@ static int vaapi_encode_av1_write_picture_header(AVCodecContext *avctx,
      CodedBitstreamAV1Context *cbctx = priv->cbc->priv_data;
      AV1RawOBU               *fh_obu = &priv->fh;
      AV1RawFrameHeader       *rep_fh = &fh_obu->obu.frame_header;
@@ -1814,7 +1814,7 @@ index a46b882ab9..512b4e3733 100644
          fh_obu->header.obu_type = AV1_OBU_FRAME_HEADER;
          fh_obu->header.obu_has_size_field = 1;
  
-@@ -862,6 +866,7 @@ static av_cold int vaapi_encode_av1_close(AVCodecContext *avctx)
+@@ -864,6 +868,7 @@ static av_cold int vaapi_encode_av1_close(AVCodecContext *avctx)
  #define FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM)
  
  static const AVOption vaapi_encode_av1_options[] = {
@@ -1823,10 +1823,10 @@ index a46b882ab9..512b4e3733 100644
      VAAPI_ENCODE_RC_OPTIONS,
      { "profile", "Set profile (seq_profile)",
 diff --git a/libavcodec/vaapi_encode_h264.c b/libavcodec/vaapi_encode_h264.c
-index 37df9103ae..aa011ba307 100644
+index bf51df0f51..336730b87e 100644
 --- a/libavcodec/vaapi_encode_h264.c
 +++ b/libavcodec/vaapi_encode_h264.c
-@@ -234,7 +234,7 @@ static int vaapi_encode_h264_write_extra_header(AVCodecContext *avctx,
+@@ -233,7 +233,7 @@ static int vaapi_encode_h264_write_extra_header(AVCodecContext *avctx,
                  goto fail;
          }
          if (priv->sei_needed & SEI_TIMING) {
@@ -1835,7 +1835,7 @@ index 37df9103ae..aa011ba307 100644
                  err = ff_cbs_sei_add_message(priv->cbc, au, 1,
                                               SEI_TYPE_BUFFERING_PERIOD,
                                               &priv->sei_buffering_period, NULL);
-@@ -296,6 +296,7 @@ fail:
+@@ -295,6 +295,7 @@ fail:
  
  static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
  {
@@ -1843,7 +1843,7 @@ index 37df9103ae..aa011ba307 100644
      VAAPIEncodeContext                *ctx = avctx->priv_data;
      VAAPIEncodeH264Context           *priv = avctx->priv_data;
      H264RawSPS                        *sps = &priv->raw_sps;
-@@ -308,7 +309,7 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
+@@ -307,7 +308,7 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
      memset(sps, 0, sizeof(*sps));
      memset(pps, 0, sizeof(*pps));
  
@@ -1852,7 +1852,7 @@ index 37df9103ae..aa011ba307 100644
      av_assert0(desc);
      if (desc->nb_components == 1 || desc->log2_chroma_w != 1 || desc->log2_chroma_h != 1) {
          av_log(avctx, AV_LOG_ERROR, "Chroma format of input pixel format "
-@@ -327,18 +328,18 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
+@@ -326,18 +327,18 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
          sps->constraint_set1_flag = 1;
  
      if (avctx->profile == AV_PROFILE_H264_HIGH || avctx->profile == AV_PROFILE_H264_HIGH_10)
@@ -1875,7 +1875,7 @@ index 37df9103ae..aa011ba307 100644
  
      if (avctx->level != AV_LEVEL_UNKNOWN) {
          sps->level_idc = avctx->level;
-@@ -375,7 +376,7 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
+@@ -374,7 +375,7 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
      sps->bit_depth_chroma_minus8 = bit_depth - 8;
  
      sps->log2_max_frame_num_minus4 = 4;
@@ -1884,7 +1884,7 @@ index 37df9103ae..aa011ba307 100644
      if (sps->pic_order_cnt_type == 0) {
          sps->log2_max_pic_order_cnt_lsb_minus4 = 4;
      }
-@@ -502,8 +503,8 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
+@@ -501,8 +502,8 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
      sps->vui.motion_vectors_over_pic_boundaries_flag = 1;
      sps->vui.log2_max_mv_length_horizontal = 15;
      sps->vui.log2_max_mv_length_vertical   = 15;
@@ -1895,7 +1895,7 @@ index 37df9103ae..aa011ba307 100644
  
      pps->nal_unit_header.nal_ref_idc = 3;
      pps->nal_unit_header.nal_unit_type = H264_NAL_PPS;
-@@ -536,9 +537,9 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
+@@ -535,9 +536,9 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
      *vseq = (VAEncSequenceParameterBufferH264) {
          .seq_parameter_set_id = sps->seq_parameter_set_id,
          .level_idc        = sps->level_idc,
@@ -1908,7 +1908,7 @@ index 37df9103ae..aa011ba307 100644
  
          .bits_per_second       = ctx->va_bit_rate,
          .max_num_ref_frames    = sps->max_num_ref_frames,
-@@ -622,19 +623,20 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
+@@ -621,19 +622,20 @@ static int vaapi_encode_h264_init_sequence_params(AVCodecContext *avctx)
  static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
                                                   VAAPIEncodePicture *pic)
  {
@@ -1935,7 +1935,7 @@ index 37df9103ae..aa011ba307 100644
          hpic->idr_pic_id     = hprev ? hprev->idr_pic_id + 1 : 0;
  
          hpic->primary_pic_type = 0;
-@@ -647,10 +649,10 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+@@ -646,10 +648,10 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
          hpic->last_idr_frame = hprev->last_idr_frame;
          hpic->idr_pic_id     = hprev->idr_pic_id;
  
@@ -1948,7 +1948,7 @@ index 37df9103ae..aa011ba307 100644
              hpic->slice_type       = 5;
              hpic->primary_pic_type = 1;
          } else {
-@@ -658,13 +660,13 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+@@ -657,13 +659,13 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
              hpic->primary_pic_type = 2;
          }
      }
@@ -1965,7 +1965,7 @@ index 37df9103ae..aa011ba307 100644
  
      if (priv->aud) {
          priv->aud_needed = 1;
-@@ -680,7 +682,7 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+@@ -679,7 +681,7 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
  
      priv->sei_needed = 0;
  
@@ -1974,7 +1974,7 @@ index 37df9103ae..aa011ba307 100644
          priv->sei_needed |= SEI_IDENTIFIER;
  #if !CONFIG_VAAPI_1
      if (ctx->va_rc_mode == VA_RC_CBR)
-@@ -696,11 +698,11 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+@@ -695,11 +697,11 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
          priv->sei_needed |= SEI_TIMING;
      }
  
@@ -1988,7 +1988,7 @@ index 37df9103ae..aa011ba307 100644
          };
  
          priv->sei_needed |= SEI_RECOVERY_POINT;
-@@ -710,7 +712,7 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+@@ -709,7 +711,7 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
          int err;
          size_t sei_a53cc_len;
          av_freep(&priv->sei_a53cc_data);
@@ -1997,7 +1997,7 @@ index 37df9103ae..aa011ba307 100644
          if (err < 0)
              return err;
          if (priv->sei_a53cc_data != NULL) {
-@@ -730,15 +732,15 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+@@ -729,15 +731,15 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
          .BottomFieldOrderCnt = hpic->pic_order_cnt,
      };
      for (int k = 0; k < MAX_REFERENCE_LIST_NUM; k++) {
@@ -2017,7 +2017,7 @@ index 37df9103ae..aa011ba307 100644
                  .frame_idx           = href->frame_num,
                  .flags               = VA_PICTURE_H264_SHORT_TERM_REFERENCE,
                  .TopFieldOrderCnt    = href->pic_order_cnt,
-@@ -758,8 +760,8 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+@@ -757,8 +759,8 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
  
      vpic->frame_num = hpic->frame_num;
  
@@ -2028,7 +2028,7 @@ index 37df9103ae..aa011ba307 100644
  
      return 0;
  }
-@@ -770,31 +772,32 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+@@ -769,31 +771,32 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
                                                     VAAPIEncodePicture **rpl1,
                                                     int *rpl_size)
  {
@@ -2070,7 +2070,7 @@ index 37df9103ae..aa011ba307 100644
                  av_assert0(hc->pic_order_cnt != hp->pic_order_cnt);
                  if (hc->pic_order_cnt < hp->pic_order_cnt) {
                      if (hn->pic_order_cnt > hp->pic_order_cnt ||
-@@ -806,10 +809,10 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+@@ -805,10 +808,10 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
                  }
                  rpl0[j] = rpl0[j - 1];
              }
@@ -2083,7 +2083,7 @@ index 37df9103ae..aa011ba307 100644
                  av_assert0(hc->pic_order_cnt != hp->pic_order_cnt);
                  if (hc->pic_order_cnt > hp->pic_order_cnt) {
                      if (hn->pic_order_cnt < hp->pic_order_cnt ||
-@@ -821,13 +824,13 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+@@ -820,13 +823,13 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
                  }
                  rpl1[j] = rpl1[j - 1];
              }
@@ -2099,7 +2099,7 @@ index 37df9103ae..aa011ba307 100644
          for (i = 0; i < n; i++) {
              if (rpl0[i] != rpl1[i])
                  break;
-@@ -836,22 +839,22 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+@@ -835,22 +838,22 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
              FFSWAP(VAAPIEncodePicture*, rpl1[0], rpl1[1]);
      }
  
@@ -2127,7 +2127,7 @@ index 37df9103ae..aa011ba307 100644
              av_log(avctx, AV_LOG_DEBUG, "  fn=%d/poc=%d",
                     hn->frame_num, hn->pic_order_cnt);
          }
-@@ -866,8 +869,9 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -865,8 +868,9 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
                                                 VAAPIEncodeSlice *slice)
  {
      VAAPIEncodeH264Context          *priv = avctx->priv_data;
@@ -2139,7 +2139,7 @@ index 37df9103ae..aa011ba307 100644
      H264RawSPS                       *sps = &priv->raw_sps;
      H264RawPPS                       *pps = &priv->raw_pps;
      H264RawSliceHeader                *sh = &priv->raw_slice.header;
-@@ -875,12 +879,12 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -874,12 +878,12 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
      VAEncSliceParameterBufferH264 *vslice = slice->codec_slice_params;
      int i, j;
  
@@ -2154,7 +2154,7 @@ index 37df9103ae..aa011ba307 100644
      }
  
      sh->first_mb_in_slice = slice->block_start;
-@@ -896,25 +900,25 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -895,25 +899,25 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
  
      sh->direct_spatial_mv_pred_flag = 1;
  
@@ -2187,7 +2187,7 @@ index 37df9103ae..aa011ba307 100644
                  discard_list[discard] = prev->dpb[i];
                  ++discard;
              } else {
-@@ -940,7 +944,7 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -939,7 +943,7 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
  
      // If the intended references are not the first entries of RefPicListN
      // by default, use ref-pic-list-modification to move them there.
@@ -2196,7 +2196,7 @@ index 37df9103ae..aa011ba307 100644
          VAAPIEncodePicture *def_l0[MAX_DPB_SIZE], *def_l1[MAX_DPB_SIZE];
          VAAPIEncodeH264Picture *href;
          int n;
-@@ -948,19 +952,19 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -947,19 +951,19 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
          vaapi_encode_h264_default_ref_pic_list(avctx, pic,
                                                 def_l0, def_l1, &n);
  
@@ -2222,7 +2222,7 @@ index 37df9103ae..aa011ba307 100644
                      av_assert0(href->frame_num != pic_num);
                      if (href->frame_num < pic_num) {
                          sh->rplm_l0[i].modification_of_pic_nums_idc = 0;
-@@ -979,20 +983,20 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -978,20 +982,20 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
          } else {
              int need_rplm_l0 = 0, need_rplm_l1 = 0;
              int n0 = 0, n1 = 0;
@@ -2251,7 +2251,7 @@ index 37df9103ae..aa011ba307 100644
                      need_rplm_l1 = 1;
                  ++n1;
              }
-@@ -1000,8 +1004,8 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -999,8 +1003,8 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
              sh->ref_pic_list_modification_flag_l0 = need_rplm_l0;
              if (need_rplm_l0) {
                  int pic_num = hpic->frame_num;
@@ -2262,7 +2262,7 @@ index 37df9103ae..aa011ba307 100644
                      av_assert0(href->frame_num != pic_num);
                      if (href->frame_num < pic_num) {
                          sh->rplm_l0[j].modification_of_pic_nums_idc = 0;
-@@ -1022,8 +1026,8 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -1021,8 +1025,8 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
              sh->ref_pic_list_modification_flag_l1 = need_rplm_l1;
              if (need_rplm_l1) {
                  int pic_num = hpic->frame_num;
@@ -2273,7 +2273,7 @@ index 37df9103ae..aa011ba307 100644
                      av_assert0(href->frame_num != pic_num);
                      if (href->frame_num < pic_num) {
                          sh->rplm_l1[j].modification_of_pic_nums_idc = 0;
-@@ -1063,15 +1067,15 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -1062,15 +1066,15 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
          vslice->RefPicList1[i].flags      = VA_PICTURE_H264_INVALID;
      }
  
@@ -2294,7 +2294,7 @@ index 37df9103ae..aa011ba307 100644
          vslice->RefPicList1[0] = vpic->ReferenceFrames[1];
      }
  
-@@ -1082,8 +1086,9 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+@@ -1081,8 +1085,9 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
  
  static av_cold int vaapi_encode_h264_configure(AVCodecContext *avctx)
  {
@@ -2306,7 +2306,7 @@ index 37df9103ae..aa011ba307 100644
      int err;
  
      err = ff_cbs_init(&priv->cbc, AV_CODEC_ID_H264, avctx);
-@@ -1094,7 +1099,7 @@ static av_cold int vaapi_encode_h264_configure(AVCodecContext *avctx)
+@@ -1093,7 +1098,7 @@ static av_cold int vaapi_encode_h264_configure(AVCodecContext *avctx)
      priv->mb_height = FFALIGN(avctx->height, 16) / 16;
  
      if (ctx->va_rc_mode == VA_RC_CQP) {
@@ -2315,7 +2315,7 @@ index 37df9103ae..aa011ba307 100644
          if (avctx->i_quant_factor > 0.0)
              priv->fixed_qp_idr =
                  av_clip((avctx->i_quant_factor * priv->fixed_qp_p +
-@@ -1202,8 +1207,9 @@ static const VAAPIEncodeType vaapi_encode_type_h264 = {
+@@ -1201,8 +1206,9 @@ static const VAAPIEncodeType vaapi_encode_type_h264 = {
  
  static av_cold int vaapi_encode_h264_init(AVCodecContext *avctx)
  {
@@ -2327,7 +2327,7 @@ index 37df9103ae..aa011ba307 100644
  
      ctx->codec = &vaapi_encode_type_h264;
  
-@@ -1251,13 +1257,13 @@ static av_cold int vaapi_encode_h264_init(AVCodecContext *avctx)
+@@ -1250,13 +1256,13 @@ static av_cold int vaapi_encode_h264_init(AVCodecContext *avctx)
          VA_ENC_PACKED_HEADER_SLICE    | // Slice headers.
          VA_ENC_PACKED_HEADER_MISC;      // SEI.
  
@@ -2345,7 +2345,7 @@ index 37df9103ae..aa011ba307 100644
  
      return ff_vaapi_encode_init(avctx);
  }
-@@ -1277,6 +1283,7 @@ static av_cold int vaapi_encode_h264_close(AVCodecContext *avctx)
+@@ -1276,6 +1282,7 @@ static av_cold int vaapi_encode_h264_close(AVCodecContext *avctx)
  #define OFFSET(x) offsetof(VAAPIEncodeH264Context, x)
  #define FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM)
  static const AVOption vaapi_encode_h264_options[] = {
@@ -2354,10 +2354,10 @@ index 37df9103ae..aa011ba307 100644
      VAAPI_ENCODE_RC_OPTIONS,
  
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index df020cc927..33018ae1c4 100644
+index c3a1ceb3c3..04adea7e00 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
-@@ -260,6 +260,7 @@ fail:
+@@ -259,6 +259,7 @@ fail:
  
  static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
  {
@@ -2365,7 +2365,7 @@ index df020cc927..33018ae1c4 100644
      VAAPIEncodeContext                *ctx = avctx->priv_data;
      VAAPIEncodeH265Context           *priv = avctx->priv_data;
      H265RawVPS                        *vps = &priv->raw_vps;
-@@ -278,7 +279,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -277,7 +278,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
      memset(pps, 0, sizeof(*pps));
  
  
@@ -2374,7 +2374,7 @@ index df020cc927..33018ae1c4 100644
      av_assert0(desc);
      if (desc->nb_components == 1) {
          chroma_format = 0;
-@@ -343,7 +344,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -342,7 +343,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
  
      ptl->general_one_picture_only_constraint_flag = 0;
      ptl->general_intra_constraint_flag =
@@ -2383,7 +2383,7 @@ index df020cc927..33018ae1c4 100644
  
      ptl->general_lower_bit_rate_constraint_flag = 1;
  
-@@ -353,9 +354,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -352,9 +353,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
          const H265LevelDescriptor *level;
  
          level = ff_h265_guess_level(ptl, avctx->bit_rate,
@@ -2395,7 +2395,7 @@ index df020cc927..33018ae1c4 100644
          if (level) {
              av_log(avctx, AV_LOG_VERBOSE, "Using level %s.\n", level->name);
              ptl->general_level_idc = level->level_idc;
-@@ -369,8 +370,8 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -368,8 +369,8 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
      }
  
      vps->vps_sub_layer_ordering_info_present_flag = 0;
@@ -2406,7 +2406,7 @@ index df020cc927..33018ae1c4 100644
      vps->vps_max_latency_increase_plus1[0]        = 0;
  
      vps->vps_max_layer_id             = 0;
-@@ -411,18 +412,18 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -410,18 +411,18 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
      sps->chroma_format_idc          = chroma_format;
      sps->separate_colour_plane_flag = 0;
  
@@ -2431,7 +2431,7 @@ index df020cc927..33018ae1c4 100644
      } else {
          sps->conformance_window_flag = 0;
      }
-@@ -658,9 +659,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -657,9 +658,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
          .general_level_idc   = vps->profile_tier_level.general_level_idc,
          .general_tier_flag   = vps->profile_tier_level.general_tier_flag,
  
@@ -2444,7 +2444,7 @@ index df020cc927..33018ae1c4 100644
          .bits_per_second  = ctx->va_bit_rate,
  
          .pic_width_in_luma_samples  = sps->pic_width_in_luma_samples,
-@@ -782,18 +783,19 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -781,18 +782,19 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
  static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
                                                   VAAPIEncodePicture *pic)
  {
@@ -2470,7 +2470,7 @@ index df020cc927..33018ae1c4 100644
  
          hpic->slice_nal_unit = HEVC_NAL_IDR_W_RADL;
          hpic->slice_type     = HEVC_SLICE_I;
-@@ -802,23 +804,23 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -801,23 +803,23 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
          av_assert0(prev);
          hpic->last_idr_frame = hprev->last_idr_frame;
  
@@ -2501,7 +2501,7 @@ index df020cc927..33018ae1c4 100644
                  hpic->slice_nal_unit = irap_ref ? HEVC_NAL_RASL_N
                                                  : HEVC_NAL_TRAIL_N;
              } else {
-@@ -829,7 +831,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -828,7 +830,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
              hpic->pic_type   = 2;
          }
      }
@@ -2510,7 +2510,7 @@ index df020cc927..33018ae1c4 100644
  
      if (priv->aud) {
          priv->aud_needed = 1;
-@@ -851,9 +853,9 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -850,9 +852,9 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
      // may force an IDR frame on the output where the medadata gets
      // changed on the input frame.
      if ((priv->sei & SEI_MASTERING_DISPLAY) &&
@@ -2522,7 +2522,7 @@ index df020cc927..33018ae1c4 100644
                                     AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
  
          if (sd) {
-@@ -899,9 +901,9 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -898,9 +900,9 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
      }
  
      if ((priv->sei & SEI_CONTENT_LIGHT_LEVEL) &&
@@ -2534,7 +2534,7 @@ index df020cc927..33018ae1c4 100644
                                     AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
  
          if (sd) {
-@@ -921,7 +923,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -920,7 +922,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
          int err;
          size_t sei_a53cc_len;
          av_freep(&priv->sei_a53cc_data);
@@ -2543,7 +2543,7 @@ index df020cc927..33018ae1c4 100644
          if (err < 0)
              return err;
          if (priv->sei_a53cc_data != NULL) {
-@@ -940,19 +942,19 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -939,19 +941,19 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
      };
  
      for (int k = 0; k < MAX_REFERENCE_LIST_NUM; k++) {
@@ -2569,7 +2569,7 @@ index df020cc927..33018ae1c4 100644
                            VA_PICTURE_HEVC_RPS_ST_CURR_AFTER  : 0),
              };
          }
-@@ -969,7 +971,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -968,7 +970,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
  
      vpic->nal_unit_type = hpic->slice_nal_unit;
  
@@ -2578,7 +2578,7 @@ index df020cc927..33018ae1c4 100644
      case PICTURE_TYPE_IDR:
          vpic->pic_fields.bits.idr_pic_flag       = 1;
          vpic->pic_fields.bits.coding_type        = 1;
-@@ -1001,9 +1003,10 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1000,9 +1002,10 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
                                                 VAAPIEncodePicture *pic,
                                                 VAAPIEncodeSlice *slice)
  {
@@ -2591,7 +2591,7 @@ index df020cc927..33018ae1c4 100644
      const H265RawSPS                  *sps = &priv->raw_sps;
      const H265RawPPS                  *pps = &priv->raw_pps;
      H265RawSliceHeader                 *sh = &priv->raw_slice.header;
-@@ -1024,13 +1027,13 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1023,13 +1026,13 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
  
      sh->slice_type = hpic->slice_type;
  
@@ -2607,7 +2607,7 @@ index df020cc927..33018ae1c4 100644
          H265RawSTRefPicSet *rps;
          const VAAPIEncodeH265Picture *strp;
          int rps_poc[MAX_DPB_SIZE];
-@@ -1044,33 +1047,33 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1043,33 +1046,33 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
  
          rps_pics = 0;
          for (i = 0; i < MAX_REFERENCE_LIST_NUM; i++) {
@@ -2652,7 +2652,7 @@ index df020cc927..33018ae1c4 100644
              rps_poc[rps_pics]  = strp->pic_order_cnt;
              rps_used[rps_pics] = 0;
              ++rps_pics;
-@@ -1143,9 +1146,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1142,9 +1145,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
      sh->slice_sao_luma_flag = sh->slice_sao_chroma_flag =
          sps->sample_adaptive_offset_enabled_flag;
  
@@ -2664,7 +2664,7 @@ index df020cc927..33018ae1c4 100644
          sh->slice_qp_delta = priv->fixed_qp_p - (pps->init_qp_minus26 + 26);
      else
          sh->slice_qp_delta = priv->fixed_qp_idr - (pps->init_qp_minus26 + 26);
-@@ -1202,22 +1205,22 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1201,22 +1204,22 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
          vslice->ref_pic_list1[i].flags      = VA_PICTURE_HEVC_INVALID;
      }
  
@@ -2694,7 +2694,7 @@ index df020cc927..33018ae1c4 100644
          vslice->slice_type = HEVC_SLICE_B;
          for (i = 0; i < FF_ARRAY_ELEMS(vslice->ref_pic_list0); i++) {
              vslice->ref_pic_list1[i].picture_id = vslice->ref_pic_list0[i].picture_id;
-@@ -1230,8 +1233,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1229,8 +1232,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
  
  static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
  {
@@ -2706,7 +2706,7 @@ index df020cc927..33018ae1c4 100644
  
  #if VA_CHECK_VERSION(1, 13, 0)
      {
-@@ -1282,18 +1286,19 @@ static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
+@@ -1281,18 +1285,19 @@ static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
             "min CB size %dx%d.\n", priv->ctu_size, priv->ctu_size,
             priv->min_cb_size, priv->min_cb_size);
  
@@ -2731,7 +2731,7 @@ index df020cc927..33018ae1c4 100644
      int err;
  
      err = ff_cbs_init(&priv->cbc, AV_CODEC_ID_HEVC, avctx);
-@@ -1305,7 +1310,7 @@ static av_cold int vaapi_encode_h265_configure(AVCodecContext *avctx)
+@@ -1304,7 +1309,7 @@ static av_cold int vaapi_encode_h265_configure(AVCodecContext *avctx)
          // therefore always bounded below by 1, even in 10-bit mode where
          // it should go down to -12.
  
@@ -2740,7 +2740,7 @@ index df020cc927..33018ae1c4 100644
          if (avctx->i_quant_factor > 0.0)
              priv->fixed_qp_idr =
                  av_clip((avctx->i_quant_factor * priv->fixed_qp_p +
-@@ -1395,8 +1400,9 @@ static const VAAPIEncodeType vaapi_encode_type_h265 = {
+@@ -1394,8 +1399,9 @@ static const VAAPIEncodeType vaapi_encode_type_h265 = {
  
  static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
  {
@@ -2752,7 +2752,7 @@ index df020cc927..33018ae1c4 100644
  
      ctx->codec = &vaapi_encode_type_h265;
  
-@@ -1417,7 +1423,7 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
+@@ -1416,7 +1422,7 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
          VA_ENC_PACKED_HEADER_MISC;      // SEI
  
      if (priv->qp > 0)
@@ -2761,7 +2761,7 @@ index df020cc927..33018ae1c4 100644
  
      return ff_vaapi_encode_init(avctx);
  }
-@@ -1436,6 +1442,7 @@ static av_cold int vaapi_encode_h265_close(AVCodecContext *avctx)
+@@ -1435,6 +1441,7 @@ static av_cold int vaapi_encode_h265_close(AVCodecContext *avctx)
  #define OFFSET(x) offsetof(VAAPIEncodeH265Context, x)
  #define FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM)
  static const AVOption vaapi_encode_h265_options[] = {
