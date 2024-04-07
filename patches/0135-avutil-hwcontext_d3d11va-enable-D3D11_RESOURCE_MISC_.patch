@@ -1,0 +1,43 @@
+From 6fffdeb521fba34991c527c42d333b8245ba4cf3 Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu-at-intel.com@ffmpeg.org>
+Date: Wed, 20 Apr 2022 04:10:29 +0000
+Subject: [PATCH] avutil/hwcontext_d3d11va: enable D3D11_RESOURCE_MISC_SHARED
+ for texture
+
+Add D3D11_RESOURCE_MISC_SHARED flag for texture to make it shareable.
+This can fix the green frames issue when mapping from d3d11va to opencl.
+Sample command line: ffmpeg.exe -hwaccel d3d11va -hwaccel_output_format
+d3d11 -i input.264 -vf
+"hwmap=derive_device=opencl,format=opencl,hwdownload,format=nv12" -c:v
+libx264 output.mp4
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavutil/hwcontext_d3d11va.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libavutil/hwcontext_d3d11va.c b/libavutil/hwcontext_d3d11va.c
+index 8963c9fc85..63a3cbdde1 100644
+--- a/libavutil/hwcontext_d3d11va.c
++++ b/libavutil/hwcontext_d3d11va.c
+@@ -228,7 +228,7 @@ static AVBufferRef *d3d11va_alloc_single(AVHWFramesContext *ctx)
+         .ArraySize  = 1,
+         .Usage      = D3D11_USAGE_DEFAULT,
+         .BindFlags  = hwctx->BindFlags,
+-        .MiscFlags  = hwctx->MiscFlags,
++        .MiscFlags  = hwctx->MiscFlags | D3D11_RESOURCE_MISC_SHARED,
+     };
+ 
+     hr = ID3D11Device_CreateTexture2D(device_hwctx->device, &texDesc, NULL, &tex);
+@@ -292,7 +292,7 @@ static int d3d11va_frames_init(AVHWFramesContext *ctx)
+         .ArraySize  = ctx->initial_pool_size,
+         .Usage      = D3D11_USAGE_DEFAULT,
+         .BindFlags  = hwctx->BindFlags,
+-        .MiscFlags  = hwctx->MiscFlags,
++        .MiscFlags  = hwctx->MiscFlags | D3D11_RESOURCE_MISC_SHARED,
+     };
+ 
+     if (hwctx->texture) {
+-- 
+2.41.0.windows.1
+
