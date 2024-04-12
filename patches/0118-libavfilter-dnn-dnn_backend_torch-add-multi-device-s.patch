@@ -1,8 +1,7 @@
-From d15636ccecb3b547e129fd4d227b56b84a9cf0e9 Mon Sep 17 00:00:00 2001
+From 3903ef390e4685a86491e236968797271402a87a Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 20 Nov 2023 14:32:26 +0800
-Subject: [PATCH 37/50] libavfilter/dnn/dnn_backend_torch: add multi-device
- support
+Subject: [PATCH] libavfilter/dnn/dnn_backend_torch: add multi-device support
 
 Now ffmpeg-libtoch can be run on multi-device at same time. When set device
 user need to input all devices splited by '&' and also set async=1. The
@@ -19,10 +18,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  3 files changed, 88 insertions(+), 30 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_common.c b/libavfilter/dnn/dnn_backend_common.c
-index 8fefc7fdd3..3008ea77d1 100644
+index 6eb90ba963..4dbe96517c 100644
 --- a/libavfilter/dnn/dnn_backend_common.c
 +++ b/libavfilter/dnn/dnn_backend_common.c
-@@ -138,7 +138,6 @@ int ff_dnn_start_inference_async(void *ctx, DNNAsyncExecModule *async_module)
+@@ -139,7 +139,6 @@ int ff_dnn_start_inference_async(void *ctx, DNNAsyncExecModule *async_module)
  DNNAsyncStatusType ff_dnn_get_result_common(Queue *task_queue, AVFrame **in, AVFrame **out)
  {
      TaskItem *task = ff_queue_peek_front(task_queue);
@@ -43,18 +42,18 @@ index b3ff29d904..8fda3ebb7c 100644
  
  // one task might have multiple inferences
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index d59524f44d..27f2007970 100644
+index 40914aaf17..fccf529cb4 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -34,6 +34,7 @@ extern "C" {
- #include "queue.h"
- #include "safe_queue.h"
- #include "libavutil/fifo.h"
+@@ -30,6 +30,7 @@ extern "C" {
+ #include "../internal.h"
+ #include "dnn_io_proc.h"
+ #include "dnn_backend_common.h"
 +#include "libavutil/avstring.h"
- }
- 
- typedef struct THOptions{
-@@ -54,16 +55,19 @@ typedef enum {UNKNOWN_MODEL = -1, BASICVSR, FRVSR} ModelType;
+ #include "libavutil/fifo.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/mem.h"
+@@ -55,16 +56,19 @@ typedef enum {UNKNOWN_MODEL = -1, BASICVSR, FRVSR} ModelType;
  typedef struct THModel {
      THContext ctx;
      DNNModel *model;
@@ -75,7 +74,7 @@ index d59524f44d..27f2007970 100644
  } THInferRequest;
  
  typedef struct THRequestItem {
-@@ -86,6 +90,29 @@ AVFILTER_DEFINE_CLASS(dnn_th);
+@@ -87,6 +91,29 @@ AVFILTER_DEFINE_CLASS(dnn_th);
  
  static void dnn_free_model_th(DNNModel **model);
  
@@ -105,7 +104,7 @@ index d59524f44d..27f2007970 100644
  static int extract_lltask_from_task(TaskItem *task, Queue *lltask_queue)
  {
      THModel *th_model = (THModel *)task->model;
-@@ -161,7 +188,12 @@ static void dnn_free_model_th(DNNModel **model)
+@@ -162,7 +189,12 @@ static void dnn_free_model_th(DNNModel **model)
          av_freep(&item);
      }
      ff_queue_destroy(th_model->task_queue);
@@ -119,7 +118,7 @@ index d59524f44d..27f2007970 100644
      av_opt_free(&th_model->ctx);
      av_freep(&th_model);
      av_freep(model);
-@@ -209,6 +241,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -210,6 +242,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
      if ( ret != 0) {
          goto err;
      }
@@ -133,7 +132,7 @@ index d59524f44d..27f2007970 100644
      width_idx = dnn_get_width_idx_by_layout(input.layout);
      height_idx = dnn_get_height_idx_by_layout(input.layout);
      channel_idx = dnn_get_channel_idx_by_layout(input.layout);
-@@ -254,8 +293,6 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -255,8 +294,6 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
              {1, task->nb_input, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
              deleter, torch::kFloat32);
      }
@@ -142,7 +141,7 @@ index d59524f44d..27f2007970 100644
      return 0;
  
  err:
-@@ -295,6 +332,9 @@ static int th_start_inference(void *args)
+@@ -296,6 +333,9 @@ static int th_start_inference(void *args)
          av_log(ctx, AV_LOG_ERROR, "input or output tensor is NULL\n");
          return DNN_GENERIC_ERROR;
      }
@@ -152,7 +151,7 @@ index d59524f44d..27f2007970 100644
      inputs.push_back(*infer_request->input_tensor);
  
      if (th_model->model_type == FRVSR) {
-@@ -309,7 +349,7 @@ static int th_start_inference(void *args)
+@@ -310,7 +350,7 @@ static int th_start_inference(void *args)
          inputs.push_back(hr_prev);
      }
  
@@ -161,7 +160,7 @@ index d59524f44d..27f2007970 100644
      if (th_model->model_type == FRVSR) {
          *infer_request->output = outputs.toTuple()->elements()[0].toTensor();
      } else {
-@@ -385,7 +425,11 @@ static void infer_completion_callback(void *args) {
+@@ -386,7 +426,11 @@ static void infer_completion_callback(void *args) {
      av_freep(&request->lltask);
  err:
      th_free_request(infer_request);
@@ -174,7 +173,7 @@ index d59524f44d..27f2007970 100644
      if (ff_safe_queue_push_back(th_model->request_queue, request) < 0) {
          destroy_request_item(&request);
          av_log(&th_model->ctx, AV_LOG_ERROR, "Unable to push back request_queue when failed to start inference.\n");
-@@ -502,6 +546,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -503,6 +547,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
      THRequestItem *item = NULL;
      THContext *ctx;
      torch::jit::NameTensor first_param;
@@ -182,7 +181,7 @@ index d59524f44d..27f2007970 100644
  
      model = (DNNModel *)av_mallocz(sizeof(DNNModel));
      if (!model) {
-@@ -524,30 +569,43 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -525,30 +570,43 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
          return NULL;
      }
  
@@ -248,7 +247,7 @@ index d59524f44d..27f2007970 100644
  
  #if !HAVE_PTHREAD_CANCEL
      if (ctx->options.async) {
-@@ -562,7 +620,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -563,7 +621,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
      }
  
      if (ctx->options.nireq <= 0)
