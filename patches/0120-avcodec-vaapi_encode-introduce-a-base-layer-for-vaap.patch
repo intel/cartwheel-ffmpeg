@@ -1,7 +1,7 @@
-From d7ccbd44994eb53b6eaedd1c4e4926a9713fbd63 Mon Sep 17 00:00:00 2001
+From 55d038c185e6719cf51c989e69f059aa80d51d4c Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Thu, 14 Mar 2024 12:01:48 +0800
-Subject: [PATCH 02/11] avcodec/vaapi_encode: introduce a base layer for vaapi
+Subject: [PATCH 35/47] avcodec/vaapi_encode: introduce a base layer for vaapi
  encode
 
 Since VAAPI and future D3D12VA implementation may share some common parameters,
@@ -14,12 +14,12 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  libavcodec/vaapi_encode.h       | 198 +---------------
  libavcodec/vaapi_encode_av1.c   |  69 +++---
  libavcodec/vaapi_encode_h264.c  | 197 ++++++++--------
- libavcodec/vaapi_encode_h265.c  | 159 ++++++-------
+ libavcodec/vaapi_encode_h265.c  | 161 ++++++-------
  libavcodec/vaapi_encode_mjpeg.c |  20 +-
  libavcodec/vaapi_encode_mpeg2.c |  49 ++--
  libavcodec/vaapi_encode_vp8.c   |  24 +-
  libavcodec/vaapi_encode_vp9.c   |  66 +++---
- 10 files changed, 764 insertions(+), 651 deletions(-)
+ 10 files changed, 765 insertions(+), 652 deletions(-)
  create mode 100644 libavcodec/hw_base_encode.h
 
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
@@ -1823,7 +1823,7 @@ index 02a31b894d..a385b5771c 100644
      VAAPI_ENCODE_RC_OPTIONS,
      { "profile", "Set profile (seq_profile)",
 diff --git a/libavcodec/vaapi_encode_h264.c b/libavcodec/vaapi_encode_h264.c
-index bf51df0f51..336730b87e 100644
+index d656b1020f..d03380abf5 100644
 --- a/libavcodec/vaapi_encode_h264.c
 +++ b/libavcodec/vaapi_encode_h264.c
 @@ -233,7 +233,7 @@ static int vaapi_encode_h264_write_extra_header(AVCodecContext *avctx,
@@ -2022,9 +2022,9 @@ index bf51df0f51..336730b87e 100644
      vpic->frame_num = hpic->frame_num;
  
 -    vpic->pic_fields.bits.idr_pic_flag       = (pic->type == PICTURE_TYPE_IDR);
--    vpic->pic_fields.bits.reference_pic_flag = (pic->type != PICTURE_TYPE_B);
+-    vpic->pic_fields.bits.reference_pic_flag = pic->is_reference;
 +    vpic->pic_fields.bits.idr_pic_flag       = (base_pic->type == PICTURE_TYPE_IDR);
-+    vpic->pic_fields.bits.reference_pic_flag = (base_pic->type != PICTURE_TYPE_B);
++    vpic->pic_fields.bits.reference_pic_flag = base_pic->is_reference;
  
      return 0;
  }
@@ -2354,7 +2354,7 @@ index bf51df0f51..336730b87e 100644
      VAAPI_ENCODE_RC_OPTIONS,
  
 diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index c3a1ceb3c3..04adea7e00 100644
+index a3f8b7fa0d..e1ce18e043 100644
 --- a/libavcodec/vaapi_encode_h265.c
 +++ b/libavcodec/vaapi_encode_h265.c
 @@ -259,6 +259,7 @@ fail:
@@ -2569,16 +2569,18 @@ index c3a1ceb3c3..04adea7e00 100644
                            VA_PICTURE_HEVC_RPS_ST_CURR_AFTER  : 0),
              };
          }
-@@ -968,7 +970,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+@@ -968,8 +970,8 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
  
      vpic->nal_unit_type = hpic->slice_nal_unit;
  
+-    vpic->pic_fields.bits.reference_pic_flag = pic->is_reference;
 -    switch (pic->type) {
++    vpic->pic_fields.bits.reference_pic_flag = base_pic->is_reference;
 +    switch (base_pic->type) {
      case PICTURE_TYPE_IDR:
          vpic->pic_fields.bits.idr_pic_flag       = 1;
          vpic->pic_fields.bits.coding_type        = 1;
-@@ -1000,9 +1002,10 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -997,9 +999,10 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
                                                 VAAPIEncodePicture *pic,
                                                 VAAPIEncodeSlice *slice)
  {
@@ -2591,7 +2593,7 @@ index c3a1ceb3c3..04adea7e00 100644
      const H265RawSPS                  *sps = &priv->raw_sps;
      const H265RawPPS                  *pps = &priv->raw_pps;
      H265RawSliceHeader                 *sh = &priv->raw_slice.header;
-@@ -1023,13 +1026,13 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1020,13 +1023,13 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
  
      sh->slice_type = hpic->slice_type;
  
@@ -2607,7 +2609,7 @@ index c3a1ceb3c3..04adea7e00 100644
          H265RawSTRefPicSet *rps;
          const VAAPIEncodeH265Picture *strp;
          int rps_poc[MAX_DPB_SIZE];
-@@ -1043,33 +1046,33 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1040,33 +1043,33 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
  
          rps_pics = 0;
          for (i = 0; i < MAX_REFERENCE_LIST_NUM; i++) {
@@ -2652,7 +2654,7 @@ index c3a1ceb3c3..04adea7e00 100644
              rps_poc[rps_pics]  = strp->pic_order_cnt;
              rps_used[rps_pics] = 0;
              ++rps_pics;
-@@ -1142,9 +1145,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1139,9 +1142,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
      sh->slice_sao_luma_flag = sh->slice_sao_chroma_flag =
          sps->sample_adaptive_offset_enabled_flag;
  
@@ -2664,7 +2666,7 @@ index c3a1ceb3c3..04adea7e00 100644
          sh->slice_qp_delta = priv->fixed_qp_p - (pps->init_qp_minus26 + 26);
      else
          sh->slice_qp_delta = priv->fixed_qp_idr - (pps->init_qp_minus26 + 26);
-@@ -1201,22 +1204,22 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1198,22 +1201,22 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
          vslice->ref_pic_list1[i].flags      = VA_PICTURE_HEVC_INVALID;
      }
  
@@ -2694,7 +2696,7 @@ index c3a1ceb3c3..04adea7e00 100644
          vslice->slice_type = HEVC_SLICE_B;
          for (i = 0; i < FF_ARRAY_ELEMS(vslice->ref_pic_list0); i++) {
              vslice->ref_pic_list1[i].picture_id = vslice->ref_pic_list0[i].picture_id;
-@@ -1229,8 +1232,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -1226,8 +1229,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
  
  static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
  {
@@ -2706,7 +2708,7 @@ index c3a1ceb3c3..04adea7e00 100644
  
  #if VA_CHECK_VERSION(1, 13, 0)
      {
-@@ -1281,18 +1285,19 @@ static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
+@@ -1278,18 +1282,19 @@ static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
             "min CB size %dx%d.\n", priv->ctu_size, priv->ctu_size,
             priv->min_cb_size, priv->min_cb_size);
  
@@ -2731,7 +2733,7 @@ index c3a1ceb3c3..04adea7e00 100644
      int err;
  
      err = ff_cbs_init(&priv->cbc, AV_CODEC_ID_HEVC, avctx);
-@@ -1304,7 +1309,7 @@ static av_cold int vaapi_encode_h265_configure(AVCodecContext *avctx)
+@@ -1301,7 +1306,7 @@ static av_cold int vaapi_encode_h265_configure(AVCodecContext *avctx)
          // therefore always bounded below by 1, even in 10-bit mode where
          // it should go down to -12.
  
@@ -2740,7 +2742,7 @@ index c3a1ceb3c3..04adea7e00 100644
          if (avctx->i_quant_factor > 0.0)
              priv->fixed_qp_idr =
                  av_clip((avctx->i_quant_factor * priv->fixed_qp_p +
-@@ -1394,8 +1399,9 @@ static const VAAPIEncodeType vaapi_encode_type_h265 = {
+@@ -1391,8 +1396,9 @@ static const VAAPIEncodeType vaapi_encode_type_h265 = {
  
  static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
  {
@@ -2752,7 +2754,7 @@ index c3a1ceb3c3..04adea7e00 100644
  
      ctx->codec = &vaapi_encode_type_h265;
  
-@@ -1416,7 +1422,7 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
+@@ -1413,7 +1419,7 @@ static av_cold int vaapi_encode_h265_init(AVCodecContext *avctx)
          VA_ENC_PACKED_HEADER_MISC;      // SEI
  
      if (priv->qp > 0)
@@ -2761,7 +2763,7 @@ index c3a1ceb3c3..04adea7e00 100644
  
      return ff_vaapi_encode_init(avctx);
  }
-@@ -1435,6 +1441,7 @@ static av_cold int vaapi_encode_h265_close(AVCodecContext *avctx)
+@@ -1432,6 +1438,7 @@ static av_cold int vaapi_encode_h265_close(AVCodecContext *avctx)
  #define OFFSET(x) offsetof(VAAPIEncodeH265Context, x)
  #define FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM)
  static const AVOption vaapi_encode_h265_options[] = {
@@ -3265,5 +3267,5 @@ index c2a8dec71b..7a0cb0c7fc 100644
      VAAPI_ENCODE_RC_OPTIONS,
  
 -- 
-2.41.0.windows.1
+2.34.1
 
