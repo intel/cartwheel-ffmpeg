@@ -1,7 +1,7 @@
-From d2e698daa06bf2c61a5b346484c4d14401a43973 Mon Sep 17 00:00:00 2001
+From 751c7e43eb5d02af23f1cab9419219d53b207635 Mon Sep 17 00:00:00 2001
 From: Haihao Xiang <haihao.xiang@intel.com>
 Date: Wed, 20 Dec 2023 15:10:43 +0800
-Subject: [PATCH 107/114] lavc/qsv: fix the mfx allocator to support dynamic
+Subject: [PATCH 26/47] lavc/qsv: fix the mfx allocator to support dynamic
  frame pools
 
 Lock()/Unlock() aren't called to map/unmap data to system memory, so the
@@ -9,14 +9,14 @@ array of QSVMid is not needed.
 
 Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
 ---
- libavcodec/qsv.c | 70 +++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 57 insertions(+), 13 deletions(-)
+ libavcodec/qsv.c | 68 +++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 56 insertions(+), 12 deletions(-)
 
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 7563625627..e9410d417e 100644
+index b07302cdf6..6bbfe2a5a9 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
-@@ -839,8 +839,16 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
+@@ -825,8 +825,16 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
          AVHWFramesContext *frames_ctx = (AVHWFramesContext*)ctx->hw_frames_ctx->data;
          AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
          mfxFrameInfo      *i  = &req->Info;
@@ -34,14 +34,15 @@ index 7563625627..e9410d417e 100644
          if (i->Width  > i1->Width  || i->Height > i1->Height ||
              i->FourCC != i1->FourCC || i->ChromaFormat != i1->ChromaFormat) {
              av_log(ctx->logctx, AV_LOG_ERROR, "Mismatching surface properties in an "
-@@ -859,12 +867,16 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
+@@ -845,6 +853,7 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
      } else if (req->Type & MFX_MEMTYPE_INTERNAL_FRAME) {
          /* internal frames -- allocate a new hw frames context */
          AVHWFramesContext *ext_frames_ctx = (AVHWFramesContext*)ctx->hw_frames_ctx->data;
 +        AVQSVFramesContext *ext_frames_hwctx = ext_frames_ctx->hwctx;
          mfxFrameInfo      *i  = &req->Info;
  
-         AVBufferRef *frames_ref, *mids_buf;
+         AVBufferRef *frames_ref;
+@@ -852,6 +861,9 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
          AVHWFramesContext *frames_ctx;
          AVQSVFramesContext *frames_hwctx;
  
@@ -51,7 +52,7 @@ index 7563625627..e9410d417e 100644
          frames_ref = av_hwframe_ctx_alloc(ext_frames_ctx->device_ref);
          if (!frames_ref)
              return MFX_ERR_MEMORY_ALLOC;
-@@ -912,6 +924,9 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
+@@ -899,6 +911,9 @@ static mfxStatus qsv_frame_alloc(mfxHDL pthis, mfxFrameAllocRequest *req,
  
  static mfxStatus qsv_frame_free(mfxHDL pthis, mfxFrameAllocResponse *resp)
  {
@@ -59,9 +60,9 @@ index 7563625627..e9410d417e 100644
 +        return MFX_ERR_NONE;
 +
      av_buffer_unref((AVBufferRef**)&resp->mids[resp->NumFrameActual]);
-     av_buffer_unref((AVBufferRef**)&resp->mids[resp->NumFrameActual + 1]);
+     ff_refstruct_unref(&resp->mids[resp->NumFrameActual + 1]);
      av_freep(&resp->mids);
-@@ -920,11 +935,20 @@ static mfxStatus qsv_frame_free(mfxHDL pthis, mfxFrameAllocResponse *resp)
+@@ -907,11 +922,20 @@ static mfxStatus qsv_frame_free(mfxHDL pthis, mfxFrameAllocResponse *resp)
  
  static mfxStatus qsv_frame_lock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
  {
@@ -85,7 +86,7 @@ index 7563625627..e9410d417e 100644
      if (qsv_mid->locked_frame)
          return MFX_ERR_UNDEFINED_BEHAVIOR;
  
-@@ -977,8 +1001,15 @@ fail:
+@@ -964,8 +988,15 @@ fail:
  
  static mfxStatus qsv_frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
  {
@@ -94,15 +95,15 @@ index 7563625627..e9410d417e 100644
 +    AVHWFramesContext *frames_ctx = (AVHWFramesContext*)ctx->hw_frames_ctx->data;
 +    AVQSVFramesContext *frames_hwctx = frames_ctx->hwctx;
 +    QSVMid *qsv_mid;
- 
++
 +    if (!frames_hwctx->nb_surfaces)
 +        return MFX_ERR_UNSUPPORTED;
-+
+ 
 +    qsv_mid = mid;
      av_frame_free(&qsv_mid->locked_frame);
      av_frame_free(&qsv_mid->hw_frame);
  
-@@ -987,9 +1018,18 @@ static mfxStatus qsv_frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
+@@ -974,9 +1005,18 @@ static mfxStatus qsv_frame_unlock(mfxHDL pthis, mfxMemId mid, mfxFrameData *ptr)
  
  static mfxStatus qsv_frame_get_hdl(mfxHDL pthis, mfxMemId mid, mfxHDL *hdl)
  {
@@ -123,26 +124,24 @@ index 7563625627..e9410d417e 100644
  
      pair_dst->first = pair_src->first;
  
-@@ -1103,14 +1143,18 @@ int ff_qsv_init_session_frames(AVCodecContext *avctx, mfxSession *psession,
+@@ -1090,13 +1130,17 @@ int ff_qsv_init_session_frames(AVCodecContext *avctx, mfxSession *psession,
  
      if (!opaque) {
          qsv_frames_ctx->logctx = avctx;
-+        av_buffer_unref(&qsv_frames_ctx->mids_buf);
 +        qsv_frames_ctx->mids = NULL;
 +        qsv_frames_ctx->nb_mids = 0;
  
          /* allocate the memory ids for the external frames */
--        av_buffer_unref(&qsv_frames_ctx->mids_buf);
--        qsv_frames_ctx->mids_buf = qsv_create_mids(qsv_frames_ctx->hw_frames_ctx);
--        if (!qsv_frames_ctx->mids_buf)
+-        ff_refstruct_unref(&qsv_frames_ctx->mids);
+-        qsv_frames_ctx->mids = qsv_create_mids(qsv_frames_ctx->hw_frames_ctx);
+-        if (!qsv_frames_ctx->mids)
 -            return AVERROR(ENOMEM);
--        qsv_frames_ctx->mids    = (QSVMid*)qsv_frames_ctx->mids_buf->data;
 -        qsv_frames_ctx->nb_mids = frames_hwctx->nb_surfaces;
 +        if (frames_hwctx->nb_surfaces) {
-+            qsv_frames_ctx->mids_buf = qsv_create_mids(qsv_frames_ctx->hw_frames_ctx);
-+            if (!qsv_frames_ctx->mids_buf)
++            ff_refstruct_unref(&qsv_frames_ctx->mids);
++            qsv_frames_ctx->mids = qsv_create_mids(qsv_frames_ctx->hw_frames_ctx);
++            if (!qsv_frames_ctx->mids)
 +                return AVERROR(ENOMEM);
-+            qsv_frames_ctx->mids    = (QSVMid*)qsv_frames_ctx->mids_buf->data;
 +            qsv_frames_ctx->nb_mids = frames_hwctx->nb_surfaces;
 +        }
  
