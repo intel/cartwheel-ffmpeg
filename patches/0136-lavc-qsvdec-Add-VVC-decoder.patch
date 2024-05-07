@@ -1,0 +1,81 @@
+From a19dfd0a467bc660eabcf06a4f3d88b00da885db Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Mon, 25 Mar 2024 10:26:56 +0800
+Subject: [PATCH] lavc/qsvdec: Add VVC decoder
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ configure              | 1 +
+ doc/decoders.texi      | 2 +-
+ libavcodec/allcodecs.c | 1 +
+ libavcodec/qsv.c       | 4 ++++
+ libavcodec/qsvdec.c    | 4 ++++
+ 5 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/configure b/configure
+index 506f16f8cb..b1cf83d0f9 100755
+--- a/configure
++++ b/configure
+@@ -3420,6 +3420,7 @@ av1_qsv_encoder_deps="libvpl"
+ av1_amf_encoder_deps="amf"
+ av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
+ av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
++vvc_qsv_decoder_select="qsvdec"
+ 
+ # parsers
+ aac_parser_select="adts_header mpeg4audio"
+diff --git a/doc/decoders.texi b/doc/decoders.texi
+index 293c82c2ba..2fcc761d2f 100644
+--- a/doc/decoders.texi
++++ b/doc/decoders.texi
+@@ -157,7 +157,7 @@ Force to use a specific number of threads
+ @section QSV Decoders
+ 
+ The family of Intel QuickSync Video decoders (VC1, MPEG-2, H.264, HEVC,
+-JPEG/MJPEG, VP8, VP9, AV1).
++JPEG/MJPEG, VP8, VP9, AV1, VVC).
+ 
+ @subsection Common Options
+ 
+diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
+index de08eb722b..73017d21df 100644
+--- a/libavcodec/allcodecs.c
++++ b/libavcodec/allcodecs.c
+@@ -895,6 +895,7 @@ extern const FFCodec ff_vp9_mediacodec_encoder;
+ extern const FFCodec ff_vp9_qsv_decoder;
+ extern const FFCodec ff_vp9_vaapi_encoder;
+ extern const FFCodec ff_vp9_qsv_encoder;
++extern const FFCodec ff_vvc_qsv_decoder;
+ 
+ // null codecs
+ extern const FFCodec ff_vnull_decoder;
+diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
+index 6bbfe2a5a9..5c0554a99b 100644
+--- a/libavcodec/qsv.c
++++ b/libavcodec/qsv.c
+@@ -73,6 +73,10 @@ int ff_qsv_codec_id_to_mfx(enum AVCodecID codec_id)
+     case AV_CODEC_ID_AV1:
+         return MFX_CODEC_AV1;
+ #endif
++#if QSV_VERSION_ATLEAST(2, 11)
++    case AV_CODEC_ID_VVC:
++        return MFX_CODEC_VVC;
++#endif
+ 
+     default:
+         break;
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index 28d064f5fd..621d6ba017 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -1396,3 +1396,7 @@ DEFINE_QSV_DECODER(vp9, VP9, NULL)
+ #if CONFIG_AV1_QSV_DECODER
+ DEFINE_QSV_DECODER(av1, AV1, NULL)
+ #endif
++
++#if CONFIG_VVC_QSV_DECODER
++DEFINE_QSV_DECODER(vvc, VVC, NULL)
++#endif
+-- 
+2.25.1
+
