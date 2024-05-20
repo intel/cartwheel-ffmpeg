@@ -1,62 +1,46 @@
-From 6404025c8256a2e428bb4aa6e5968a77e0a94b03 Mon Sep 17 00:00:00 2001
+From 3f9738137dfb181f8908e52c05bef59c150f25ce Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 14 Nov 2023 16:38:52 +0800
-Subject: [PATCH 36/50] libavfilter/dnn/dnn_backend_torch: Add async to torch
- backend
+Subject: [PATCH] libavfilter/dnn/dnn_backend_torch: Add async to torch backend
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavfilter/dnn/dnn_backend_torch.cpp | 58 ++++++++++++++++++---------
- 1 file changed, 40 insertions(+), 18 deletions(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 55 ++++++++++++++++++---------
+ 1 file changed, 37 insertions(+), 18 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index a0537246e8..d59524f44d 100644
+index a547d2d789..65b1eb80cd 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -40,6 +40,8 @@ typedef struct THOptions{
-     char *device_name;
-     int optimize;
-     c10::DeviceType device_type;
-+    uint8_t async;
-+    uint32_t nireq;
- } THOptions;
- 
- typedef struct THContext {
-@@ -76,11 +78,14 @@ typedef struct THRequestItem {
- static const AVOption dnn_th_options[] = {
-     { "device", "device to run model", OFFSET(options.device_name), AV_OPT_TYPE_STRING, { .str = "cpu" }, 0, 0, FLAGS },
-     { "optimize", "turn on graph executor optimization", OFFSET(options.optimize), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS},
-+    DNN_BACKEND_COMMON_OPTIONS
+@@ -69,6 +69,8 @@ static const AVOption dnn_th_options[] = {
      { NULL }
  };
- 
- AVFILTER_DEFINE_CLASS(dnn_th);
  
 +static void dnn_free_model_th(DNNModel **model);
 +
  static int extract_lltask_from_task(TaskItem *task, Queue *lltask_queue)
  {
      THModel *th_model = (THModel *)task->model;
-@@ -393,6 +398,7 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+@@ -380,6 +382,7 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
      LastLevelTaskItem *lltask;
      TaskItem *task = NULL;
      int ret = 0;
-+    THContext *ctx;
++    DnnContext *ctx;
  
      if (ff_queue_size(lltask_queue) == 0) {
          destroy_request_item(&request);
-@@ -407,13 +413,17 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+@@ -394,13 +397,17 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
      }
      task = lltask->task;
      th_model = (THModel *)task->model;
-+    ctx = &th_model->ctx;
++    ctx = th_model->ctx;
  
      ret = fill_model_input_th(th_model, request);
      if ( ret != 0) {
          goto err;
      }
      if (task->async) {
--        avpriv_report_missing_feature(&th_model->ctx, "LibTorch async");
+-        avpriv_report_missing_feature(th_model->ctx, "LibTorch async");
 +        if (ff_dnn_start_inference_async(ctx, &request->exec_module) != 0) {
 +            goto err;
 +        }
@@ -64,7 +48,7 @@ index a0537246e8..d59524f44d 100644
      } else {
          ret = th_start_inference((void *)(request));
          if (ret != 0) {
-@@ -539,29 +549,41 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -519,29 +526,41 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      }
      first_param = *th_model->jit_model->named_parameters().begin();
  
@@ -93,12 +77,12 @@ index a0537246e8..d59524f44d 100644
 -    item->exec_module.start_inference = &th_start_inference;
 -    item->exec_module.callback = &infer_completion_callback;
 -    item->exec_module.args = item;
-+    if (ctx->options.nireq <= 0)
-+        ctx->options.nireq = 1;
++    if (ctx->nireq <= 0)
++        ctx->nireq = 1;
  
 -    if (ff_safe_queue_push_back(th_model->request_queue, item) < 0) {
 -        goto fail;
-+    for (int i = 0; i < ctx->options.nireq; i++) {
++    for (int i = 0; i < ctx->nireq; i++) {
 +        item = (THRequestItem *)av_mallocz(sizeof(THRequestItem));
 +        if (!item) {
 +            goto fail;
@@ -122,12 +106,12 @@ index a0537246e8..d59524f44d 100644
  
      th_model->task_queue = ff_queue_create();
      if (!th_model->task_queue) {
-@@ -617,7 +639,7 @@ static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_p
+@@ -596,7 +615,7 @@ static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_p
          return AVERROR(ENOMEM);
      }
  
 -    ret = ff_dnn_fill_task(task, exec_params, th_model, 0, 1);
-+    ret = ff_dnn_fill_task(task, exec_params, th_model, ctx->options.async, 1);
++    ret = ff_dnn_fill_task(task, exec_params, th_model, ctx->async, 1);
      if (ret != 0) {
          av_freep(&task);
          av_log(ctx, AV_LOG_ERROR, "unable to fill task.\n");
