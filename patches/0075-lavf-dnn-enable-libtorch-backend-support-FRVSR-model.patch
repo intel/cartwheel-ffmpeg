@@ -1,7 +1,7 @@
-From 8c9fb47e8ca7cc33cc6823545e74d46bbd85f1b0 Mon Sep 17 00:00:00 2001
+From 9a57ec895a5868f9fe8fa3e87b8cba69b5d8edd8 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Wed, 29 Jun 2022 07:46:44 +0000
-Subject: [PATCH 17/50] lavf/dnn: enable libtorch backend support FRVSR model
+Subject: [PATCH] lavf/dnn: enable libtorch backend support FRVSR model
 
 Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
@@ -9,43 +9,43 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  1 file changed, 33 insertions(+), 1 deletion(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 7891ae4386..668b6b5ef3 100644
+index 054a73a3f8..89829ed4a6 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -46,6 +46,8 @@ typedef struct THContext {
-     THOptions options;
- } THContext;
+@@ -36,6 +36,8 @@ extern "C" {
+ #include "safe_queue.h"
+ }
  
 +typedef enum {UNKNOWN_MODEL = -1, BASICVSR, FRVSR} ModelType;
 +
  typedef struct THModel {
-     THContext ctx;
+     DnnContext *ctx;
      DNNModel *model;
-@@ -53,6 +55,7 @@ typedef struct THModel {
-     SafeQueue *request_queue;
+@@ -44,6 +46,7 @@ typedef struct THModel {
      Queue *task_queue;
      Queue *lltask_queue;
+     c10::DeviceType device_type;
 +    ModelType model_type;
  } THModel;
  
  typedef struct THInferRequest {
-@@ -246,6 +249,7 @@ static int th_start_inference(void *args)
-     THContext *ctx = NULL;
+@@ -233,6 +236,7 @@ static int th_start_inference(void *args)
+     DnnContext *ctx = NULL;
      std::vector<torch::jit::IValue> inputs;
      torch::NoGradGuard no_grad;
 +    c10::DeviceType device_type;
  
      if (!request) {
          av_log(NULL, AV_LOG_ERROR, "THRequestItem is NULL\n");
-@@ -256,6 +260,7 @@ static int th_start_inference(void *args)
+@@ -243,6 +247,7 @@ static int th_start_inference(void *args)
      task = lltask->task;
      th_model = (THModel *)task->model;
-     ctx = &th_model->ctx;
-+    device_type = ctx->options.device_type;
+     ctx = th_model->ctx;
++    device_type = th_model->device_type;
  
-     if (ctx->options.optimize)
+     if (ctx->torch_option.optimize)
          torch::jit::setGraphExecutorOptimize(true);
-@@ -268,7 +273,24 @@ static int th_start_inference(void *args)
+@@ -255,7 +260,24 @@ static int th_start_inference(void *args)
      }
      inputs.push_back(*infer_request->input_tensor);
  
@@ -71,15 +71,15 @@ index 7891ae4386..668b6b5ef3 100644
  
      return 0;
  }
-@@ -435,6 +457,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -421,6 +443,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+     DNNModel *model = NULL;
      THModel *th_model = NULL;
      THRequestItem *item = NULL;
-     THContext *ctx;
 +    torch::jit::NameTensor first_param;
+     const char *device_name = ctx->device ? ctx->device : "cpu";
  
      model = (DNNModel *)av_mallocz(sizeof(DNNModel));
-     if (!model) {
-@@ -480,6 +503,7 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -460,6 +483,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
      }
@@ -87,7 +87,7 @@ index 7891ae4386..668b6b5ef3 100644
  
      th_model->request_queue = ff_safe_queue_create();
      if (!th_model->request_queue) {
-@@ -515,6 +539,14 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
+@@ -490,6 +514,14 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
          goto fail;
      }
  
@@ -99,9 +99,9 @@ index 7891ae4386..668b6b5ef3 100644
 +        th_model->model_type = UNKNOWN_MODEL;
 +    }
 +
-     model->get_input = &get_input_th;
-     model->get_output = &get_output_th;
-     model->options = NULL;
+     th_model->lltask_queue = ff_queue_create();
+     if (!th_model->lltask_queue) {
+         goto fail;
 -- 
 2.34.1
 

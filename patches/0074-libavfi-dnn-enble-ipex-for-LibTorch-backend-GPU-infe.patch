@@ -1,8 +1,8 @@
-From 84bf35a068a6b0802534535b1a5345a459b11409 Mon Sep 17 00:00:00 2001
+From b4f9ee0635742aeb94f55f9038131348b4d289b0 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 11 Apr 2022 23:20:19 +0800
-Subject: [PATCH 16/50] libavfi/dnn: enble ipex for LibTorch backend GPU
- inference support
+Subject: [PATCH] libavfi/dnn: enble ipex for LibTorch backend GPU inference
+ support
 
 IPEX has not been officially released, this patch should be in cartwheel
 repo only.
@@ -14,10 +14,10 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  2 files changed, 21 insertions(+), 5 deletions(-)
 
 diff --git a/configure b/configure
-index 6a0b13cebe..a6a1e146e7 100755
+index e1ea21c697..b2f420a6f3 100755
 --- a/configure
 +++ b/configure
-@@ -6891,7 +6891,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
+@@ -7000,7 +7000,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
  enabled libtesseract      && require_pkg_config libtesseract tesseract tesseract/capi.h TessBaseAPICreate
  enabled libtheora         && require libtheora theora/theoraenc.h th_info_init -ltheoraenc -ltheoradec -logg
  enabled libtls            && require_pkg_config libtls libtls tls.h tls_configure
@@ -27,18 +27,18 @@ index 6a0b13cebe..a6a1e146e7 100755
                               { check_lib libtwolame twolame.h twolame_encode_buffer_float32_interleaved -ltwolame ||
                                 die "ERROR: libtwolame must be installed and version must be >= 0.3.10"; }
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index fa9a2e6d99..7891ae4386 100644
+index abdef1f178..054a73a3f8 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -38,6 +38,7 @@ extern "C" {
- typedef struct THOptions{
-     char *device_name;
-     int optimize;
+@@ -43,6 +43,7 @@ typedef struct THModel {
+     SafeQueue *request_queue;
+     Queue *task_queue;
+     Queue *lltask_queue;
 +    c10::DeviceType device_type;
- } THOptions;
+ } THModel;
  
- typedef struct THContext {
-@@ -226,6 +227,8 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+ typedef struct THInferRequest {
+@@ -213,6 +214,8 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
      *infer_request->input_tensor = torch::from_blob(input.data,
          {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
          deleter, torch::kFloat32);
@@ -47,7 +47,7 @@ index fa9a2e6d99..7891ae4386 100644
      return 0;
  
  err:
-@@ -298,6 +301,9 @@ static void infer_completion_callback(void *args) {
+@@ -285,6 +288,9 @@ static void infer_completion_callback(void *args) {
      switch (th_model->model->func_type) {
      case DFT_PROCESS_FRAME:
          if (task->do_ioproc) {
@@ -57,32 +57,32 @@ index fa9a2e6d99..7891ae4386 100644
              outputs.scale = 255;
              outputs.data = output->data_ptr();
              if (th_model->model->frame_post_proc != NULL) {
-@@ -452,14 +458,24 @@ static DNNModel *dnn_load_model_th(const char *model_filename, DNNFunctionType f
-     }
+@@ -432,14 +438,24 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+     th_model->ctx = ctx;
  
-     c10::Device device = c10::Device(ctx->options.device_name);
+     c10::Device device = c10::Device(device_name);
 -    if (!device.is_cpu()) {
--        av_log(ctx, AV_LOG_ERROR, "Not supported device:\"%s\"\n", ctx->options.device_name);
+-        av_log(ctx, AV_LOG_ERROR, "Not supported device:\"%s\"\n", device_name);
 -        goto fail;
 -    }
 +    if (device.is_cpu()) {
-+         ctx->options.device_type = torch::kCPU;
++         th_model->device_type = torch::kCPU;
 +    } else if (device.is_xpu()) {
 +        if (!at::hasXPU()) {
 +            av_log(ctx, AV_LOG_ERROR, "No XPU device found\n");
 +            return NULL;
 +        }
 +        at::detail::getXPUHooks().initXPU();
-+        ctx->options.device_type = torch::kXPU;
++        th_model->device_type = torch::kXPU;
 +     } else {
-+         av_log(ctx, AV_LOG_ERROR, "Not supported device:\"%s\"\n", ctx->options.device_name);
++         av_log(ctx, AV_LOG_ERROR, "Not supported device:\"%s\"\n", device_name);
 +         goto fail;
 +     }
  
      try {
          th_model->jit_model = new torch::jit::Module;
-         (*th_model->jit_model) = torch::jit::load(model_filename);
-+        th_model->jit_model->to(ctx->options.device_type);
+         (*th_model->jit_model) = torch::jit::load(ctx->model_filename);
++        th_model->jit_model->to(th_model->device_type);
      } catch (const c10::Error& e) {
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
