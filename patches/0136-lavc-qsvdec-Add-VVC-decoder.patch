@@ -1,4 +1,4 @@
-From a19dfd0a467bc660eabcf06a4f3d88b00da885db Mon Sep 17 00:00:00 2001
+From 72884c9725663d71a29e68104fa17e38ca7fb1cf Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 25 Mar 2024 10:26:56 +0800
 Subject: [PATCH] lavc/qsvdec: Add VVC decoder
@@ -9,14 +9,14 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  doc/decoders.texi      | 2 +-
  libavcodec/allcodecs.c | 1 +
  libavcodec/qsv.c       | 4 ++++
- libavcodec/qsvdec.c    | 4 ++++
- 5 files changed, 11 insertions(+), 1 deletion(-)
+ libavcodec/qsvdec.c    | 7 ++++++-
+ 5 files changed, 13 insertions(+), 2 deletions(-)
 
 diff --git a/configure b/configure
-index 506f16f8cb..b1cf83d0f9 100755
+index eccf3342e0..7a72fc71d1 100755
 --- a/configure
 +++ b/configure
-@@ -3420,6 +3420,7 @@ av1_qsv_encoder_deps="libvpl"
+@@ -3431,6 +3431,7 @@ av1_qsv_encoder_deps="libvpl"
  av1_amf_encoder_deps="amf"
  av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
  av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
@@ -38,10 +38,10 @@ index 293c82c2ba..2fcc761d2f 100644
  @subsection Common Options
  
 diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
-index de08eb722b..73017d21df 100644
+index 463ffbbd08..0f833b5be7 100644
 --- a/libavcodec/allcodecs.c
 +++ b/libavcodec/allcodecs.c
-@@ -895,6 +895,7 @@ extern const FFCodec ff_vp9_mediacodec_encoder;
+@@ -886,6 +886,7 @@ extern const FFCodec ff_vp9_mediacodec_encoder;
  extern const FFCodec ff_vp9_qsv_decoder;
  extern const FFCodec ff_vp9_vaapi_encoder;
  extern const FFCodec ff_vp9_qsv_encoder;
@@ -50,7 +50,7 @@ index de08eb722b..73017d21df 100644
  // null codecs
  extern const FFCodec ff_vnull_decoder;
 diff --git a/libavcodec/qsv.c b/libavcodec/qsv.c
-index 6bbfe2a5a9..5c0554a99b 100644
+index 0c6fbd0dc0..221c1b24e5 100644
 --- a/libavcodec/qsv.c
 +++ b/libavcodec/qsv.c
 @@ -73,6 +73,10 @@ int ff_qsv_codec_id_to_mfx(enum AVCodecID codec_id)
@@ -65,10 +65,20 @@ index 6bbfe2a5a9..5c0554a99b 100644
      default:
          break;
 diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
-index 28d064f5fd..621d6ba017 100644
+index 0824734080..9ffa94eb75 100644
 --- a/libavcodec/qsvdec.c
 +++ b/libavcodec/qsvdec.c
-@@ -1396,3 +1396,7 @@ DEFINE_QSV_DECODER(vp9, VP9, NULL)
+@@ -1086,7 +1086,8 @@ static int qsv_decode(AVCodecContext *avctx, QSVContext *q,
+         frame->pict_type = ff_qsv_map_pictype(aframe.frame->dec_info.FrameType);
+ 
+         if (avctx->codec_id == AV_CODEC_ID_H264 ||
+-            avctx->codec_id == AV_CODEC_ID_HEVC) {
++            avctx->codec_id == AV_CODEC_ID_HEVC ||
++            avctx->codec_id == AV_CODEC_ID_VVC) {
+             if (aframe.frame->dec_info.FrameType & MFX_FRAMETYPE_IDR)
+                 frame->flags |= AV_FRAME_FLAG_KEY;
+             else
+@@ -1455,3 +1456,7 @@ DEFINE_QSV_DECODER(vp9, VP9, NULL)
  #if CONFIG_AV1_QSV_DECODER
  DEFINE_QSV_DECODER(av1, AV1, NULL)
  #endif
