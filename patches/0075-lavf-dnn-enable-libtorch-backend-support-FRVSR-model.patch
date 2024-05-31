@@ -1,15 +1,15 @@
-From 9a57ec895a5868f9fe8fa3e87b8cba69b5d8edd8 Mon Sep 17 00:00:00 2001
+From 9d698aa88f75a23aba3e210fd81d8bf393b0d5d0 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Wed, 29 Jun 2022 07:46:44 +0000
 Subject: [PATCH] lavf/dnn: enable libtorch backend support FRVSR model
 
 Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
- libavfilter/dnn/dnn_backend_torch.cpp | 34 ++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 46 ++++++++++++++++++++++++---
+ 1 file changed, 42 insertions(+), 4 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 054a73a3f8..89829ed4a6 100644
+index daf6c6cb69..c70d32904f 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -36,6 +36,8 @@ extern "C" {
@@ -19,8 +19,8 @@ index 054a73a3f8..89829ed4a6 100644
 +typedef enum {UNKNOWN_MODEL = -1, BASICVSR, FRVSR} ModelType;
 +
  typedef struct THModel {
+     DNNModel model;
      DnnContext *ctx;
-     DNNModel *model;
 @@ -44,6 +46,7 @@ typedef struct THModel {
      Queue *task_queue;
      Queue *lltask_queue;
@@ -29,7 +29,26 @@ index 054a73a3f8..89829ed4a6 100644
  } THModel;
  
  typedef struct THInferRequest {
-@@ -233,6 +236,7 @@ static int th_start_inference(void *args)
+@@ -211,9 +214,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+         avpriv_report_missing_feature(NULL, "model function type %d", th_model->model.func_type);
+         break;
+     }
+-    *infer_request->input_tensor = torch::from_blob(input.data,
+-        {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
+-        deleter, torch::kFloat32);
++    if (th_model->model_type == FRVSR) {
++        *infer_request->input_tensor = torch::from_blob(input.data,
++            {1, 3, input.dims[height_idx], input.dims[width_idx]},
++            deleter, torch::kFloat32);
++    } else {
++        *infer_request->input_tensor = torch::from_blob(input.data,
++            {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
++            deleter, torch::kFloat32);
++    }
+     if (infer_request->input_tensor->device() != th_model->device_type)
+         *infer_request->input_tensor = infer_request->input_tensor->to(th_model->device_type);
+     return 0;
+@@ -233,6 +242,7 @@ static int th_start_inference(void *args)
      DnnContext *ctx = NULL;
      std::vector<torch::jit::IValue> inputs;
      torch::NoGradGuard no_grad;
@@ -37,7 +56,7 @@ index 054a73a3f8..89829ed4a6 100644
  
      if (!request) {
          av_log(NULL, AV_LOG_ERROR, "THRequestItem is NULL\n");
-@@ -243,6 +247,7 @@ static int th_start_inference(void *args)
+@@ -243,6 +253,7 @@ static int th_start_inference(void *args)
      task = lltask->task;
      th_model = (THModel *)task->model;
      ctx = th_model->ctx;
@@ -45,7 +64,7 @@ index 054a73a3f8..89829ed4a6 100644
  
      if (ctx->torch_option.optimize)
          torch::jit::setGraphExecutorOptimize(true);
-@@ -255,7 +260,24 @@ static int th_start_inference(void *args)
+@@ -255,7 +266,24 @@ static int th_start_inference(void *args)
      }
      inputs.push_back(*infer_request->input_tensor);
  
@@ -71,15 +90,15 @@ index 054a73a3f8..89829ed4a6 100644
  
      return 0;
  }
-@@ -421,6 +443,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -421,6 +449,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      DNNModel *model = NULL;
      THModel *th_model = NULL;
      THRequestItem *item = NULL;
 +    torch::jit::NameTensor first_param;
      const char *device_name = ctx->device ? ctx->device : "cpu";
  
-     model = (DNNModel *)av_mallocz(sizeof(DNNModel));
-@@ -460,6 +483,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+     th_model = (THModel *)av_mallocz(sizeof(THModel));
+@@ -452,6 +481,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
      }
@@ -87,7 +106,7 @@ index 054a73a3f8..89829ed4a6 100644
  
      th_model->request_queue = ff_safe_queue_create();
      if (!th_model->request_queue) {
-@@ -490,6 +514,14 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -482,6 +512,14 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
          goto fail;
      }
  

@@ -1,4 +1,4 @@
-From 3f9738137dfb181f8908e52c05bef59c150f25ce Mon Sep 17 00:00:00 2001
+From bf6812ea9f780401c02c0d4015ad898576d6f4e3 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 14 Nov 2023 16:38:52 +0800
 Subject: [PATCH] libavfilter/dnn/dnn_backend_torch: Add async to torch backend
@@ -9,7 +9,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 37 insertions(+), 18 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index a547d2d789..65b1eb80cd 100644
+index 47ec6d4ea6..da1d07409b 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -69,6 +69,8 @@ static const AVOption dnn_th_options[] = {
@@ -48,7 +48,7 @@ index a547d2d789..65b1eb80cd 100644
      } else {
          ret = th_start_inference((void *)(request));
          if (ret != 0) {
-@@ -519,29 +526,41 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -512,29 +519,41 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      }
      first_param = *th_model->jit_model->named_parameters().begin();
  
@@ -106,7 +106,7 @@ index a547d2d789..65b1eb80cd 100644
  
      th_model->task_queue = ff_queue_create();
      if (!th_model->task_queue) {
-@@ -596,7 +615,7 @@ static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_p
+@@ -589,7 +608,7 @@ static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_p
          return AVERROR(ENOMEM);
      }
  
