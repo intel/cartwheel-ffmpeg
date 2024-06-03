@@ -1,4 +1,4 @@
-From 040188abfeac89247ffab5f90c1e2e1df1b276e8 Mon Sep 17 00:00:00 2001
+From 7413fad25a13b4d8c94abfe67dfb198c91e5a14f Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Mon, 20 Nov 2023 14:32:26 +0800
 Subject: [PATCH] libavfilter/dnn/dnn_backend_torch: add multi-device support
@@ -42,7 +42,7 @@ index 2844804b36..f694657fce 100644
  
  // one task might have multiple inferences
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 65b1eb80cd..7eafa8c4db 100644
+index da1d07409b..e13d774dcf 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -30,6 +30,7 @@ extern "C" {
@@ -111,7 +111,7 @@ index 65b1eb80cd..7eafa8c4db 100644
 +    ff_safe_queue_destroy(th_model->jit_model_queue);
 +    av_freep(&th_model->device_names);
      av_freep(&th_model);
-     av_freep(model);
+     *model = NULL;
  }
 @@ -193,6 +226,13 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
      if ( ret != 0) {
@@ -168,16 +168,16 @@ index 65b1eb80cd..7eafa8c4db 100644
      if (ff_safe_queue_push_back(th_model->request_queue, request) < 0) {
          destroy_request_item(&request);
          av_log(th_model->ctx, AV_LOG_ERROR, "Unable to push back request_queue when failed to start inference.\n");
-@@ -485,6 +530,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -486,6 +531,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      THModel *th_model = NULL;
      THRequestItem *item = NULL;
      torch::jit::NameTensor first_param;
 +    torch::jit::Module *jit_model;
      const char *device_name = ctx->device ? ctx->device : "cpu";
  
-     model = (DNNModel *)av_mallocz(sizeof(DNNModel));
-@@ -501,30 +547,42 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
-     model->model = th_model;
+     th_model = (THModel *)av_mallocz(sizeof(THModel));
+@@ -494,30 +540,42 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+     model = &th_model->model;
      th_model->ctx = ctx;
  
 -    c10::Device device = c10::Device(device_name);
@@ -241,7 +241,7 @@ index 65b1eb80cd..7eafa8c4db 100644
  
  #if !HAVE_PTHREAD_CANCEL
      if (ctx->options.async) {
-@@ -539,7 +597,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -532,7 +590,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      }
  
      if (ctx->nireq <= 0)

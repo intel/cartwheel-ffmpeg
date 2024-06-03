@@ -1,4 +1,4 @@
-From b4f9ee0635742aeb94f55f9038131348b4d289b0 Mon Sep 17 00:00:00 2001
+From 98423e0fdd17f36ee861d112d35e156da8787ce9 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 11 Apr 2022 23:20:19 +0800
 Subject: [PATCH] libavfi/dnn: enble ipex for LibTorch backend GPU inference
@@ -14,7 +14,7 @@ Signed-off-by: Ting Fu <ting.fu@intel.com>
  2 files changed, 21 insertions(+), 5 deletions(-)
 
 diff --git a/configure b/configure
-index e1ea21c697..b2f420a6f3 100755
+index 1d5386dbf6..8fea09cda7 100755
 --- a/configure
 +++ b/configure
 @@ -7000,7 +7000,7 @@ enabled libtensorflow     && require libtensorflow tensorflow/c/c_api.h TF_Versi
@@ -27,7 +27,7 @@ index e1ea21c697..b2f420a6f3 100755
                               { check_lib libtwolame twolame.h twolame_encode_buffer_float32_interleaved -ltwolame ||
                                 die "ERROR: libtwolame must be installed and version must be >= 0.3.10"; }
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index abdef1f178..054a73a3f8 100644
+index 2557264713..daf6c6cb69 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -43,6 +43,7 @@ typedef struct THModel {
@@ -42,13 +42,13 @@ index abdef1f178..054a73a3f8 100644
      *infer_request->input_tensor = torch::from_blob(input.data,
          {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
          deleter, torch::kFloat32);
-+    if (infer_request->input_tensor->device() != ctx->options.device_type)
-+        *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
++    if (infer_request->input_tensor->device() != th_model->device_type)
++        *infer_request->input_tensor = infer_request->input_tensor->to(th_model->device_type);
      return 0;
  
  err:
 @@ -285,6 +288,9 @@ static void infer_completion_callback(void *args) {
-     switch (th_model->model->func_type) {
+     switch (th_model->model.func_type) {
      case DFT_PROCESS_FRAME:
          if (task->do_ioproc) {
 +            //post process can only deal with CPU memory.
@@ -56,8 +56,8 @@ index abdef1f178..054a73a3f8 100644
 +                *output = output->to(torch::kCPU);
              outputs.scale = 255;
              outputs.data = output->data_ptr();
-             if (th_model->model->frame_post_proc != NULL) {
-@@ -432,14 +438,24 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+             if (th_model->model.frame_post_proc != NULL) {
+@@ -424,14 +430,24 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      th_model->ctx = ctx;
  
      c10::Device device = c10::Device(device_name);

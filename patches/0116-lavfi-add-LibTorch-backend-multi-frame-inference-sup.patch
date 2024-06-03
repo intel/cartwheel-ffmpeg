@@ -1,4 +1,4 @@
-From 2fb9509ddef0fd8d51b9d1d314b9aa98fb0560bf Mon Sep 17 00:00:00 2001
+From 279b7bed229342606a6818c5115051f6d3055e7f Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 18 Jul 2022 10:13:04 +0800
 Subject: [PATCH] lavfi: add LibTorch backend multi-frame inference support
@@ -14,12 +14,12 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  libavfilter/dnn/dnn_backend_common.h   |  3 +
  libavfilter/dnn/dnn_backend_openvino.c |  2 +-
  libavfilter/dnn/dnn_backend_tf.c       |  2 +-
- libavfilter/dnn/dnn_backend_torch.cpp  | 54 +++++++++++++----
+ libavfilter/dnn/dnn_backend_torch.cpp  | 39 ++++++++++--
  libavfilter/dnn/dnn_interface.c        |  2 +
  libavfilter/dnn_filter_common.c        | 83 +++++++++++++++++++++++---
  libavfilter/dnn_interface.h            | 10 +++-
  libavfilter/vf_dnn_processing.c        |  1 +
- 9 files changed, 153 insertions(+), 24 deletions(-)
+ 9 files changed, 143 insertions(+), 19 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_common.c b/libavfilter/dnn/dnn_backend_common.c
 index e45eefd14d..6eb90ba963 100644
@@ -79,33 +79,33 @@ index 9f5d37b3e0..2844804b36 100644
      uint32_t inference_todo;
      uint32_t inference_done;
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index c4b0682f11..239db93cb2 100644
+index 9c699cdc8c..1004b26985 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
-@@ -1256,7 +1256,7 @@ static int extract_lltask_from_task(DNNFunctionType func_type, TaskItem *task, Q
+@@ -1255,7 +1255,7 @@ static int extract_lltask_from_task(DNNFunctionType func_type, TaskItem *task, Q
      }
  }
  
--static int get_output_ov(void *model, const char *input_name, int input_width, int input_height,
-+static int get_output_ov(void *model, const char *input_name, int input_width, int input_height, int nb_input,
+-static int get_output_ov(DNNModel *model, const char *input_name, int input_width, int input_height,
++static int get_output_ov(DNNModel *model, const char *input_name, int input_width, int input_height, int nb_input,
                                     const char *output_name, int *output_width, int *output_height)
  {
  #if HAVE_OPENVINO2
 diff --git a/libavfilter/dnn/dnn_backend_tf.c b/libavfilter/dnn/dnn_backend_tf.c
-index d24591b90b..f299f51f64 100644
+index 6afefe8115..aca113bccc 100644
 --- a/libavfilter/dnn/dnn_backend_tf.c
 +++ b/libavfilter/dnn/dnn_backend_tf.c
-@@ -310,7 +310,7 @@ static int get_input_tf(void *model, DNNData *input, const char *input_name)
+@@ -310,7 +310,7 @@ static int get_input_tf(DNNModel *model, DNNData *input, const char *input_name)
      return 0;
  }
  
--static int get_output_tf(void *model, const char *input_name, int input_width, int input_height,
-+static int get_output_tf(void *model, const char *input_name, int input_width, int input_height, int nb_input,
+-static int get_output_tf(DNNModel *model, const char *input_name, int input_width, int input_height,
++static int get_output_tf(DNNModel *model, const char *input_name, int input_width, int input_height, int nb_input,
                                     const char *output_name, int *output_width, int *output_height)
  {
      int ret;
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 89829ed4a6..a547d2d789 100644
+index c70d32904f..47ec6d4ea6 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -30,6 +30,7 @@ extern "C" {
@@ -139,8 +139,8 @@ index 89829ed4a6..a547d2d789 100644
      infer_request->output = new torch::Tensor();
  
 @@ -206,7 +211,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
-             if (th_model->model->frame_pre_proc != NULL) {
-                 th_model->model->frame_pre_proc(task->in_frame, &input, th_model->model->filter_ctx);
+             if (th_model->model.frame_pre_proc != NULL) {
+                 th_model->model.frame_pre_proc(task->in_frame, &input, th_model->model.filter_ctx);
              } else {
 -                ff_proc_from_frame_to_dnn(task->in_frame, &input, ctx);
 +                size_t in_queue_nb = av_fifo_can_read(task->in_queue);
@@ -155,30 +155,16 @@ index 89829ed4a6..a547d2d789 100644
              }
          }
          break;
-@@ -214,11 +227,17 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
-         avpriv_report_missing_feature(NULL, "model function type %d", th_model->model->func_type);
-         break;
-     }
--    *infer_request->input_tensor = torch::from_blob(input.data,
--        {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
--        deleter, torch::kFloat32);
--    if (infer_request->input_tensor->device() != ctx->options.device_type)
--        *infer_request->input_tensor = infer_request->input_tensor->to(ctx->options.device_type);
-+    if (th_model->model_type == FRVSR) {
-+        *infer_request->input_tensor = torch::from_blob(input.data,
-+            {1, 3, input.dims[height_idx], input.dims[width_idx]},
-+            deleter, torch::kFloat32);
-+    } else {
-+        *infer_request->input_tensor = torch::from_blob(input.data,
+@@ -220,7 +233,7 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+             deleter, torch::kFloat32);
+     } else {
+         *infer_request->input_tensor = torch::from_blob(input.data,
+-            {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
 +            {1, task->nb_input, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
-+            deleter, torch::kFloat32);
-+    }
-+    if (infer_request->input_tensor->device() != th_model->device_type)
-+        *infer_request->input_tensor = infer_request->input_tensor->to(th_model->device_type);
-     return 0;
- 
- err:
-@@ -290,6 +309,8 @@ static void infer_completion_callback(void *args) {
+             deleter, torch::kFloat32);
+     }
+     if (infer_request->input_tensor->device() != th_model->device_type)
+@@ -296,6 +309,8 @@ static void infer_completion_callback(void *args) {
      THInferRequest *infer_request = request->infer_request;
      THModel *th_model = (THModel *)task->model;
      torch::Tensor *output = infer_request->output;
@@ -187,7 +173,7 @@ index 89829ed4a6..a547d2d789 100644
  
      c10::IntArrayRef sizes = output->sizes();
      outputs.order = DCO_RGB;
-@@ -302,6 +323,13 @@ static void infer_completion_callback(void *args) {
+@@ -308,6 +323,13 @@ static void infer_completion_callback(void *args) {
          outputs.dims[1] = sizes.at(1); // C
          outputs.dims[2] = sizes.at(2); // H
          outputs.dims[3] = sizes.at(3); // W
@@ -201,9 +187,9 @@ index 89829ed4a6..a547d2d789 100644
      } else {
          avpriv_report_missing_feature(th_model->ctx, "Support of this kind of model");
          goto err;
-@@ -318,7 +346,13 @@ static void infer_completion_callback(void *args) {
-             if (th_model->model->frame_post_proc != NULL) {
-                 th_model->model->frame_post_proc(task->out_frame, &outputs, th_model->model->filter_ctx);
+@@ -324,7 +346,13 @@ static void infer_completion_callback(void *args) {
+             if (th_model->model.frame_post_proc != NULL) {
+                 th_model->model.frame_post_proc(task->out_frame, &outputs, th_model->model.filter_ctx);
              } else {
 -                ff_proc_from_dnn_to_frame(task->out_frame, &outputs, th_model->ctx);
 +                do {
@@ -216,17 +202,16 @@ index 89829ed4a6..a547d2d789 100644
              }
          } else {
              task->out_frame->width = outputs.dims[dnn_get_width_idx_by_layout(outputs.layout)];
-@@ -383,8 +417,7 @@ err:
-     }
+@@ -390,7 +418,7 @@ err:
      return ret;
  }
--
--static int get_output_th(void *model, const char *input_name, int input_width, int input_height,
-+static int get_output_th(void *model, const char *input_name, int input_width, int input_height, int nb_input,
+ 
+-static int get_output_th(DNNModel *model, const char *input_name, int input_width, int input_height,
++static int get_output_th(DNNModel *model, const char *input_name, int input_width, int input_height, int nb_input,
                                     const char *output_name, int *output_width, int *output_height)
  {
      int ret = 0;
-@@ -395,6 +428,7 @@ static int get_output_th(void *model, const char *input_name, int input_width, i
+@@ -401,6 +429,7 @@ static int get_output_th(DNNModel *model, const char *input_name, int input_widt
      DNNExecBaseParams exec_params = {
          .input_name     = input_name,
          .output_names   = &output_name,
@@ -235,7 +220,7 @@ index 89829ed4a6..a547d2d789 100644
          .in_frame       = NULL,
          .out_frame      = NULL,
 diff --git a/libavfilter/dnn/dnn_interface.c b/libavfilter/dnn/dnn_interface.c
-index e7453f1bb1..7f9875f291 100644
+index 8dec3b671a..7fa788290c 100644
 --- a/libavfilter/dnn/dnn_interface.c
 +++ b/libavfilter/dnn/dnn_interface.c
 @@ -40,6 +40,8 @@ static const AVOption dnn_base_options[] = {
@@ -248,7 +233,7 @@ index e7453f1bb1..7f9875f291 100644
                  OFFSET(model_outputnames_string), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS},
          {"backend_configs", "backend configs (deprecated)",
 diff --git a/libavfilter/dnn_filter_common.c b/libavfilter/dnn_filter_common.c
-index 860ca7591f..28a10eb97c 100644
+index 6b9c6f8d7f..a06279e2d1 100644
 --- a/libavfilter/dnn_filter_common.c
 +++ b/libavfilter/dnn_filter_common.c
 @@ -79,6 +79,8 @@ int ff_dnn_init(DnnContext *ctx, DNNFunctionType func_type, AVFilterContext *fil
@@ -264,9 +249,9 @@ index 860ca7591f..28a10eb97c 100644
  {
      char * output_name = ctx->model_outputnames && ctx->backend_type != DNN_TH ?
                           ctx->model_outputnames[0] : NULL;
--    return ctx->model->get_output(ctx->model->model, ctx->model_inputname, input_width, input_height,
-+    return ctx->model->get_output(ctx->model->model, ctx->model_inputname, input_width, input_height, ctx->nb_inputs,
-                                     (const char *)output_name, output_width, output_height);
+-    return ctx->model->get_output(ctx->model, ctx->model_inputname, input_width, input_height,
++    return ctx->model->get_output(ctx->model, ctx->model_inputname, input_width, input_height, ctx->nb_inputs,
+                                   (const char *)output_name, output_width, output_height);
  }
  
  int ff_dnn_execute_model(DnnContext *ctx, AVFrame *in_frame, AVFrame *out_frame)
@@ -366,7 +351,7 @@ index 860ca7591f..28a10eb97c 100644
          (ctx->dnn_module->free_model)(&ctx->model);
      }
 diff --git a/libavfilter/dnn_interface.h b/libavfilter/dnn_interface.h
-index 4e544486cc..a25414e59c 100644
+index 66086409be..5a7c26fb1b 100644
 --- a/libavfilter/dnn_interface.h
 +++ b/libavfilter/dnn_interface.h
 @@ -28,6 +28,7 @@
@@ -377,7 +362,7 @@ index 4e544486cc..a25414e59c 100644
  #include "avfilter.h"
  
  #define DNN_GENERIC_ERROR FFERRTAG('D','N','N','!')
-@@ -76,9 +77,12 @@ typedef struct DNNData{
+@@ -80,9 +81,12 @@ typedef struct DNNData{
  typedef struct DNNExecBaseParams {
      const char *input_name;
      const char **output_names;
@@ -390,16 +375,16 @@ index 4e544486cc..a25414e59c 100644
  } DNNExecBaseParams;
  
  typedef struct DNNExecClassificationParams {
-@@ -101,7 +105,7 @@ typedef struct DNNModel{
+@@ -103,7 +107,7 @@ typedef struct DNNModel{
      // Just reuse struct DNNData here, actually the DNNData.data field is not needed.
-     int (*get_input)(void *model, DNNData *input, const char *input_name);
+     int (*get_input)(struct DNNModel *model, DNNData *input, const char *input_name);
      // Gets model output width/height with given input w/h
--    int (*get_output)(void *model, const char *input_name, int input_width, int input_height,
-+    int (*get_output)(void *model, const char *input_name, int input_width, int input_height, int nb_input,
+-    int (*get_output)(struct DNNModel *model, const char *input_name, int input_width, int input_height,
++    int (*get_output)(struct DNNModel *model, const char *input_name, int input_width, int input_height, int nb_input,
                                  const char *output_name, int *output_width, int *output_height);
      // set the pre process to transfer data from AVFrame to DNNData
      // the default implementation within DNN is used if it is not provided by the filter
-@@ -151,6 +155,7 @@ typedef struct DnnContext {
+@@ -153,6 +157,7 @@ typedef struct DnnContext {
      int async;
  
      char **model_outputnames;
@@ -407,7 +392,7 @@ index 4e544486cc..a25414e59c 100644
      uint32_t nb_outputs;
      const DNNModule *dnn_module;
  
-@@ -167,6 +172,9 @@ typedef struct DnnContext {
+@@ -169,6 +174,9 @@ typedef struct DnnContext {
  #if CONFIG_LIBTORCH
      THOptions torch_option;
  #endif
@@ -418,7 +403,7 @@ index 4e544486cc..a25414e59c 100644
  
  // Stores pointers to functions for loading, executing, freeing DNN models for one of the backends.
 diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
-index 9a1dd2a356..41e07e84a7 100644
+index 7c0f84ec80..146f46190e 100644
 --- a/libavfilter/vf_dnn_processing.c
 +++ b/libavfilter/vf_dnn_processing.c
 @@ -27,6 +27,7 @@
