@@ -1,4 +1,4 @@
-From 00017dacf0704414b28271d564588d416576cc0f Mon Sep 17 00:00:00 2001
+From dffe988406cfe7133720113566f4ffb17b31cecd Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:40 +0800
 Subject: [PATCH] lavc/hevc_vaapi: enable sub frame support
@@ -39,10 +39,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  5 files changed, 153 insertions(+), 6 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index ceac769c52..1e43d77e69 100644
+index 7c91d50f7b..936d958c0b 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
-@@ -161,6 +161,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
+@@ -165,6 +165,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
      av_log(avctx, AV_LOG_DEBUG, "Decode to surface %#x.\n",
             pic->output_surface);
  
@@ -53,7 +53,7 @@ index ceac769c52..1e43d77e69 100644
      vas = vaBeginPicture(ctx->hwctx->display, ctx->va_context,
                           pic->output_surface);
      if (vas != VA_STATUS_SUCCESS) {
-@@ -467,6 +471,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -471,6 +475,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
      AVHWDeviceContext    *device = (AVHWDeviceContext*)device_ref->data;
      AVVAAPIDeviceContext *hwctx = device->hwctx;
  
@@ -63,7 +63,7 @@ index ceac769c52..1e43d77e69 100644
      codec_desc = avcodec_descriptor_get(avctx->codec_id);
      if (!codec_desc) {
          err = AVERROR(EINVAL);
-@@ -545,8 +552,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -549,8 +556,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
          }
      }
  
@@ -88,7 +88,7 @@ index ceac769c52..1e43d77e69 100644
                           va_config);
      if (vas != VA_STATUS_SUCCESS) {
          av_log(avctx, AV_LOG_ERROR, "Failed to create decode "
-@@ -591,10 +613,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -595,10 +617,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
  
      if (frames_ref) {
          AVHWFramesContext *frames = (AVHWFramesContext *)frames_ref->data;
@@ -122,7 +122,7 @@ index ceac769c52..1e43d77e69 100644
          err = vaapi_decode_find_best_format(avctx, device,
                                              *va_config, frames);
 diff --git a/libavcodec/vaapi_decode.h b/libavcodec/vaapi_decode.h
-index 6beda14e52..fbac7e7a8e 100644
+index 702171e108..0db1eb04de 100644
 --- a/libavcodec/vaapi_decode.h
 +++ b/libavcodec/vaapi_decode.h
 @@ -45,6 +45,10 @@ typedef struct VAAPIDecodePicture {
@@ -137,10 +137,10 @@ index 6beda14e52..fbac7e7a8e 100644
  
  typedef struct VAAPIDecodeContext {
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 3bdd2dd1b8..b900066f7e 100644
+index 051762bfef..1c63e744fb 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
-@@ -38,6 +38,7 @@ typedef struct VAAPIDecodePictureHEVC {
+@@ -39,6 +39,7 @@ typedef struct VAAPIDecodePictureHEVC {
      VAPictureParameterBufferHEVC pic_param;
      VASliceParameterBufferHEVC last_slice_param;
  #endif
@@ -148,8 +148,8 @@ index 3bdd2dd1b8..b900066f7e 100644
      const uint8_t *last_buffer;
      size_t         last_size;
  
-@@ -127,9 +128,9 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
-     VAAPIDecodePictureHEVC *pic = h->ref->hwaccel_picture_private;
+@@ -128,9 +129,9 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+     VAAPIDecodePictureHEVC *pic = h->cur_frame->hwaccel_picture_private;
      const HEVCSPS          *sps = h->ps.sps;
      const HEVCPPS          *pps = h->ps.pps;
 -
@@ -159,11 +159,11 @@ index 3bdd2dd1b8..b900066f7e 100644
  
  #if VA_CHECK_VERSION(1, 2, 0)
      int num_comps, pre_palette_size;
-@@ -333,6 +334,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+@@ -334,6 +335,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
              goto fail;
      }
  
-+    sd = av_frame_get_side_data(h->ref->frame, AV_FRAME_DATA_SUB_FRAME);
++    sd = av_frame_get_side_data(h->cur_frame->f, AV_FRAME_DATA_SUB_FRAME);
 +    if (sd) {
 +        VAProcPipelineParameterBuffer *proc_param = &pic->proc_param;
 +        AVFrame *sub_frame = (AVFrame *)sd->data;
@@ -196,7 +196,7 @@ index 3bdd2dd1b8..b900066f7e 100644
  
  fail:
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 2c75f5f5b1..a37efbaba3 100644
+index 4cb25dd032..84dc78e1f9 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -58,8 +58,7 @@ typedef HRESULT (WINAPI *PFN_CREATE_DXGI_FACTORY)(REFIID riid, void **ppFactory)

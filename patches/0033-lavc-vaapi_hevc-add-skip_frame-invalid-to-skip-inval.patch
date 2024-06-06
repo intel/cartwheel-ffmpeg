@@ -1,8 +1,8 @@
-From 869617d0b7848006f75fbd85110ff8472362c421 Mon Sep 17 00:00:00 2001
+From e0ae4527de4dc9f26e69bd576a77314ae7ed05d3 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 14:56:25 +0800
-Subject: [PATCH 05/46] lavc/vaapi_hevc: add -skip_frame invalid to skip
- invalid nalus
+Subject: [PATCH] lavc/vaapi_hevc: add -skip_frame invalid to skip invalid
+ nalus
 
 Works in single thread mode:
 $ ffmpeg -threads 1  -hwaccel vaapi -i input-100frames.h265 -f null -
@@ -15,7 +15,7 @@ $ ffmpeg -skip_frame invalid -hwaccel vaapi -i input-100frames.h265 -f null -
 Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
 ---
  libavcodec/defs.h          | 1 +
- libavcodec/hevcdec.c       | 6 +++++-
+ libavcodec/hevc/hevcdec.c  | 6 +++++-
  libavcodec/options_table.h | 1 +
  libavcodec/pthread_frame.c | 1 +
  4 files changed, 8 insertions(+), 1 deletion(-)
@@ -32,11 +32,11 @@ index 00d840ec19..23e3b7170d 100644
      AVDISCARD_NONREF  =  8, ///< discard all non reference
      AVDISCARD_BIDIR   = 16, ///< discard all bidirectional frames
      AVDISCARD_NONINTRA= 24, ///< discard all non intra frames
-diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index b5311ae510..4cee7224c4 100644
---- a/libavcodec/hevcdec.c
-+++ b/libavcodec/hevcdec.c
-@@ -610,8 +610,11 @@ static int hls_slice_header(HEVCContext *s)
+diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
+index 4e0df4d033..7d21d0e670 100644
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -612,8 +612,11 @@ static int hls_slice_header(HEVCContext *s, GetBitContext *gb)
              ff_hevc_clear_refs(s);
      }
      sh->no_output_of_prior_pics_flag = 0;
@@ -49,7 +49,7 @@ index b5311ae510..4cee7224c4 100644
  
      sh->pps_id = get_ue_golomb_long(gb);
      if (sh->pps_id >= HEVC_MAX_PPS_COUNT || !s->ps.pps_list[sh->pps_id]) {
-@@ -3031,6 +3034,7 @@ static int decode_nal_unit(HEVCContext *s, const H2645NAL *nal)
+@@ -3048,6 +3051,7 @@ static int decode_nal_unit(HEVCContext *s, const H2645NAL *nal)
          if (
              (s->avctx->skip_frame >= AVDISCARD_BIDIR && s->sh.slice_type == HEVC_SLICE_B) ||
              (s->avctx->skip_frame >= AVDISCARD_NONINTRA && s->sh.slice_type != HEVC_SLICE_I) ||
@@ -58,10 +58,10 @@ index b5311ae510..4cee7224c4 100644
              break;
          }
 diff --git a/libavcodec/options_table.h b/libavcodec/options_table.h
-index ac32d8928a..8e750a99d3 100644
+index 33f1bce887..4225747b39 100644
 --- a/libavcodec/options_table.h
 +++ b/libavcodec/options_table.h
-@@ -259,6 +259,7 @@ static const AVOption avcodec_options[] = {
+@@ -256,6 +256,7 @@ static const AVOption avcodec_options[] = {
  {"skip_frame"      , "skip decoding for the selected frames",               OFFSET(skip_frame),       AV_OPT_TYPE_INT, {.i64 = AVDISCARD_DEFAULT }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
  {"none"            , "discard no frame",                    0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_NONE    }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
  {"default"         , "discard useless frames",              0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_DEFAULT }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
@@ -70,10 +70,10 @@ index ac32d8928a..8e750a99d3 100644
  {"bidir"           , "discard all bidirectional frames",    0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_BIDIR   }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
  {"nointra"         , "discard all frames except I frames",  0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_NONINTRA}, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
 diff --git a/libavcodec/pthread_frame.c b/libavcodec/pthread_frame.c
-index 2274d3fd7a..9dd2cc4f3b 100644
+index 982e4a64c5..b5c44df3ea 100644
 --- a/libavcodec/pthread_frame.c
 +++ b/libavcodec/pthread_frame.c
-@@ -289,6 +289,7 @@ static int update_context_from_thread(AVCodecContext *dst, const AVCodecContext
+@@ -293,6 +293,7 @@ static int update_context_from_thread(AVCodecContext *dst, const AVCodecContext
          dst->has_b_frames = src->has_b_frames;
          dst->idct_algo    = src->idct_algo;
          dst->properties   = src->properties;
@@ -82,5 +82,5 @@ index 2274d3fd7a..9dd2cc4f3b 100644
          dst->bits_per_coded_sample = src->bits_per_coded_sample;
          dst->sample_aspect_ratio   = src->sample_aspect_ratio;
 -- 
-2.34.1
+2.25.1
 
