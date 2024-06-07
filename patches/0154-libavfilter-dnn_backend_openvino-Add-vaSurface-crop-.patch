@@ -1,0 +1,142 @@
+From 66c7d24e162a73b495edf3fe7dfec531e76ced81 Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Tue, 5 Mar 2024 16:34:40 +0800
+Subject: [PATCH 4/5] libavfilter/dnn_backend_openvino: Add vaSurface crop
+ support to Openvino
+
+Add vaSurface crop support to openvino backend. Prepare to add vaSurface
+support to classify filter.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavfilter/dnn/dnn_backend_openvino.c | 93 ++++++++++++++++++++++++++
+ 1 file changed, 93 insertions(+)
+
+diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
+index a0c2c5f358..637588811e 100644
+--- a/libavfilter/dnn/dnn_backend_openvino.c
++++ b/libavfilter/dnn/dnn_backend_openvino.c
+@@ -69,6 +69,9 @@ typedef struct OVModel{
+     Queue *lltask_queue;     // holds LastLevelTaskItem
+     int nb_outputs;
+     int use_remote_context;
++#if !HAVE_WINDOWS_H && CONFIG_VAAPI
++    VADisplay dpy;
++#endif
+ } OVModel;
+ 
+ // one request for one call to openvino
+@@ -82,6 +85,9 @@ typedef struct OVRequestItem {
+     ie_complete_call_back_t callback;
+     ie_infer_request_t *infer_request;
+ #endif
++#if !HAVE_WINDOWS_H && CONFIG_VAAPI
++    VASurfaceID bbox_surface;
++#endif
+ } OVRequestItem;
+ 
+ #define APPEND_STRING(generated_string, iterate_string)                                            \
+@@ -214,6 +220,89 @@ static int fill_model_input_remote_ov(OVModel *ov_model, OVRequestItem *request)
+         return AVERROR(ENAVAIL);
+     }
+     surface_id = (size_t)task->in_frame->data[3];
++
++    if (ov_model->model.func_type == DFT_ANALYTICS_CLASSIFY) {
++#if !HAVE_WINDOWS_H && CONFIG_VAAPI
++        AVFrameSideData *sd;
++        AVHWFramesContext *hw_frame_ctx = (AVHWFramesContext *)ov_model->model.filter_ctx->inputs[0]->hw_frames_ctx->data;
++        AVVAAPIDeviceContext *vaapi_ctx = (AVVAAPIDeviceContext *)hw_frame_ctx->device_ctx->hwctx;
++        const AVDetectionBBox *bbox;
++        const AVDetectionBBoxHeader *header;
++        unsigned int rt_format, fourcc;
++        VAImage image;
++        VAStatus vas;
++        VASurfaceAttrib attributes;
++
++        sd = av_frame_get_side_data(task->in_frame, AV_FRAME_DATA_DETECTION_BBOXES);
++        av_assert0(sd);
++        header = (const AVDetectionBBoxHeader *)sd->data;
++        bbox = av_get_detection_bbox(header, lltask->bbox_index);
++
++        if (ov_model->input_port) {
++            ov_output_const_port_free(ov_model->input_port);
++            ov_model->input_port = NULL;
++        }
++        status = ov_model_const_input_by_index(ov_model->ov_model, 0, &ov_model->input_port);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to get input port shape.\n");
++            return ov2_map_error(status, NULL);
++        }
++        status = ov_const_port_get_shape(ov_model->input_port, &input_shape);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to get input port shape.\n");
++            return ov2_map_error(status, NULL);
++        }
++        ov_model->dpy = vaapi_ctx->display;
++        if (!request->bbox_surface) {
++            switch (hw_frame_ctx->sw_format) {
++            case AV_PIX_FMT_NV12:
++                rt_format = VA_RT_FORMAT_YUV420;
++                fourcc = VA_FOURCC_NV12;
++            }
++            attributes = (VASurfaceAttrib) {
++                        .type          = VASurfaceAttribPixelFormat,
++                        .flags         = VA_SURFACE_ATTRIB_SETTABLE,
++                        .value.type    = VAGenericValueTypeInteger,
++                        .value.value.i = fourcc,
++                    };
++            vas = vaCreateSurfaces(ov_model->dpy,
++                                   rt_format,
++                                   input_shape.dims[2],
++                                   input_shape.dims[1],
++                                   &request->bbox_surface,
++                                   1,
++                                   &attributes,
++                                   1);
++            if (vas != VA_STATUS_SUCCESS) {
++                av_log(ctx, AV_LOG_ERROR, "Failed to create surface: "
++                    "%d (%s).\n", vas, vaErrorStr(vas));
++                return AVERROR(EIO);
++            }
++        }
++        vas = vaDeriveImage(ov_model->dpy, (VASurfaceID)(size_t)task->in_frame->data[3], &image);
++        if (vas != VA_STATUS_SUCCESS) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to derive image from "
++                   "surface %#x: %d (%s).\n",
++                   request->bbox_surface, vas, vaErrorStr(vas));
++            return AVERROR(EIO);
++        }
++        vas = vaPutImage(ov_model->dpy,
++                         request->bbox_surface,
++                         image.image_id,
++                         bbox->x, bbox->y, bbox->w, bbox->h,
++                         0, 0,
++                         input_shape.dims[2],
++                         input_shape.dims[1]);
++        if (vas != VA_STATUS_SUCCESS) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to write image to surface "
++                   "%#x: %d (%s).\n", request->bbox_surface, vas, vaErrorStr(vas));
++            return AVERROR(EIO);
++        }
++        vaDestroyImage(ov_model->dpy, image.image_id);
++        surface_id = request->bbox_surface;
++#endif
++    }
++
+     for (int i = 0; i < nb_planes; i++) {
+         if (ov_model->input_port) {
+             ov_output_const_port_free(ov_model->input_port);
+@@ -622,6 +711,10 @@ static void dnn_free_model_ov(DNNModel **model)
+     while (ff_safe_queue_size(ov_model->request_queue) != 0) {
+         OVRequestItem *item = ff_safe_queue_pop_front(ov_model->request_queue);
+         if (item && item->infer_request) {
++#if !HAVE_WINDOWS_H && CONFIG_VAAPI
++            if (item->bbox_surface)
++                vaDestroySurfaces(ov_model->dpy, &item->bbox_surface, 1);
++#endif
+ #if HAVE_OPENVINO2
+             ov_infer_request_free(item->infer_request);
+ #else
+-- 
+2.34.1
+
