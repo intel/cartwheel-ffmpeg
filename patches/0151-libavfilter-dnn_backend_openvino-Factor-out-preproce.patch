@@ -1,0 +1,314 @@
+From 594684deb2142418a373e14281f1a7c50fd2e25c Mon Sep 17 00:00:00 2001
+From: Wenbin Chen <wenbin.chen@intel.com>
+Date: Tue, 5 Mar 2024 14:21:09 +0800
+Subject: [PATCH 1/5] libavfilter/dnn_backend_openvino: Factor out preprocess
+
+Reorganize the code of initializing model part. Prepare for
+adding support for hardware frame.
+
+Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
+---
+ libavfilter/dnn/dnn_backend_openvino.c | 191 +++++++++++++++----------
+ 1 file changed, 112 insertions(+), 79 deletions(-)
+
+diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
+index 1004b26985..20a5335e35 100644
+--- a/libavfilter/dnn/dnn_backend_openvino.c
++++ b/libavfilter/dnn/dnn_backend_openvino.c
+@@ -575,46 +575,23 @@ static void dnn_free_model_ov(DNNModel **model)
+ }
+ 
+ 
+-static int init_model_ov(OVModel *ov_model, const char *input_name, const char **output_names, int nb_outputs)
++static int set_model_input_info(OVModel *ov_model, const char *input_name)
+ {
+     int ret = 0;
+     DnnContext *ctx = ov_model->ctx;
+-#if HAVE_OPENVINO2
+     ov_status_e status;
+     ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
+-    ov_preprocess_output_tensor_info_t* output_tensor_info = NULL;
+     ov_preprocess_input_model_info_t* input_model_info = NULL;
+-    ov_model_t *tmp_ov_model;
+     ov_layout_t* NHWC_layout = NULL;
+     ov_layout_t* NCHW_layout = NULL;
+     const char* NHWC_desc = "NHWC";
+     const char* NCHW_desc = "NCHW";
+-    const char* device = ctx->device ? ctx->device : "CPU";
+-#else
+-    IEStatusCode status;
+-    ie_available_devices_t a_dev;
+-    ie_config_t config = {NULL, NULL, NULL};
+-    char *all_dev_names = NULL;
+-#endif
+-    // We scale pixel by default when do frame processing.
+-    if (fabsf(ctx->ov_option.scale) < 1e-6f)
+-        ctx->ov_option.scale = ov_model->model.func_type == DFT_PROCESS_FRAME ? 255 : 1;
+-    // batch size
+-    if (ctx->ov_option.batch_size <= 0) {
+-        ctx->ov_option.batch_size = 1;
+-    }
+-#if HAVE_OPENVINO2
+-    if (ctx->ov_option.batch_size > 1) {
+-        avpriv_report_missing_feature(ctx, "Do not support batch_size > 1 for now,"
+-                                           "change batch_size to 1.\n");
+-        ctx->ov_option.batch_size = 1;
+-    }
+ 
+     status = ov_preprocess_prepostprocessor_create(ov_model->ov_model, &ov_model->preprocess);
+     if (status != OK) {
+         av_log(ctx, AV_LOG_ERROR, "Failed to create preprocess for ov_model.\n");
+         ret = ov2_map_error(status, NULL);
+-        goto err;
++        return ret;
+     }
+ 
+     if (input_name)
+@@ -624,7 +601,7 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+     if (status != OK) {
+         av_log(ctx, AV_LOG_ERROR, "Failed to get input info from preprocess.\n");
+         ret = ov2_map_error(status, NULL);
+-        goto err;
++        return ret;
+     }
+ 
+     status = ov_preprocess_input_info_get_tensor_info(ov_model->input_info, &input_tensor_info);
+@@ -672,14 +649,56 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+         ret = ov2_map_error(status, NULL);
+         goto err;
+     }
++    // set preprocess steps.
++    if (fabsf(ctx->ov_option.scale - 1) > 1e-6f || fabsf(ctx->ov_option.mean) > 1e-6f) {
++        ov_preprocess_preprocess_steps_t* input_process_steps = NULL;
++        status = ov_preprocess_input_info_get_preprocess_steps(ov_model->input_info, &input_process_steps);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to get preprocess steps\n");
++            ret = ov2_map_error(status, NULL);
++            goto err;
++        }
++        status = ov_preprocess_preprocess_steps_convert_element_type(input_process_steps, F32);
++        status |= ov_preprocess_preprocess_steps_mean(input_process_steps, ctx->ov_option.mean);
++        status |= ov_preprocess_preprocess_steps_scale(input_process_steps, ctx->ov_option.scale);
++        if (status != OK) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to set preprocess steps\n");
++            ov_preprocess_preprocess_steps_free(input_process_steps);
++            input_process_steps = NULL;
++            ret = ov2_map_error(status, NULL);
++            goto err;
++        }
++        ov_preprocess_preprocess_steps_free(input_process_steps);
++        input_process_steps = NULL;
++    }
++err:
++    if (NCHW_layout)
++        ov_layout_free(NCHW_layout);
++    if (NHWC_layout)
++        ov_layout_free(NHWC_layout);
++    if (input_tensor_info)
++        ov_preprocess_input_tensor_info_free(input_tensor_info);
++    if (input_model_info)
++        ov_preprocess_input_model_info_free(input_model_info);
++    if (ov_model->input_info)
++        ov_preprocess_input_info_free(ov_model->input_info);
++    ov_model->input_info = NULL;
++    return ret;
++}
+ 
++static int set_model_output_info(OVModel *ov_model, const char **output_names, int nb_outputs)
++{
++    int ret = 0;
++    DnnContext *ctx = ov_model->ctx;
++    ov_status_e status;
++    ov_preprocess_output_tensor_info_t* output_tensor_info = NULL;
+     if (!nb_outputs) {
+         size_t output_size;
+         status = ov_model_outputs_size(ov_model->ov_model, &output_size);
+         if (status != OK) {
+             av_log(ctx, AV_LOG_ERROR, "Failed to get output size.\n");
+             ret = ov2_map_error(status, NULL);
+-            goto err;
++            return ret;
+         }
+         nb_outputs = output_size;
+     }
+@@ -694,13 +713,15 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+         if (status != OK) {
+             av_log(ctx, AV_LOG_ERROR, "Failed to get output info from preprocess.\n");
+             ret = ov2_map_error(status, NULL);
+-            goto err;
++            return ret;
+         }
+         status |= ov_preprocess_output_info_get_tensor_info(ov_model->output_info, &output_tensor_info);
++        ov_preprocess_output_info_free(ov_model->output_info);
++        ov_model->output_info = NULL;
+         if (status != OK) {
+             av_log(ctx, AV_LOG_ERROR, "Failed to get tensor info from input/output.\n");
+             ret = ov2_map_error(status, NULL);
+-            goto err;
++            return ret;
+         }
+         if (ov_model->model.func_type != DFT_PROCESS_FRAME)
+             status |= ov_preprocess_output_set_element_type(output_tensor_info, F32);
+@@ -708,42 +729,35 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+             status |= ov_preprocess_output_set_element_type(output_tensor_info, F32);
+         else
+             status |= ov_preprocess_output_set_element_type(output_tensor_info, U8);
+-        if (status != OK) {
+-            av_log(ctx, AV_LOG_ERROR, "Failed to set output element type\n");
+-            ret = ov2_map_error(status, NULL);
+-            goto err;
+-        }
+         ov_preprocess_output_tensor_info_free(output_tensor_info);
+         output_tensor_info = NULL;
+-        ov_preprocess_output_info_free(ov_model->output_info);
+-        ov_model->output_info = NULL;
+-    }
+-    // set preprocess steps.
+-    if (fabsf(ctx->ov_option.scale - 1) > 1e-6f || fabsf(ctx->ov_option.mean) > 1e-6f) {
+-        ov_preprocess_preprocess_steps_t* input_process_steps = NULL;
+-        status = ov_preprocess_input_info_get_preprocess_steps(ov_model->input_info, &input_process_steps);
+         if (status != OK) {
+-            av_log(ctx, AV_LOG_ERROR, "Failed to get preprocess steps\n");
+-            ret = ov2_map_error(status, NULL);
+-            goto err;
+-        }
+-        status = ov_preprocess_preprocess_steps_convert_element_type(input_process_steps, F32);
+-        status |= ov_preprocess_preprocess_steps_mean(input_process_steps, ctx->ov_option.mean);
+-        status |= ov_preprocess_preprocess_steps_scale(input_process_steps, ctx->ov_option.scale);
+-        if (status != OK) {
+-            av_log(ctx, AV_LOG_ERROR, "Failed to set preprocess steps\n");
+-            ov_preprocess_preprocess_steps_free(input_process_steps);
+-            input_process_steps = NULL;
++            av_log(ctx, AV_LOG_ERROR, "Failed to set output element type\n");
+             ret = ov2_map_error(status, NULL);
+-            goto err;
++            return ret;
+         }
+-        ov_preprocess_preprocess_steps_free(input_process_steps);
+-        input_process_steps = NULL;
+     }
+-    ov_preprocess_input_tensor_info_free(input_tensor_info);
+-    input_tensor_info = NULL;
+-    ov_preprocess_input_info_free(ov_model->input_info);
+-    ov_model->input_info = NULL;
++    return ret;
++}
++
++static int set_model_preprocess(OVModel *ov_model, const char *input_name, const char **output_names, int nb_outputs)
++{
++    int ret = 0;
++    DnnContext *ctx = ov_model->ctx;
++    ov_status_e status;
++    ov_model_t *tmp_ov_model;
++
++    ret = set_model_input_info(ov_model, input_name);
++    if (ret < 0) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to set model input info\n");
++        return ret;
++    }
++
++    ret = set_model_output_info(ov_model, output_names, nb_outputs);
++    if (ret < 0) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to set output info\n");
++        return ret;
++    }
+ 
+     //update model
+     if(ov_model->ov_model)
+@@ -754,24 +768,59 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+         ov_model_free(tmp_ov_model);
+         tmp_ov_model = NULL;
+         ret = ov2_map_error(status, NULL);
+-        goto err;
++        return ret;
+     }
+     ov_model_free(tmp_ov_model);
++    return ret;
++}
++
++static int init_model_ov(OVModel *ov_model, const char *input_name, const char **output_names, int nb_outputs)
++{
++    int ret = 0;
++    DnnContext *ctx = ov_model->ctx;
++#if HAVE_OPENVINO2
++    ov_status_e status;
++    const char* device = ctx->device ? ctx->device : "CPU";
++#else
++    IEStatusCode status;
++    ie_available_devices_t a_dev;
++    ie_config_t config = {NULL, NULL, NULL};
++    char *all_dev_names = NULL;
++#endif
++    // We scale pixel by default when do frame processing.
++    if (fabsf(ctx->ov_option.scale) < 1e-6f)
++        ctx->ov_option.scale = ov_model->model.func_type == DFT_PROCESS_FRAME ? 255 : 1;
++    // batch size
++    if (ctx->ov_option.batch_size <= 0) {
++        ctx->ov_option.batch_size = 1;
++    }
++#if HAVE_OPENVINO2
++    if (ctx->ov_option.batch_size > 1) {
++        avpriv_report_missing_feature(ctx, "Do not support batch_size > 1 for now,"
++                                           "change batch_size to 1.\n");
++        ctx->ov_option.batch_size = 1;
++    }
++
++    ret = set_model_preprocess(ov_model, input_name, output_names, nb_outputs);
++    if (ret < 0) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to set preprocess\n");
++        goto err;
++    }
+ 
+     //update output_port
+     if (!ov_model->output_ports) {
+-        ov_model->output_ports = av_calloc(nb_outputs, sizeof(*ov_model->output_ports));
++        ov_model->output_ports = av_calloc(ov_model->nb_outputs, sizeof(*ov_model->output_ports));
+         if (!ov_model->output_ports) {
+             ret = AVERROR(ENOMEM);
+             goto err;
+         }
+     } else
+-        for (int i = 0; i < nb_outputs; i++) {
++        for (int i = 0; i < ov_model->nb_outputs; i++) {
+             ov_output_const_port_free(ov_model->output_ports[i]);
+             ov_model->output_ports[i] = NULL;
+         }
+ 
+-    for (int i = 0; i < nb_outputs; i++) {
++    for (int i = 0; i < ov_model->nb_outputs; i++) {
+         char *port_name;
+         if (output_names)
+             status = ov_model_const_output_by_name(ov_model->ov_model, output_names[i],
+@@ -798,10 +847,6 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+         ret = ov2_map_error(status, NULL);
+         goto err;
+     }
+-    ov_preprocess_input_model_info_free(input_model_info);
+-    input_model_info = NULL;
+-    ov_layout_free(NCHW_layout);
+-    ov_layout_free(NHWC_layout);
+ #else
+     if (ctx->ov_option.batch_size > 1) {
+         input_shapes_t input_shapes;
+@@ -947,18 +992,6 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+     return 0;
+ 
+ err:
+-#if HAVE_OPENVINO2
+-    if (output_tensor_info)
+-        ov_preprocess_output_tensor_info_free(output_tensor_info);
+-    if (ov_model->output_info)
+-        ov_preprocess_output_info_free(ov_model->output_info);
+-    if (NCHW_layout)
+-        ov_layout_free(NCHW_layout);
+-    if (NHWC_layout)
+-        ov_layout_free(NHWC_layout);
+-    if (input_model_info)
+-        ov_preprocess_input_model_info_free(input_model_info);
+-#endif
+     return ret;
+ }
+ 
+-- 
+2.34.1
+
