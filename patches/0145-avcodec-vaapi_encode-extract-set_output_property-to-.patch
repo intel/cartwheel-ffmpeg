@@ -1,7 +1,7 @@
-From f15a66eeaf6b632e47b9d5fb76a5a15e28117841 Mon Sep 17 00:00:00 2001
+From 52416353e750638d03ecd4db801dfe7b0639dc1c Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
-Date: Thu, 28 Dec 2023 18:17:33 +0800
-Subject: [PATCH 06/11] avcodec/vaapi_encode: extract set_output_property to
+Date: Thu, 18 Apr 2024 11:07:52 +0800
+Subject: [PATCH 09/14] avcodec/vaapi_encode: extract set_output_property to
  base layer
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
@@ -12,20 +12,20 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 45 insertions(+), 42 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index e62d7c65b8..793e6ea2dd 100644
+index 56dc015e2e..25fcfdbb5e 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -491,6 +491,46 @@ fail:
+@@ -488,6 +488,46 @@ fail:
      return err;
  }
  
 +int ff_hw_base_encode_set_output_property(AVCodecContext *avctx,
-+                                          HWBaseEncodePicture *pic,
++                                          FFHWBaseEncodePicture *pic,
 +                                          AVPacket *pkt, int flag_no_delay)
 +{
-+    HWBaseEncodeContext *ctx = avctx->priv_data;
++    FFHWBaseEncodeContext *ctx = avctx->priv_data;
 +
-+    if (pic->type == PICTURE_TYPE_IDR)
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR)
 +        pkt->flags |= AV_PKT_FLAG_KEY;
 +
 +    pkt->pts = pic->pts;
@@ -61,37 +61,37 @@ index e62d7c65b8..793e6ea2dd 100644
 +
  int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
  {
-     HWBaseEncodeContext *ctx = avctx->priv_data;
+     FFHWBaseEncodeContext *ctx = avctx->priv_data;
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
-index 436767b706..3af696a21a 100644
+index c7e535d35d..f097d826a7 100644
 --- a/libavcodec/hw_base_encode.h
 +++ b/libavcodec/hw_base_encode.h
-@@ -224,6 +224,9 @@ typedef struct HWBaseEncodeContext {
+@@ -204,6 +204,9 @@ typedef struct FFHWBaseEncodeContext {
      AVPacket        *tail_pkt;
- } HWBaseEncodeContext;
+ } FFHWBaseEncodeContext;
  
-+int ff_hw_base_encode_set_output_property(AVCodecContext *avctx, HWBaseEncodePicture *pic,
++int ff_hw_base_encode_set_output_property(AVCodecContext *avctx, FFHWBaseEncodePicture *pic,
 +                                          AVPacket *pkt, int flag_no_delay);
 +
  int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
  
- int ff_hw_base_encode_init(AVCodecContext *avctx);
+ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index f9760cdbe3..31d123ede2 100644
+index c29493e2c8..4193f3838f 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -658,47 +658,6 @@ fail_at_end:
+@@ -660,47 +660,6 @@ fail_at_end:
      return err;
  }
  
 -static int vaapi_encode_set_output_property(AVCodecContext *avctx,
--                                            HWBaseEncodePicture *pic,
+-                                            FFHWBaseEncodePicture *pic,
 -                                            AVPacket *pkt)
 -{
--    HWBaseEncodeContext *base_ctx = avctx->priv_data;
--    VAAPIEncodeContext *ctx = avctx->priv_data;
+-    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+-    VAAPIEncodeContext         *ctx = avctx->priv_data;
 -
--    if (pic->type == PICTURE_TYPE_IDR)
+-    if (pic->type == FF_HW_PICTURE_TYPE_IDR)
 -        pkt->flags |= AV_PKT_FLAG_KEY;
 -
 -    pkt->pts = pic->pts;
@@ -128,12 +128,12 @@ index f9760cdbe3..31d123ede2 100644
  static int vaapi_encode_get_coded_buffer_size(AVCodecContext *avctx, VABufferID buf_id)
  {
      VAAPIEncodeContext *ctx = avctx->priv_data;
-@@ -850,7 +809,8 @@ static int vaapi_encode_output(AVCodecContext *avctx,
+@@ -852,7 +811,8 @@ static int vaapi_encode_output(AVCodecContext *avctx,
      av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
             base_pic->display_order, base_pic->encode_order);
  
--    vaapi_encode_set_output_property(avctx, (HWBaseEncodePicture*)base_pic, pkt_ptr);
-+    ff_hw_base_encode_set_output_property(avctx, (HWBaseEncodePicture*)base_pic, pkt_ptr,
+-    vaapi_encode_set_output_property(avctx, (FFHWBaseEncodePicture*)pic, pkt_ptr);
++    ff_hw_base_encode_set_output_property(avctx, (FFHWBaseEncodePicture*)base_pic, pkt_ptr,
 +                                          ctx->codec->flags & FLAG_TIMESTAMP_NO_DELAY);
  
  end:

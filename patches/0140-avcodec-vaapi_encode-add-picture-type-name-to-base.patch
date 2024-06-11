@@ -1,0 +1,53 @@
+From c327fd16ba570270261cf6870caab0c51f3f6ae3 Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Wed, 17 Apr 2024 14:35:22 +0800
+Subject: [PATCH 04/14] avcodec/vaapi_encode: add picture type name to base
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/hw_base_encode.h | 6 ++++++
+ libavcodec/vaapi_encode.c   | 4 +---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
+index c14c174102..858450afa8 100644
+--- a/libavcodec/hw_base_encode.h
++++ b/libavcodec/hw_base_encode.h
+@@ -25,6 +25,12 @@
+ #define MAX_ASYNC_DEPTH 64
+ #define MAX_REFERENCE_LIST_NUM 2
+ 
++static inline const char *ff_hw_base_encode_get_pictype_name(const int type)
++{
++    const char * const picture_type_name[] = { "IDR", "I", "P", "B" };
++    return picture_type_name[type];
++}
++
+ enum {
+     FF_HW_PICTURE_TYPE_IDR = 0,
+     FF_HW_PICTURE_TYPE_I   = 1,
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index 77f539dc6d..54bdd73902 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -38,8 +38,6 @@ const AVCodecHWConfigInternal *const ff_vaapi_encode_hw_configs[] = {
+     NULL,
+ };
+ 
+-static const char * const picture_type_name[] = { "IDR", "I", "P", "B" };
+-
+ static int vaapi_encode_make_packed_header(AVCodecContext *avctx,
+                                            VAAPIEncodePicture *pic,
+                                            int type, char *data, size_t bit_len)
+@@ -277,7 +275,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+ 
+     av_log(avctx, AV_LOG_DEBUG, "Issuing encode for pic %"PRId64"/%"PRId64" "
+            "as type %s.\n", pic->display_order, pic->encode_order,
+-           picture_type_name[pic->type]);
++           ff_hw_base_encode_get_pictype_name(pic->type));
+     if (pic->nb_refs[0] == 0 && pic->nb_refs[1] == 0) {
+         av_log(avctx, AV_LOG_DEBUG, "No reference pictures.\n");
+     } else {
+-- 
+2.41.0.windows.1
+

@@ -1,7 +1,7 @@
-From aa3430deb3c0f8394c7f69b720a61a32b9025efd Mon Sep 17 00:00:00 2001
+From a2759ee82b7fab4f0c8477f19c42fd73fb9028cc Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 19 Feb 2024 22:09:11 +0800
-Subject: [PATCH 09/11] avcodec/vaapi_encode: extract a free funtion to base
+Subject: [PATCH 11/14] avcodec/vaapi_encode: extract a free funtion to base
  layer
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
@@ -12,14 +12,14 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  3 files changed, 14 insertions(+), 5 deletions(-)
 
 diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
-index af85bb99aa..812668f3f2 100644
+index 31046bd73e..92f69bb78c 100644
 --- a/libavcodec/hw_base_encode.c
 +++ b/libavcodec/hw_base_encode.c
-@@ -751,6 +751,17 @@ fail:
+@@ -745,6 +745,17 @@ fail:
      return err;
  }
  
-+int ff_hw_base_encode_free(AVCodecContext *avctx, HWBaseEncodePicture *pic)
++int ff_hw_base_encode_free(FFHWBaseEncodePicture *pic)
 +{
 +    av_frame_free(&pic->input_image);
 +    av_frame_free(&pic->recon_image);
@@ -32,25 +32,25 @@ index af85bb99aa..812668f3f2 100644
 +
  int ff_hw_base_encode_init(AVCodecContext *avctx)
  {
-     HWBaseEncodeContext *ctx = avctx->priv_data;
+     FFHWBaseEncodeContext *ctx = avctx->priv_data;
 diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
-index 9957786a3f..225ca68d3e 100644
+index f5414e2c28..15ef3d7ac6 100644
 --- a/libavcodec/hw_base_encode.h
 +++ b/libavcodec/hw_base_encode.h
-@@ -234,6 +234,8 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
+@@ -224,6 +224,8 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
  
  int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enum AVPixelFormat *fmt);
  
-+int ff_hw_base_encode_free(AVCodecContext *avctx, HWBaseEncodePicture *pic);
++int ff_hw_base_encode_free(FFHWBaseEncodePicture *pic);
 +
  int ff_hw_base_encode_init(AVCodecContext *avctx);
  
  int ff_hw_base_encode_close(AVCodecContext *avctx);
 diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
-index 18b8418ace..692f9970c8 100644
+index d96f146b28..b35a23e852 100644
 --- a/libavcodec/vaapi_encode.c
 +++ b/libavcodec/vaapi_encode.c
-@@ -875,17 +875,13 @@ static int vaapi_encode_free(AVCodecContext *avctx,
+@@ -878,17 +878,13 @@ static int vaapi_encode_free(AVCodecContext *avctx,
              av_freep(&pic->slices[i].codec_slice_params);
      }
  
@@ -58,7 +58,7 @@ index 18b8418ace..692f9970c8 100644
 -    av_frame_free(&base_pic->recon_image);
 -
 -    av_buffer_unref(&base_pic->opaque_ref);
-+    ff_hw_base_encode_free(avctx, base_pic);
++    ff_hw_base_encode_free(base_pic);
  
      av_freep(&pic->param_buffers);
      av_freep(&pic->slices);
