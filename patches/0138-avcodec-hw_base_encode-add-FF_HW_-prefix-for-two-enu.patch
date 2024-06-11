@@ -1,0 +1,874 @@
+From ebc9a0f1fe4832c601ea9e6fae7368eb7d581cd0 Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Sat, 25 May 2024 16:47:05 +0800
+Subject: [PATCH 02/14] avcodec/hw_base_encode: add FF_HW_ prefix for two enums
+
+PICTURE_TYPE_* and FLAG_* are added FF_HW_ prefix after being moved to
+base layer.
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/hw_base_encode.h     | 20 ++++++-------
+ libavcodec/vaapi_encode.c       | 50 ++++++++++++++++-----------------
+ libavcodec/vaapi_encode_av1.c   | 12 ++++----
+ libavcodec/vaapi_encode_h264.c  | 50 ++++++++++++++++-----------------
+ libavcodec/vaapi_encode_h265.c  | 44 ++++++++++++++---------------
+ libavcodec/vaapi_encode_mjpeg.c |  6 ++--
+ libavcodec/vaapi_encode_mpeg2.c | 30 ++++++++++----------
+ libavcodec/vaapi_encode_vp8.c   | 10 +++----
+ libavcodec/vaapi_encode_vp9.c   | 16 +++++------
+ 9 files changed, 119 insertions(+), 119 deletions(-)
+
+diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
+index ffcb6bcbb2..f3c9f32977 100644
+--- a/libavcodec/hw_base_encode.h
++++ b/libavcodec/hw_base_encode.h
+@@ -26,26 +26,26 @@
+ #define MAX_REFERENCE_LIST_NUM 2
+ 
+ enum {
+-    PICTURE_TYPE_IDR = 0,
+-    PICTURE_TYPE_I   = 1,
+-    PICTURE_TYPE_P   = 2,
+-    PICTURE_TYPE_B   = 3,
++    FF_HW_PICTURE_TYPE_IDR = 0,
++    FF_HW_PICTURE_TYPE_I   = 1,
++    FF_HW_PICTURE_TYPE_P   = 2,
++    FF_HW_PICTURE_TYPE_B   = 3,
+ };
+ 
+ enum {
+     // Codec supports controlling the subdivision of pictures into slices.
+-    FLAG_SLICE_CONTROL         = 1 << 0,
++    FF_HW_FLAG_SLICE_CONTROL         = 1 << 0,
+     // Codec only supports constant quality (no rate control).
+-    FLAG_CONSTANT_QUALITY_ONLY = 1 << 1,
++    FF_HW_FLAG_CONSTANT_QUALITY_ONLY = 1 << 1,
+     // Codec is intra-only.
+-    FLAG_INTRA_ONLY            = 1 << 2,
++    FF_HW_FLAG_INTRA_ONLY            = 1 << 2,
+     // Codec supports B-pictures.
+-    FLAG_B_PICTURES            = 1 << 3,
++    FF_HW_FLAG_B_PICTURES            = 1 << 3,
+     // Codec supports referencing B-pictures.
+-    FLAG_B_PICTURE_REFERENCES  = 1 << 4,
++    FF_HW_FLAG_B_PICTURE_REFERENCES  = 1 << 4,
+     // Codec supports non-IDR key pictures (that is, key pictures do
+     // not necessarily empty the DPB).
+-    FLAG_NON_IDR_KEY_PICTURES  = 1 << 5,
++    FF_HW_FLAG_NON_IDR_KEY_PICTURES  = 1 << 5,
+ };
+ 
+ typedef struct FFHWBaseEncodeContext {
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index f54b2579ec..3c3d6a37c7 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -345,7 +345,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+ 
+     pic->nb_param_buffers = 0;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR && ctx->codec->init_sequence_params) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR && ctx->codec->init_sequence_params) {
+         err = vaapi_encode_make_param_buffer(avctx, pic,
+                                              VAEncSequenceParameterBufferType,
+                                              ctx->codec_sequence_params,
+@@ -354,7 +354,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+             goto fail;
+     }
+ 
+-    if (pic->type == PICTURE_TYPE_IDR) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+         for (i = 0; i < ctx->nb_global_params; i++) {
+             err = vaapi_encode_make_misc_param_buffer(avctx, pic,
+                                                       ctx->global_params_type[i],
+@@ -391,7 +391,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
+     }
+ #endif
+ 
+-    if (pic->type == PICTURE_TYPE_IDR) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+         if (ctx->va_packed_headers & VA_ENC_PACKED_HEADER_SEQUENCE &&
+             ctx->codec->write_sequence_header) {
+             bit_len = 8 * sizeof(data);
+@@ -671,7 +671,7 @@ static int vaapi_encode_set_output_property(AVCodecContext *avctx,
+ {
+     VAAPIEncodeContext *ctx = avctx->priv_data;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR)
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR)
+         pkt->flags |= AV_PKT_FLAG_KEY;
+ 
+     pkt->pts = pic->pts;
+@@ -996,7 +996,7 @@ static void vaapi_encode_remove_refs(AVCodecContext *avctx,
+         av_assert0(pic->dpb[i]->ref_count[level] >= 0);
+     }
+ 
+-    av_assert0(pic->prev || pic->type == PICTURE_TYPE_IDR);
++    av_assert0(pic->prev || pic->type == FF_HW_PICTURE_TYPE_IDR);
+     if (pic->prev) {
+         --pic->prev->ref_count[level];
+         av_assert0(pic->prev->ref_count[level] >= 0);
+@@ -1025,7 +1025,7 @@ static void vaapi_encode_set_b_pictures(AVCodecContext *avctx,
+         for (pic = start->next; pic; pic = pic->next) {
+             if (pic == end)
+                 break;
+-            pic->type    = PICTURE_TYPE_B;
++            pic->type    = FF_HW_PICTURE_TYPE_B;
+             pic->b_depth = current_depth;
+ 
+             vaapi_encode_add_ref(avctx, pic, start, 1, 1, 0);
+@@ -1045,7 +1045,7 @@ static void vaapi_encode_set_b_pictures(AVCodecContext *avctx,
+             ++len;
+         for (pic = start->next, i = 1; 2 * i < len; pic = pic->next, i++);
+ 
+-        pic->type    = PICTURE_TYPE_B;
++        pic->type    = FF_HW_PICTURE_TYPE_B;
+         pic->b_depth = current_depth;
+ 
+         pic->is_reference = 1;
+@@ -1078,7 +1078,7 @@ static void vaapi_encode_add_next_prev(AVCodecContext *avctx,
+     if (!pic)
+         return;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+         for (i = 0; i < ctx->nb_next_prev; i++) {
+             --ctx->next_prev[i]->ref_count[0];
+             ctx->next_prev[i] = NULL;
+@@ -1115,7 +1115,7 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
+     for (pic = ctx->pic_start; pic; pic = pic->next) {
+         if (pic->encode_issued)
+             continue;
+-        if (pic->type != PICTURE_TYPE_B)
++        if (pic->type != FF_HW_PICTURE_TYPE_B)
+             continue;
+         for (i = 0; i < pic->nb_refs[0]; i++) {
+             if (!pic->refs[0][i]->encode_issued)
+@@ -1192,7 +1192,7 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
+     if (pic->force_idr) {
+         av_log(avctx, AV_LOG_DEBUG, "Pick forced IDR-picture to "
+                "encode next.\n");
+-        pic->type = PICTURE_TYPE_IDR;
++        pic->type = FF_HW_PICTURE_TYPE_IDR;
+         ctx->idr_counter = 1;
+         ctx->gop_counter = 1;
+ 
+@@ -1200,12 +1200,12 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
+         if (ctx->idr_counter == ctx->gop_per_idr) {
+             av_log(avctx, AV_LOG_DEBUG, "Pick new-GOP IDR-picture to "
+                    "encode next.\n");
+-            pic->type = PICTURE_TYPE_IDR;
++            pic->type = FF_HW_PICTURE_TYPE_IDR;
+             ctx->idr_counter = 1;
+         } else {
+             av_log(avctx, AV_LOG_DEBUG, "Pick new-GOP I-picture to "
+                    "encode next.\n");
+-            pic->type = PICTURE_TYPE_I;
++            pic->type = FF_HW_PICTURE_TYPE_I;
+             ++ctx->idr_counter;
+         }
+         ctx->gop_counter = 1;
+@@ -1218,7 +1218,7 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
+             av_log(avctx, AV_LOG_DEBUG, "Pick normal P-picture to "
+                    "encode next.\n");
+         }
+-        pic->type = PICTURE_TYPE_P;
++        pic->type = FF_HW_PICTURE_TYPE_P;
+         av_assert0(start);
+         ctx->gop_counter += 1 + b_counter;
+     }
+@@ -1226,18 +1226,18 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
+     *pic_out = pic;
+ 
+     vaapi_encode_add_ref(avctx, pic, pic, 0, 1, 0);
+-    if (pic->type != PICTURE_TYPE_IDR) {
++    if (pic->type != FF_HW_PICTURE_TYPE_IDR) {
+         // TODO: apply both previous and forward multi reference for all vaapi encoders.
+         // And L0/L1 reference frame number can be set dynamically through query
+         // VAConfigAttribEncMaxRefFrames attribute.
+         if (avctx->codec_id == AV_CODEC_ID_AV1) {
+             for (i = 0; i < ctx->nb_next_prev; i++)
+                 vaapi_encode_add_ref(avctx, pic, ctx->next_prev[i],
+-                                     pic->type == PICTURE_TYPE_P,
++                                     pic->type == FF_HW_PICTURE_TYPE_P,
+                                      b_counter > 0, 0);
+         } else
+             vaapi_encode_add_ref(avctx, pic, start,
+-                                 pic->type == PICTURE_TYPE_P,
++                                 pic->type == FF_HW_PICTURE_TYPE_P,
+                                  b_counter > 0, 0);
+ 
+         vaapi_encode_add_ref(avctx, pic, ctx->next_prev[ctx->nb_next_prev - 1], 0, 0, 1);
+@@ -1405,7 +1405,7 @@ start:
+     /** if no B frame before repeat P frame, sent repeat P frame out. */
+     if (ctx->tail_pkt->size) {
+         for (VAAPIEncodePicture *tmp = ctx->pic_start; tmp; tmp = tmp->next) {
+-            if (tmp->type == PICTURE_TYPE_B && tmp->pts < ctx->tail_pkt->pts)
++            if (tmp->type == FF_HW_PICTURE_TYPE_B && tmp->pts < ctx->tail_pkt->pts)
+                 break;
+             else if (!tmp->next) {
+                 av_packet_move_ref(pkt, ctx->tail_pkt);
+@@ -1875,7 +1875,7 @@ static av_cold int vaapi_encode_init_rate_control(AVCodecContext *avctx)
+     if (ctx->explicit_qp)
+         TRY_RC_MODE(RC_MODE_CQP, 1);
+ 
+-    if (ctx->codec->flags & FLAG_CONSTANT_QUALITY_ONLY)
++    if (ctx->codec->flags & FF_HW_FLAG_CONSTANT_QUALITY_ONLY)
+         TRY_RC_MODE(RC_MODE_CQP, 1);
+ 
+     if (avctx->flags & AV_CODEC_FLAG_QSCALE)
+@@ -2215,7 +2215,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+     prediction_pre_only = 0;
+ 
+ #if VA_CHECK_VERSION(1, 9, 0)
+-    if (!(ctx->codec->flags & FLAG_INTRA_ONLY ||
++    if (!(ctx->codec->flags & FF_HW_FLAG_INTRA_ONLY ||
+         avctx->gop_size <= 1)) {
+         attr = (VAConfigAttrib) { VAConfigAttribPredictionDirection };
+         vas = vaGetConfigAttributes(ctx->hwctx->display,
+@@ -2256,7 +2256,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+     }
+ #endif
+ 
+-    if (ctx->codec->flags & FLAG_INTRA_ONLY ||
++    if (ctx->codec->flags & FF_HW_FLAG_INTRA_ONLY ||
+         avctx->gop_size <= 1) {
+         av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
+         ctx->gop_size = 1;
+@@ -2264,7 +2264,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+         av_log(avctx, AV_LOG_ERROR, "Driver does not support any "
+                "reference frames.\n");
+         return AVERROR(EINVAL);
+-    } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
++    } else if (!(ctx->codec->flags & FF_HW_FLAG_B_PICTURES) ||
+                ref_l1 < 1 || avctx->max_b_frames < 1 ||
+                prediction_pre_only) {
+         if (ctx->p_to_gpb)
+@@ -2288,7 +2288,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+         ctx->gop_size = avctx->gop_size;
+         ctx->p_per_i  = INT_MAX;
+         ctx->b_per_p  = avctx->max_b_frames;
+-        if (ctx->codec->flags & FLAG_B_PICTURE_REFERENCES) {
++        if (ctx->codec->flags & FF_HW_FLAG_B_PICTURE_REFERENCES) {
+             ctx->max_b_depth = FFMIN(ctx->desired_b_depth,
+                                      av_log2(ctx->b_per_p) + 1);
+         } else {
+@@ -2296,7 +2296,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+         }
+     }
+ 
+-    if (ctx->codec->flags & FLAG_NON_IDR_KEY_PICTURES) {
++    if (ctx->codec->flags & FF_HW_FLAG_NON_IDR_KEY_PICTURES) {
+         ctx->closed_gop  = !!(avctx->flags & AV_CODEC_FLAG_CLOSED_GOP);
+         ctx->gop_per_idr = ctx->idr_interval + 1;
+     } else {
+@@ -2426,7 +2426,7 @@ static av_cold int vaapi_encode_init_slice_structure(AVCodecContext *avctx)
+     uint32_t max_slices, slice_structure;
+     int ret;
+ 
+-    if (!(ctx->codec->flags & FLAG_SLICE_CONTROL)) {
++    if (!(ctx->codec->flags & FF_HW_FLAG_SLICE_CONTROL)) {
+         if (avctx->slices > 0) {
+             av_log(avctx, AV_LOG_WARNING, "Multiple slices were requested "
+                    "but this codec does not support controlling slices.\n");
+@@ -2827,7 +2827,7 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+         // Assume 16x16 blocks.
+         ctx->surface_width  = FFALIGN(avctx->width,  16);
+         ctx->surface_height = FFALIGN(avctx->height, 16);
+-        if (ctx->codec->flags & FLAG_SLICE_CONTROL) {
++        if (ctx->codec->flags & FF_HW_FLAG_SLICE_CONTROL) {
+             ctx->slice_block_width  = 16;
+             ctx->slice_block_height = 16;
+         }
+diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
+index b868f5b66a..7740942f2c 100644
+--- a/libavcodec/vaapi_encode_av1.c
++++ b/libavcodec/vaapi_encode_av1.c
+@@ -488,7 +488,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+     fh_obu->header.obu_has_size_field = 1;
+ 
+     switch (pic->type) {
+-    case PICTURE_TYPE_IDR:
++    case FF_HW_PICTURE_TYPE_IDR:
+         av_assert0(pic->nb_refs[0] == 0 || pic->nb_refs[1]);
+         fh->frame_type = AV1_FRAME_KEY;
+         fh->refresh_frame_flags = 0xFF;
+@@ -496,7 +496,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+         hpic->slot = 0;
+         hpic->last_idr_frame = pic->display_order;
+         break;
+-    case PICTURE_TYPE_P:
++    case FF_HW_PICTURE_TYPE_P:
+         av_assert0(pic->nb_refs[0]);
+         fh->frame_type = AV1_FRAME_INTER;
+         fh->base_q_idx = priv->q_idx_p;
+@@ -523,7 +523,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+             vpic->ref_frame_ctrl_l0.fields.search_idx1 = AV1_REF_FRAME_GOLDEN;
+         }
+         break;
+-    case PICTURE_TYPE_B:
++    case FF_HW_PICTURE_TYPE_B:
+         av_assert0(pic->nb_refs[0] && pic->nb_refs[1]);
+         fh->frame_type = AV1_FRAME_INTER;
+         fh->base_q_idx = priv->q_idx_b;
+@@ -656,7 +656,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+         vpic->bit_offset_cdef_params         = priv->cdef_start_offset;
+         vpic->size_in_bits_cdef_params       = priv->cdef_param_size;
+         vpic->size_in_bits_frame_hdr_obu     = priv->fh_data_len;
+-        vpic->byte_offset_frame_hdr_obu_size = (((pic->type == PICTURE_TYPE_IDR) ?
++        vpic->byte_offset_frame_hdr_obu_size = (((pic->type == FF_HW_PICTURE_TYPE_IDR) ?
+                                                priv->sh_data_len / 8 : 0) +
+                                                (fh_obu->header.obu_extension_flag ?
+                                                2 : 1));
+@@ -664,7 +664,7 @@ static int vaapi_encode_av1_init_picture_params(AVCodecContext *avctx,
+ 
+     priv->nb_mh = 0;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+         AVFrameSideData *sd =
+             av_frame_get_side_data(pic->input_image,
+                                    AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
+@@ -841,7 +841,7 @@ static const VAAPIEncodeProfile vaapi_encode_av1_profiles[] = {
+ 
+ static const VAAPIEncodeType vaapi_encode_type_av1 = {
+     .profiles        = vaapi_encode_av1_profiles,
+-    .flags           = FLAG_B_PICTURES | FLAG_TIMESTAMP_NO_DELAY,
++    .flags           = FF_HW_FLAG_B_PICTURES | FLAG_TIMESTAMP_NO_DELAY,
+     .default_quality = 25,
+ 
+     .get_encoder_caps = &vaapi_encode_av1_get_encoder_caps,
+diff --git a/libavcodec/vaapi_encode_h264.c b/libavcodec/vaapi_encode_h264.c
+index d656b1020f..df116d6610 100644
+--- a/libavcodec/vaapi_encode_h264.c
++++ b/libavcodec/vaapi_encode_h264.c
+@@ -233,7 +233,7 @@ static int vaapi_encode_h264_write_extra_header(AVCodecContext *avctx,
+                 goto fail;
+         }
+         if (priv->sei_needed & SEI_TIMING) {
+-            if (pic->type == PICTURE_TYPE_IDR) {
++            if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+                 err = ff_cbs_sei_add_message(priv->cbc, au, 1,
+                                              SEI_TYPE_BUFFERING_PERIOD,
+                                              &priv->sei_buffering_period, NULL);
+@@ -629,7 +629,7 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+     VAEncPictureParameterBufferH264 *vpic = pic->codec_picture_params;
+     int i, j = 0;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+         av_assert0(pic->display_order == pic->encode_order);
+ 
+         hpic->frame_num      = 0;
+@@ -646,10 +646,10 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+         hpic->last_idr_frame = hprev->last_idr_frame;
+         hpic->idr_pic_id     = hprev->idr_pic_id;
+ 
+-        if (pic->type == PICTURE_TYPE_I) {
++        if (pic->type == FF_HW_PICTURE_TYPE_I) {
+             hpic->slice_type       = 7;
+             hpic->primary_pic_type = 0;
+-        } else if (pic->type == PICTURE_TYPE_P) {
++        } else if (pic->type == FF_HW_PICTURE_TYPE_P) {
+             hpic->slice_type       = 5;
+             hpic->primary_pic_type = 1;
+         } else {
+@@ -695,7 +695,7 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+         priv->sei_needed |= SEI_TIMING;
+     }
+ 
+-    if (priv->sei & SEI_RECOVERY_POINT && pic->type == PICTURE_TYPE_I) {
++    if (priv->sei & SEI_RECOVERY_POINT && pic->type == FF_HW_PICTURE_TYPE_I) {
+         priv->sei_recovery_point = (H264RawSEIRecoveryPoint) {
+             .recovery_frame_cnt = 0,
+             .exact_match_flag   = 1,
+@@ -757,7 +757,7 @@ static int vaapi_encode_h264_init_picture_params(AVCodecContext *avctx,
+ 
+     vpic->frame_num = hpic->frame_num;
+ 
+-    vpic->pic_fields.bits.idr_pic_flag       = (pic->type == PICTURE_TYPE_IDR);
++    vpic->pic_fields.bits.idr_pic_flag       = (pic->type == FF_HW_PICTURE_TYPE_IDR);
+     vpic->pic_fields.bits.reference_pic_flag = pic->is_reference;
+ 
+     return 0;
+@@ -781,7 +781,7 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+         hn = prev->dpb[i]->priv_data;
+         av_assert0(hn->frame_num < hp->frame_num);
+ 
+-        if (pic->type == PICTURE_TYPE_P) {
++        if (pic->type == FF_HW_PICTURE_TYPE_P) {
+             for (j = n; j > 0; j--) {
+                 hc = rpl0[j - 1]->priv_data;
+                 av_assert0(hc->frame_num != hn->frame_num);
+@@ -791,7 +791,7 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+             }
+             rpl0[j] = prev->dpb[i];
+ 
+-        } else if (pic->type == PICTURE_TYPE_B) {
++        } else if (pic->type == FF_HW_PICTURE_TYPE_B) {
+             for (j = n; j > 0; j--) {
+                 hc = rpl0[j - 1]->priv_data;
+                 av_assert0(hc->pic_order_cnt != hp->pic_order_cnt);
+@@ -826,7 +826,7 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+         ++n;
+     }
+ 
+-    if (pic->type == PICTURE_TYPE_B) {
++    if (pic->type == FF_HW_PICTURE_TYPE_B) {
+         for (i = 0; i < n; i++) {
+             if (rpl0[i] != rpl1[i])
+                 break;
+@@ -835,8 +835,8 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+             FFSWAP(VAAPIEncodePicture*, rpl1[0], rpl1[1]);
+     }
+ 
+-    if (pic->type == PICTURE_TYPE_P ||
+-        pic->type == PICTURE_TYPE_B) {
++    if (pic->type == FF_HW_PICTURE_TYPE_P ||
++        pic->type == FF_HW_PICTURE_TYPE_B) {
+         av_log(avctx, AV_LOG_DEBUG, "Default RefPicList0 for fn=%d/poc=%d:",
+                hp->frame_num, hp->pic_order_cnt);
+         for (i = 0; i < n; i++) {
+@@ -846,7 +846,7 @@ static void vaapi_encode_h264_default_ref_pic_list(AVCodecContext *avctx,
+         }
+         av_log(avctx, AV_LOG_DEBUG, "\n");
+     }
+-    if (pic->type == PICTURE_TYPE_B) {
++    if (pic->type == FF_HW_PICTURE_TYPE_B) {
+         av_log(avctx, AV_LOG_DEBUG, "Default RefPicList1 for fn=%d/poc=%d:",
+                hp->frame_num, hp->pic_order_cnt);
+         for (i = 0; i < n; i++) {
+@@ -874,7 +874,7 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+     VAEncSliceParameterBufferH264 *vslice = slice->codec_slice_params;
+     int i, j;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+         sh->nal_unit_header.nal_unit_type = H264_NAL_IDR_SLICE;
+         sh->nal_unit_header.nal_ref_idc   = 3;
+     } else {
+@@ -895,14 +895,14 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+ 
+     sh->direct_spatial_mv_pred_flag = 1;
+ 
+-    if (pic->type == PICTURE_TYPE_B)
++    if (pic->type == FF_HW_PICTURE_TYPE_B)
+         sh->slice_qp_delta = priv->fixed_qp_b - (pps->pic_init_qp_minus26 + 26);
+-    else if (pic->type == PICTURE_TYPE_P)
++    else if (pic->type == FF_HW_PICTURE_TYPE_P)
+         sh->slice_qp_delta = priv->fixed_qp_p - (pps->pic_init_qp_minus26 + 26);
+     else
+         sh->slice_qp_delta = priv->fixed_qp_idr - (pps->pic_init_qp_minus26 + 26);
+ 
+-    if (pic->is_reference && pic->type != PICTURE_TYPE_IDR) {
++    if (pic->is_reference && pic->type != FF_HW_PICTURE_TYPE_IDR) {
+         VAAPIEncodePicture *discard_list[MAX_DPB_SIZE];
+         int discard = 0, keep = 0;
+ 
+@@ -939,7 +939,7 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+ 
+     // If the intended references are not the first entries of RefPicListN
+     // by default, use ref-pic-list-modification to move them there.
+-    if (pic->type == PICTURE_TYPE_P || pic->type == PICTURE_TYPE_B) {
++    if (pic->type == FF_HW_PICTURE_TYPE_P || pic->type == FF_HW_PICTURE_TYPE_B) {
+         VAAPIEncodePicture *def_l0[MAX_DPB_SIZE], *def_l1[MAX_DPB_SIZE];
+         VAAPIEncodeH264Picture *href;
+         int n;
+@@ -947,7 +947,7 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+         vaapi_encode_h264_default_ref_pic_list(avctx, pic,
+                                                def_l0, def_l1, &n);
+ 
+-        if (pic->type == PICTURE_TYPE_P) {
++        if (pic->type == FF_HW_PICTURE_TYPE_P) {
+             int need_rplm = 0;
+             for (i = 0; i < pic->nb_refs[0]; i++) {
+                 av_assert0(pic->refs[0][i]);
+@@ -1064,13 +1064,13 @@ static int vaapi_encode_h264_init_slice_params(AVCodecContext *avctx,
+ 
+     if (pic->nb_refs[0]) {
+         // Backward reference for P- or B-frame.
+-        av_assert0(pic->type == PICTURE_TYPE_P ||
+-                   pic->type == PICTURE_TYPE_B);
++        av_assert0(pic->type == FF_HW_PICTURE_TYPE_P ||
++                   pic->type == FF_HW_PICTURE_TYPE_B);
+         vslice->RefPicList0[0] = vpic->ReferenceFrames[0];
+     }
+     if (pic->nb_refs[1]) {
+         // Forward reference for B-frame.
+-        av_assert0(pic->type == PICTURE_TYPE_B);
++        av_assert0(pic->type == FF_HW_PICTURE_TYPE_B);
+         vslice->RefPicList1[0] = vpic->ReferenceFrames[1];
+     }
+ 
+@@ -1170,10 +1170,10 @@ static const VAAPIEncodeProfile vaapi_encode_h264_profiles[] = {
+ static const VAAPIEncodeType vaapi_encode_type_h264 = {
+     .profiles              = vaapi_encode_h264_profiles,
+ 
+-    .flags                 = FLAG_SLICE_CONTROL |
+-                             FLAG_B_PICTURES |
+-                             FLAG_B_PICTURE_REFERENCES |
+-                             FLAG_NON_IDR_KEY_PICTURES,
++    .flags                 = FF_HW_FLAG_SLICE_CONTROL |
++                             FF_HW_FLAG_B_PICTURES |
++                             FF_HW_FLAG_B_PICTURE_REFERENCES |
++                             FF_HW_FLAG_NON_IDR_KEY_PICTURES,
+ 
+     .default_quality       = 20,
+ 
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index f46d32cc05..c987d88324 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -790,7 +790,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+     VAEncPictureParameterBufferHEVC *vpic = pic->codec_picture_params;
+     int i, j = 0;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR) {
+         av_assert0(pic->display_order == pic->encode_order);
+ 
+         hpic->last_idr_frame = pic->display_order;
+@@ -802,11 +802,11 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+         av_assert0(prev);
+         hpic->last_idr_frame = hprev->last_idr_frame;
+ 
+-        if (pic->type == PICTURE_TYPE_I) {
++        if (pic->type == FF_HW_PICTURE_TYPE_I) {
+             hpic->slice_nal_unit = HEVC_NAL_CRA_NUT;
+             hpic->slice_type     = HEVC_SLICE_I;
+             hpic->pic_type       = 0;
+-        } else if (pic->type == PICTURE_TYPE_P) {
++        } else if (pic->type == FF_HW_PICTURE_TYPE_P) {
+             av_assert0(pic->refs[0]);
+             hpic->slice_nal_unit = HEVC_NAL_TRAIL_R;
+             hpic->slice_type     = HEVC_SLICE_P;
+@@ -815,7 +815,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+             VAAPIEncodePicture *irap_ref;
+             av_assert0(pic->refs[0][0] && pic->refs[1][0]);
+             for (irap_ref = pic; irap_ref; irap_ref = irap_ref->refs[1][0]) {
+-                if (irap_ref->type == PICTURE_TYPE_I)
++                if (irap_ref->type == FF_HW_PICTURE_TYPE_I)
+                     break;
+             }
+             if (pic->b_depth == ctx->max_b_depth) {
+@@ -851,7 +851,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+     // may force an IDR frame on the output where the medadata gets
+     // changed on the input frame.
+     if ((priv->sei & SEI_MASTERING_DISPLAY) &&
+-        (pic->type == PICTURE_TYPE_I || pic->type == PICTURE_TYPE_IDR)) {
++        (pic->type == FF_HW_PICTURE_TYPE_I || pic->type == FF_HW_PICTURE_TYPE_IDR)) {
+         AVFrameSideData *sd =
+             av_frame_get_side_data(pic->input_image,
+                                    AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
+@@ -899,7 +899,7 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+     }
+ 
+     if ((priv->sei & SEI_CONTENT_LIGHT_LEVEL) &&
+-        (pic->type == PICTURE_TYPE_I || pic->type == PICTURE_TYPE_IDR)) {
++        (pic->type == FF_HW_PICTURE_TYPE_I || pic->type == FF_HW_PICTURE_TYPE_IDR)) {
+         AVFrameSideData *sd =
+             av_frame_get_side_data(pic->input_image,
+                                    AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
+@@ -971,19 +971,19 @@ static int vaapi_encode_h265_init_picture_params(AVCodecContext *avctx,
+ 
+     vpic->pic_fields.bits.reference_pic_flag = pic->is_reference;
+     switch (pic->type) {
+-    case PICTURE_TYPE_IDR:
++    case FF_HW_PICTURE_TYPE_IDR:
+         vpic->pic_fields.bits.idr_pic_flag       = 1;
+         vpic->pic_fields.bits.coding_type        = 1;
+         break;
+-    case PICTURE_TYPE_I:
++    case FF_HW_PICTURE_TYPE_I:
+         vpic->pic_fields.bits.idr_pic_flag       = 0;
+         vpic->pic_fields.bits.coding_type        = 1;
+         break;
+-    case PICTURE_TYPE_P:
++    case FF_HW_PICTURE_TYPE_P:
+         vpic->pic_fields.bits.idr_pic_flag       = 0;
+         vpic->pic_fields.bits.coding_type        = 2;
+         break;
+-    case PICTURE_TYPE_B:
++    case FF_HW_PICTURE_TYPE_B:
+         vpic->pic_fields.bits.idr_pic_flag       = 0;
+         vpic->pic_fields.bits.coding_type        = 3;
+         break;
+@@ -1027,7 +1027,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+     sh->slice_pic_order_cnt_lsb = hpic->pic_order_cnt &
+         (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
+ 
+-    if (pic->type != PICTURE_TYPE_IDR) {
++    if (pic->type != FF_HW_PICTURE_TYPE_IDR) {
+         H265RawSTRefPicSet *rps;
+         const VAAPIEncodeH265Picture *strp;
+         int rps_poc[MAX_DPB_SIZE];
+@@ -1140,9 +1140,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+     sh->slice_sao_luma_flag = sh->slice_sao_chroma_flag =
+         sps->sample_adaptive_offset_enabled_flag;
+ 
+-    if (pic->type == PICTURE_TYPE_B)
++    if (pic->type == FF_HW_PICTURE_TYPE_B)
+         sh->slice_qp_delta = priv->fixed_qp_b - (pps->init_qp_minus26 + 26);
+-    else if (pic->type == PICTURE_TYPE_P)
++    else if (pic->type == FF_HW_PICTURE_TYPE_P)
+         sh->slice_qp_delta = priv->fixed_qp_p - (pps->init_qp_minus26 + 26);
+     else
+         sh->slice_qp_delta = priv->fixed_qp_idr - (pps->init_qp_minus26 + 26);
+@@ -1201,20 +1201,20 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+ 
+     if (pic->nb_refs[0]) {
+         // Backward reference for P- or B-frame.
+-        av_assert0(pic->type == PICTURE_TYPE_P ||
+-                   pic->type == PICTURE_TYPE_B);
++        av_assert0(pic->type == FF_HW_PICTURE_TYPE_P ||
++                   pic->type == FF_HW_PICTURE_TYPE_B);
+         vslice->ref_pic_list0[0] = vpic->reference_frames[0];
+-        if (ctx->p_to_gpb && pic->type == PICTURE_TYPE_P)
++        if (ctx->p_to_gpb && pic->type == FF_HW_PICTURE_TYPE_P)
+             // Reference for GPB B-frame, L0 == L1
+             vslice->ref_pic_list1[0] = vpic->reference_frames[0];
+     }
+     if (pic->nb_refs[1]) {
+         // Forward reference for B-frame.
+-        av_assert0(pic->type == PICTURE_TYPE_B);
++        av_assert0(pic->type == FF_HW_PICTURE_TYPE_B);
+         vslice->ref_pic_list1[0] = vpic->reference_frames[1];
+     }
+ 
+-    if (pic->type == PICTURE_TYPE_P && ctx->p_to_gpb) {
++    if (pic->type == FF_HW_PICTURE_TYPE_P && ctx->p_to_gpb) {
+         vslice->slice_type = HEVC_SLICE_B;
+         for (i = 0; i < FF_ARRAY_ELEMS(vslice->ref_pic_list0); i++) {
+             vslice->ref_pic_list1[i].picture_id = vslice->ref_pic_list0[i].picture_id;
+@@ -1360,10 +1360,10 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+ static const VAAPIEncodeType vaapi_encode_type_h265 = {
+     .profiles              = vaapi_encode_h265_profiles,
+ 
+-    .flags                 = FLAG_SLICE_CONTROL |
+-                             FLAG_B_PICTURES |
+-                             FLAG_B_PICTURE_REFERENCES |
+-                             FLAG_NON_IDR_KEY_PICTURES,
++    .flags                 = FF_HW_FLAG_SLICE_CONTROL |
++                             FF_HW_FLAG_B_PICTURES |
++                             FF_HW_FLAG_B_PICTURE_REFERENCES |
++                             FF_HW_FLAG_NON_IDR_KEY_PICTURES,
+ 
+     .default_quality       = 25,
+ 
+diff --git a/libavcodec/vaapi_encode_mjpeg.c b/libavcodec/vaapi_encode_mjpeg.c
+index c17747e3a9..0e74a3eb6f 100644
+--- a/libavcodec/vaapi_encode_mjpeg.c
++++ b/libavcodec/vaapi_encode_mjpeg.c
+@@ -232,7 +232,7 @@ static int vaapi_encode_mjpeg_init_picture_params(AVCodecContext *avctx,
+     const uint8_t *components;
+     int t, i, quant_scale, len;
+ 
+-    av_assert0(pic->type == PICTURE_TYPE_IDR);
++    av_assert0(pic->type == FF_HW_PICTURE_TYPE_IDR);
+ 
+     desc = av_pix_fmt_desc_get(priv->common.input_frames->sw_format);
+     av_assert0(desc);
+@@ -494,8 +494,8 @@ static const VAAPIEncodeProfile vaapi_encode_mjpeg_profiles[] = {
+ static const VAAPIEncodeType vaapi_encode_type_mjpeg = {
+     .profiles              = vaapi_encode_mjpeg_profiles,
+ 
+-    .flags                 = FLAG_CONSTANT_QUALITY_ONLY |
+-                             FLAG_INTRA_ONLY,
++    .flags                 = FF_HW_FLAG_CONSTANT_QUALITY_ONLY |
++                             FF_HW_FLAG_INTRA_ONLY,
+ 
+     .get_encoder_caps      = &vaapi_encode_mjpeg_get_encoder_caps,
+     .configure             = &vaapi_encode_mjpeg_configure,
+diff --git a/libavcodec/vaapi_encode_mpeg2.c b/libavcodec/vaapi_encode_mpeg2.c
+index c9b16fbcfc..92bf6e443e 100644
+--- a/libavcodec/vaapi_encode_mpeg2.c
++++ b/libavcodec/vaapi_encode_mpeg2.c
+@@ -424,23 +424,23 @@ static int vaapi_encode_mpeg2_init_picture_params(AVCodecContext *avctx,
+     MPEG2RawPictureCodingExtension    *pce = &priv->picture_coding_extension.data.picture_coding;
+     VAEncPictureParameterBufferMPEG2 *vpic = pic->codec_picture_params;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR || pic->type == PICTURE_TYPE_I) {
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR || pic->type == FF_HW_PICTURE_TYPE_I) {
+         ph->temporal_reference  = 0;
+         ph->picture_coding_type = 1;
+         priv->last_i_frame = pic->display_order;
+     } else {
+         ph->temporal_reference = pic->display_order - priv->last_i_frame;
+-        ph->picture_coding_type = pic->type == PICTURE_TYPE_B ? 3 : 2;
++        ph->picture_coding_type = pic->type == FF_HW_PICTURE_TYPE_B ? 3 : 2;
+     }
+ 
+-    if (pic->type == PICTURE_TYPE_P || pic->type == PICTURE_TYPE_B) {
++    if (pic->type == FF_HW_PICTURE_TYPE_P || pic->type == FF_HW_PICTURE_TYPE_B) {
+         pce->f_code[0][0] = priv->f_code_horizontal;
+         pce->f_code[0][1] = priv->f_code_vertical;
+     } else {
+         pce->f_code[0][0] = 15;
+         pce->f_code[0][1] = 15;
+     }
+-    if (pic->type == PICTURE_TYPE_B) {
++    if (pic->type == FF_HW_PICTURE_TYPE_B) {
+         pce->f_code[1][0] = priv->f_code_horizontal;
+         pce->f_code[1][1] = priv->f_code_vertical;
+     } else {
+@@ -452,15 +452,15 @@ static int vaapi_encode_mpeg2_init_picture_params(AVCodecContext *avctx,
+     vpic->coded_buf             = pic->output_buffer;
+ 
+     switch (pic->type) {
+-    case PICTURE_TYPE_IDR:
+-    case PICTURE_TYPE_I:
++    case FF_HW_PICTURE_TYPE_IDR:
++    case FF_HW_PICTURE_TYPE_I:
+         vpic->picture_type = VAEncPictureTypeIntra;
+         break;
+-    case PICTURE_TYPE_P:
++    case FF_HW_PICTURE_TYPE_P:
+         vpic->picture_type = VAEncPictureTypePredictive;
+         vpic->forward_reference_picture = pic->refs[0][0]->recon_surface;
+         break;
+-    case PICTURE_TYPE_B:
++    case FF_HW_PICTURE_TYPE_B:
+         vpic->picture_type = VAEncPictureTypeBidirectional;
+         vpic->forward_reference_picture  = pic->refs[0][0]->recon_surface;
+         vpic->backward_reference_picture = pic->refs[1][0]->recon_surface;
+@@ -490,14 +490,14 @@ static int vaapi_encode_mpeg2_init_slice_params(AVCodecContext *avctx,
+     vslice->num_macroblocks    = slice->block_size;
+ 
+     switch (pic->type) {
+-    case PICTURE_TYPE_IDR:
+-    case PICTURE_TYPE_I:
++    case FF_HW_PICTURE_TYPE_IDR:
++    case FF_HW_PICTURE_TYPE_I:
+         qp = priv->quant_i;
+         break;
+-    case PICTURE_TYPE_P:
++    case FF_HW_PICTURE_TYPE_P:
+         qp = priv->quant_p;
+         break;
+-    case PICTURE_TYPE_B:
++    case FF_HW_PICTURE_TYPE_B:
+         qp = priv->quant_b;
+         break;
+     default:
+@@ -505,8 +505,8 @@ static int vaapi_encode_mpeg2_init_slice_params(AVCodecContext *avctx,
+     }
+ 
+     vslice->quantiser_scale_code = qp;
+-    vslice->is_intra_slice = (pic->type == PICTURE_TYPE_IDR ||
+-                              pic->type == PICTURE_TYPE_I);
++    vslice->is_intra_slice = (pic->type == FF_HW_PICTURE_TYPE_IDR ||
++                              pic->type == FF_HW_PICTURE_TYPE_I);
+ 
+     return 0;
+ }
+@@ -566,7 +566,7 @@ static const VAAPIEncodeProfile vaapi_encode_mpeg2_profiles[] = {
+ static const VAAPIEncodeType vaapi_encode_type_mpeg2 = {
+     .profiles              = vaapi_encode_mpeg2_profiles,
+ 
+-    .flags                 = FLAG_B_PICTURES,
++    .flags                 = FF_HW_FLAG_B_PICTURES,
+ 
+     .configure             = &vaapi_encode_mpeg2_configure,
+ 
+diff --git a/libavcodec/vaapi_encode_vp8.c b/libavcodec/vaapi_encode_vp8.c
+index 8a557b967e..7dcd3d84af 100644
+--- a/libavcodec/vaapi_encode_vp8.c
++++ b/libavcodec/vaapi_encode_vp8.c
+@@ -84,8 +84,8 @@ static int vaapi_encode_vp8_init_picture_params(AVCodecContext *avctx,
+     vpic->coded_buf = pic->output_buffer;
+ 
+     switch (pic->type) {
+-    case PICTURE_TYPE_IDR:
+-    case PICTURE_TYPE_I:
++    case FF_HW_PICTURE_TYPE_IDR:
++    case FF_HW_PICTURE_TYPE_I:
+         av_assert0(pic->nb_refs[0] == 0 && pic->nb_refs[1] == 0);
+         vpic->ref_flags.bits.force_kf = 1;
+         vpic->ref_last_frame =
+@@ -93,7 +93,7 @@ static int vaapi_encode_vp8_init_picture_params(AVCodecContext *avctx,
+         vpic->ref_arf_frame  =
+             VA_INVALID_SURFACE;
+         break;
+-    case PICTURE_TYPE_P:
++    case FF_HW_PICTURE_TYPE_P:
+         av_assert0(!pic->nb_refs[1]);
+         vpic->ref_flags.bits.no_ref_last = 0;
+         vpic->ref_flags.bits.no_ref_gf   = 1;
+@@ -107,7 +107,7 @@ static int vaapi_encode_vp8_init_picture_params(AVCodecContext *avctx,
+         av_assert0(0 && "invalid picture type");
+     }
+ 
+-    vpic->pic_flags.bits.frame_type = (pic->type != PICTURE_TYPE_IDR);
++    vpic->pic_flags.bits.frame_type = (pic->type != FF_HW_PICTURE_TYPE_IDR);
+     vpic->pic_flags.bits.show_frame = 1;
+ 
+     vpic->pic_flags.bits.refresh_last            = 1;
+@@ -145,7 +145,7 @@ static int vaapi_encode_vp8_write_quant_table(AVCodecContext *avctx,
+ 
+     memset(&quant, 0, sizeof(quant));
+ 
+-    if (pic->type == PICTURE_TYPE_P)
++    if (pic->type == FF_HW_PICTURE_TYPE_P)
+         q = priv->q_index_p;
+     else
+         q = priv->q_index_i;
+diff --git a/libavcodec/vaapi_encode_vp9.c b/libavcodec/vaapi_encode_vp9.c
+index c2a8dec71b..4eec0fd445 100644
+--- a/libavcodec/vaapi_encode_vp9.c
++++ b/libavcodec/vaapi_encode_vp9.c
+@@ -95,13 +95,13 @@ static int vaapi_encode_vp9_init_picture_params(AVCodecContext *avctx,
+     vpic->log2_tile_columns = num_tile_columns == 1 ? 0 : av_log2(num_tile_columns - 1) + 1;
+ 
+     switch (pic->type) {
+-    case PICTURE_TYPE_IDR:
++    case FF_HW_PICTURE_TYPE_IDR:
+         av_assert0(pic->nb_refs[0] == 0 && pic->nb_refs[1] == 0);
+         vpic->ref_flags.bits.force_kf = 1;
+         vpic->refresh_frame_flags = 0xff;
+         hpic->slot = 0;
+         break;
+-    case PICTURE_TYPE_P:
++    case FF_HW_PICTURE_TYPE_P:
+         av_assert0(!pic->nb_refs[1]);
+         {
+             VAAPIEncodeVP9Picture *href = pic->refs[0][0]->priv_data;
+@@ -119,7 +119,7 @@ static int vaapi_encode_vp9_init_picture_params(AVCodecContext *avctx,
+             vpic->ref_flags.bits.ref_last_sign_bias = 1;
+         }
+         break;
+-    case PICTURE_TYPE_B:
++    case FF_HW_PICTURE_TYPE_B:
+         av_assert0(pic->nb_refs[0] && pic->nb_refs[1]);
+         {
+             VAAPIEncodeVP9Picture *href0 = pic->refs[0][0]->priv_data,
+@@ -167,12 +167,12 @@ static int vaapi_encode_vp9_init_picture_params(AVCodecContext *avctx,
+         }
+     }
+ 
+-    vpic->pic_flags.bits.frame_type = (pic->type != PICTURE_TYPE_IDR);
++    vpic->pic_flags.bits.frame_type = (pic->type != FF_HW_PICTURE_TYPE_IDR);
+     vpic->pic_flags.bits.show_frame = pic->display_order <= pic->encode_order;
+ 
+-    if (pic->type == PICTURE_TYPE_IDR)
++    if (pic->type == FF_HW_PICTURE_TYPE_IDR)
+         vpic->luma_ac_qindex     = priv->q_idx_idr;
+-    else if (pic->type == PICTURE_TYPE_P)
++    else if (pic->type == FF_HW_PICTURE_TYPE_P)
+         vpic->luma_ac_qindex     = priv->q_idx_p;
+     else
+         vpic->luma_ac_qindex     = priv->q_idx_b;
+@@ -239,8 +239,8 @@ static const VAAPIEncodeProfile vaapi_encode_vp9_profiles[] = {
+ static const VAAPIEncodeType vaapi_encode_type_vp9 = {
+     .profiles              = vaapi_encode_vp9_profiles,
+ 
+-    .flags                 = FLAG_B_PICTURES |
+-                             FLAG_B_PICTURE_REFERENCES,
++    .flags                 = FF_HW_FLAG_B_PICTURES |
++                             FF_HW_FLAG_B_PICTURE_REFERENCES,
+ 
+     .default_quality       = 100,
+ 
+-- 
+2.41.0.windows.1
+

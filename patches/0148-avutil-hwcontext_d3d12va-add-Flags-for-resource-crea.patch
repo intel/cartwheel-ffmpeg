@@ -1,7 +1,7 @@
-From cbb3ba7fe2150baa9f7a5e2a7facfdac65c69e91 Mon Sep 17 00:00:00 2001
+From 434dbaf30ac4302dfa07399c344dc53dfc838a90 Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 26 Sep 2023 10:11:50 +0800
-Subject: [PATCH 10/11] avutil/hwcontext_d3d12va: add Flags for resource
+Subject: [PATCH 12/14] avutil/hwcontext_d3d12va: add Flags for resource
  creation
 
 Flags field is added to support diffferent resource creation.
@@ -26,7 +26,7 @@ index cfc016315d..6507cf69c1 100644
  
      frame = av_mallocz(sizeof(AVD3D12VAFrame));
 diff --git a/libavutil/hwcontext_d3d12va.h b/libavutil/hwcontext_d3d12va.h
-index ff06e6f2ef..608dbac97f 100644
+index ff06e6f2ef..212a6a6146 100644
 --- a/libavutil/hwcontext_d3d12va.h
 +++ b/libavutil/hwcontext_d3d12va.h
 @@ -129,6 +129,14 @@ typedef struct AVD3D12VAFramesContext {
@@ -35,10 +35,10 @@ index ff06e6f2ef..608dbac97f 100644
      DXGI_FORMAT format;
 +
 +    /**
-+     * This field is used to specify options for working with resources.
++     * Options for working with resources.
 +     * If unset, this will be D3D12_RESOURCE_FLAG_NONE.
 +     *
-+     * @see: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_resource_flags.
++     * @see https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_resource_flags
 +     */
 +    D3D12_RESOURCE_FLAGS flags;
  } AVD3D12VAFramesContext;

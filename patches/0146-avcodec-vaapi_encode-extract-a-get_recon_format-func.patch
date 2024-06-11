@@ -1,0 +1,470 @@
+From 8e69807908cd8f55387f82d84d1f31613dd4a08d Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Thu, 18 Apr 2024 14:13:36 +0800
+Subject: [PATCH 10/14] avcodec/vaapi_encode: extract a get_recon_format
+ function to base layer
+
+Surface size and block size parameters are also moved to base layer.
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/hw_base_encode.c     | 58 +++++++++++++++++++++++
+ libavcodec/hw_base_encode.h     | 12 +++++
+ libavcodec/vaapi_encode.c       | 81 ++++++++-------------------------
+ libavcodec/vaapi_encode.h       | 10 ----
+ libavcodec/vaapi_encode_av1.c   | 10 ++--
+ libavcodec/vaapi_encode_h264.c  | 11 +++--
+ libavcodec/vaapi_encode_h265.c  | 25 +++++-----
+ libavcodec/vaapi_encode_mjpeg.c |  5 +-
+ libavcodec/vaapi_encode_vp9.c   |  6 +--
+ 9 files changed, 118 insertions(+), 100 deletions(-)
+
+diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
+index 25fcfdbb5e..31046bd73e 100644
+--- a/libavcodec/hw_base_encode.c
++++ b/libavcodec/hw_base_encode.c
+@@ -687,6 +687,64 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
+     return 0;
+ }
+ 
++int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enum AVPixelFormat *fmt)
++{
++    FFHWBaseEncodeContext *ctx = avctx->priv_data;
++    AVHWFramesConstraints *constraints = NULL;
++    enum AVPixelFormat recon_format;
++    int err, i;
++
++    constraints = av_hwdevice_get_hwframe_constraints(ctx->device_ref,
++                                                      hwconfig);
++    if (!constraints) {
++        err = AVERROR(ENOMEM);
++        goto fail;
++    }
++
++    // Probably we can use the input surface format as the surface format
++    // of the reconstructed frames.  If not, we just pick the first (only?)
++    // format in the valid list and hope that it all works.
++    recon_format = AV_PIX_FMT_NONE;
++    if (constraints->valid_sw_formats) {
++        for (i = 0; constraints->valid_sw_formats[i] != AV_PIX_FMT_NONE; i++) {
++            if (ctx->input_frames->sw_format ==
++                constraints->valid_sw_formats[i]) {
++                recon_format = ctx->input_frames->sw_format;
++                break;
++            }
++        }
++        if (recon_format == AV_PIX_FMT_NONE) {
++            // No match.  Just use the first in the supported list and
++            // hope for the best.
++            recon_format = constraints->valid_sw_formats[0];
++        }
++    } else {
++        // No idea what to use; copy input format.
++        recon_format = ctx->input_frames->sw_format;
++    }
++    av_log(avctx, AV_LOG_DEBUG, "Using %s as format of "
++           "reconstructed frames.\n", av_get_pix_fmt_name(recon_format));
++
++    if (ctx->surface_width  < constraints->min_width  ||
++        ctx->surface_height < constraints->min_height ||
++        ctx->surface_width  > constraints->max_width ||
++        ctx->surface_height > constraints->max_height) {
++        av_log(avctx, AV_LOG_ERROR, "Hardware does not support encoding at "
++               "size %dx%d (constraints: width %d-%d height %d-%d).\n",
++               ctx->surface_width, ctx->surface_height,
++               constraints->min_width,  constraints->max_width,
++               constraints->min_height, constraints->max_height);
++        err = AVERROR(EINVAL);
++        goto fail;
++    }
++
++    *fmt = recon_format;
++    err = 0;
++fail:
++    av_hwframe_constraints_free(&constraints);
++    return err;
++}
++
+ int ff_hw_base_encode_init(AVCodecContext *avctx)
+ {
+     FFHWBaseEncodeContext *ctx = avctx->priv_data;
+diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
+index f097d826a7..f5414e2c28 100644
+--- a/libavcodec/hw_base_encode.h
++++ b/libavcodec/hw_base_encode.h
+@@ -128,6 +128,16 @@ typedef struct FFHWBaseEncodeContext {
+     // Desired B frame reference depth.
+     int             desired_b_depth;
+ 
++    // The required size of surfaces.  This is probably the input
++    // size (AVCodecContext.width|height) aligned up to whatever
++    // block size is required by the codec.
++    int             surface_width;
++    int             surface_height;
++
++    // The block size for slice calculations.
++    int             slice_block_width;
++    int             slice_block_height;
++
+     // The hardware device context.
+     AVBufferRef    *device_ref;
+     AVHWDeviceContext *device;
+@@ -212,6 +222,8 @@ int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
+ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
+                                   int flags, int prediction_pre_only);
+ 
++int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enum AVPixelFormat *fmt);
++
+ int ff_hw_base_encode_init(AVCodecContext *avctx);
+ 
+ int ff_hw_base_encode_close(AVCodecContext *avctx);
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index 4193f3838f..d96f146b28 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -1777,6 +1777,7 @@ static av_cold int vaapi_encode_init_tile_slice_structure(AVCodecContext *avctx,
+ 
+ static av_cold int vaapi_encode_init_slice_structure(AVCodecContext *avctx)
+ {
++    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+     VAAPIEncodeContext *ctx = avctx->priv_data;
+     VAConfigAttrib attr[3] = { { VAConfigAttribEncMaxSlices },
+                                { VAConfigAttribEncSliceStructure },
+@@ -1796,12 +1797,12 @@ static av_cold int vaapi_encode_init_slice_structure(AVCodecContext *avctx)
+         return 0;
+     }
+ 
+-    av_assert0(ctx->slice_block_height > 0 && ctx->slice_block_width > 0);
++    av_assert0(base_ctx->slice_block_height > 0 && base_ctx->slice_block_width > 0);
+ 
+-    ctx->slice_block_rows = (avctx->height + ctx->slice_block_height - 1) /
+-                             ctx->slice_block_height;
+-    ctx->slice_block_cols = (avctx->width  + ctx->slice_block_width  - 1) /
+-                             ctx->slice_block_width;
++    ctx->slice_block_rows = (avctx->height + base_ctx->slice_block_height - 1) /
++                             base_ctx->slice_block_height;
++    ctx->slice_block_cols = (avctx->width  + base_ctx->slice_block_width  - 1) /
++                             base_ctx->slice_block_width;
+ 
+     if (avctx->slices <= 1 && !ctx->tile_rows && !ctx->tile_cols) {
+         ctx->nb_slices  = 1;
+@@ -2023,7 +2024,8 @@ static void vaapi_encode_free_output_buffer(FFRefStructOpaque opaque,
+ static int vaapi_encode_alloc_output_buffer(FFRefStructOpaque opaque, void *obj)
+ {
+     AVCodecContext   *avctx = opaque.nc;
+-    VAAPIEncodeContext *ctx = avctx->priv_data;
++    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
++    VAAPIEncodeContext         *ctx = avctx->priv_data;
+     VABufferID *buffer_id = obj;
+     VAStatus vas;
+ 
+@@ -2033,7 +2035,7 @@ static int vaapi_encode_alloc_output_buffer(FFRefStructOpaque opaque, void *obj)
+     // bound on that.
+     vas = vaCreateBuffer(ctx->hwctx->display, ctx->va_context,
+                          VAEncCodedBufferType,
+-                         3 * ctx->surface_width * ctx->surface_height +
++                         3 * base_ctx->surface_width * base_ctx->surface_height +
+                          (1 << 16), 1, 0, buffer_id);
+     if (vas != VA_STATUS_SUCCESS) {
+         av_log(avctx, AV_LOG_ERROR, "Failed to create bitstream "
+@@ -2051,9 +2053,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+     FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+     VAAPIEncodeContext         *ctx = avctx->priv_data;
+     AVVAAPIHWConfig *hwconfig = NULL;
+-    AVHWFramesConstraints *constraints = NULL;
+     enum AVPixelFormat recon_format;
+-    int err, i;
++    int err;
+ 
+     hwconfig = av_hwdevice_hwconfig_alloc(base_ctx->device_ref);
+     if (!hwconfig) {
+@@ -2062,52 +2063,9 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+     }
+     hwconfig->config_id = ctx->va_config;
+ 
+-    constraints = av_hwdevice_get_hwframe_constraints(base_ctx->device_ref,
+-                                                      hwconfig);
+-    if (!constraints) {
+-        err = AVERROR(ENOMEM);
+-        goto fail;
+-    }
+-
+-    // Probably we can use the input surface format as the surface format
+-    // of the reconstructed frames.  If not, we just pick the first (only?)
+-    // format in the valid list and hope that it all works.
+-    recon_format = AV_PIX_FMT_NONE;
+-    if (constraints->valid_sw_formats) {
+-        for (i = 0; constraints->valid_sw_formats[i] != AV_PIX_FMT_NONE; i++) {
+-            if (base_ctx->input_frames->sw_format ==
+-                constraints->valid_sw_formats[i]) {
+-                recon_format = base_ctx->input_frames->sw_format;
+-                break;
+-            }
+-        }
+-        if (recon_format == AV_PIX_FMT_NONE) {
+-            // No match.  Just use the first in the supported list and
+-            // hope for the best.
+-            recon_format = constraints->valid_sw_formats[0];
+-        }
+-    } else {
+-        // No idea what to use; copy input format.
+-        recon_format = base_ctx->input_frames->sw_format;
+-    }
+-    av_log(avctx, AV_LOG_DEBUG, "Using %s as format of "
+-           "reconstructed frames.\n", av_get_pix_fmt_name(recon_format));
+-
+-    if (ctx->surface_width  < constraints->min_width  ||
+-        ctx->surface_height < constraints->min_height ||
+-        ctx->surface_width  > constraints->max_width ||
+-        ctx->surface_height > constraints->max_height) {
+-        av_log(avctx, AV_LOG_ERROR, "Hardware does not support encoding at "
+-               "size %dx%d (constraints: width %d-%d height %d-%d).\n",
+-               ctx->surface_width, ctx->surface_height,
+-               constraints->min_width,  constraints->max_width,
+-               constraints->min_height, constraints->max_height);
+-        err = AVERROR(EINVAL);
++    err = ff_hw_base_get_recon_format(avctx, (const void*)hwconfig, &recon_format);
++    if (err < 0)
+         goto fail;
+-    }
+-
+-    av_freep(&hwconfig);
+-    av_hwframe_constraints_free(&constraints);
+ 
+     base_ctx->recon_frames_ref = av_hwframe_ctx_alloc(base_ctx->device_ref);
+     if (!base_ctx->recon_frames_ref) {
+@@ -2118,8 +2076,8 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+ 
+     base_ctx->recon_frames->format    = AV_PIX_FMT_VAAPI;
+     base_ctx->recon_frames->sw_format = recon_format;
+-    base_ctx->recon_frames->width     = ctx->surface_width;
+-    base_ctx->recon_frames->height    = ctx->surface_height;
++    base_ctx->recon_frames->width     = base_ctx->surface_width;
++    base_ctx->recon_frames->height    = base_ctx->surface_height;
+ 
+     err = av_hwframe_ctx_init(base_ctx->recon_frames_ref);
+     if (err < 0) {
+@@ -2131,7 +2089,6 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+     err = 0;
+   fail:
+     av_freep(&hwconfig);
+-    av_hwframe_constraints_free(&constraints);
+     return err;
+ }
+ 
+@@ -2174,11 +2131,11 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+             goto fail;
+     } else {
+         // Assume 16x16 blocks.
+-        ctx->surface_width  = FFALIGN(avctx->width,  16);
+-        ctx->surface_height = FFALIGN(avctx->height, 16);
++        base_ctx->surface_width  = FFALIGN(avctx->width,  16);
++        base_ctx->surface_height = FFALIGN(avctx->height, 16);
+         if (ctx->codec->flags & FF_HW_FLAG_SLICE_CONTROL) {
+-            ctx->slice_block_width  = 16;
+-            ctx->slice_block_height = 16;
++            base_ctx->slice_block_width  = 16;
++            base_ctx->slice_block_height = 16;
+         }
+     }
+ 
+@@ -2231,7 +2188,7 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+ 
+     recon_hwctx = base_ctx->recon_frames->hwctx;
+     vas = vaCreateContext(ctx->hwctx->display, ctx->va_config,
+-                          ctx->surface_width, ctx->surface_height,
++                          base_ctx->surface_width, base_ctx->surface_height,
+                           VA_PROGRESSIVE,
+                           recon_hwctx->surface_ids,
+                           recon_hwctx->nb_surfaces,
+diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
+index 088141ca76..8650255680 100644
+--- a/libavcodec/vaapi_encode.h
++++ b/libavcodec/vaapi_encode.h
+@@ -171,16 +171,6 @@ typedef struct VAAPIEncodeContext {
+     // Desired packed headers.
+     unsigned int    desired_packed_headers;
+ 
+-    // The required size of surfaces.  This is probably the input
+-    // size (AVCodecContext.width|height) aligned up to whatever
+-    // block size is required by the codec.
+-    int             surface_width;
+-    int             surface_height;
+-
+-    // The block size for slice calculations.
+-    int             slice_block_width;
+-    int             slice_block_height;
+-
+     // Everything above this point must be set before calling
+     // ff_vaapi_encode_init().
+ 
+diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
+index a590f4cd8b..ea4c391e54 100644
+--- a/libavcodec/vaapi_encode_av1.c
++++ b/libavcodec/vaapi_encode_av1.c
+@@ -112,12 +112,12 @@ static void vaapi_encode_av1_trace_write_log(void *ctx,
+ 
+ static av_cold int vaapi_encode_av1_get_encoder_caps(AVCodecContext *avctx)
+ {
+-    VAAPIEncodeContext *ctx = avctx->priv_data;
+-    VAAPIEncodeAV1Context *priv = avctx->priv_data;
++    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
++    VAAPIEncodeAV1Context     *priv = avctx->priv_data;
+ 
+     // Surfaces must be aligned to superblock boundaries.
+-    ctx->surface_width  = FFALIGN(avctx->width,  priv->use_128x128_superblock ? 128 : 64);
+-    ctx->surface_height = FFALIGN(avctx->height, priv->use_128x128_superblock ? 128 : 64);
++    base_ctx->surface_width  = FFALIGN(avctx->width,  priv->use_128x128_superblock ? 128 : 64);
++    base_ctx->surface_height = FFALIGN(avctx->height, priv->use_128x128_superblock ? 128 : 64);
+ 
+     return 0;
+ }
+@@ -425,7 +425,7 @@ static int vaapi_encode_av1_init_sequence_params(AVCodecContext *avctx)
+             framerate = 0;
+ 
+         level = ff_av1_guess_level(avctx->bit_rate, priv->tier,
+-                                   ctx->surface_width, ctx->surface_height,
++                                   base_ctx->surface_width, base_ctx->surface_height,
+                                    priv->tile_rows * priv->tile_cols,
+                                    priv->tile_cols, framerate);
+         if (level) {
+diff --git a/libavcodec/vaapi_encode_h264.c b/libavcodec/vaapi_encode_h264.c
+index eacfb12706..d20d8298db 100644
+--- a/libavcodec/vaapi_encode_h264.c
++++ b/libavcodec/vaapi_encode_h264.c
+@@ -1205,8 +1205,9 @@ static const VAAPIEncodeType vaapi_encode_type_h264 = {
+ 
+ static av_cold int vaapi_encode_h264_init(AVCodecContext *avctx)
+ {
+-    VAAPIEncodeContext      *ctx = avctx->priv_data;
+-    VAAPIEncodeH264Context *priv = avctx->priv_data;
++    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
++    VAAPIEncodeContext         *ctx = avctx->priv_data;
++    VAAPIEncodeH264Context    *priv = avctx->priv_data;
+ 
+     ctx->codec = &vaapi_encode_type_h264;
+ 
+@@ -1254,10 +1255,10 @@ static av_cold int vaapi_encode_h264_init(AVCodecContext *avctx)
+         VA_ENC_PACKED_HEADER_SLICE    | // Slice headers.
+         VA_ENC_PACKED_HEADER_MISC;      // SEI.
+ 
+-    ctx->surface_width  = FFALIGN(avctx->width,  16);
+-    ctx->surface_height = FFALIGN(avctx->height, 16);
++    base_ctx->surface_width  = FFALIGN(avctx->width,  16);
++    base_ctx->surface_height = FFALIGN(avctx->height, 16);
+ 
+-    ctx->slice_block_height = ctx->slice_block_width = 16;
++    base_ctx->slice_block_height = base_ctx->slice_block_width = 16;
+ 
+     if (priv->qp > 0)
+         ctx->explicit_qp = priv->qp;
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index 626405f413..67db0b877d 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -354,7 +354,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+         const H265LevelDescriptor *level;
+ 
+         level = ff_h265_guess_level(ptl, avctx->bit_rate,
+-                                    ctx->surface_width, ctx->surface_height,
++                                    base_ctx->surface_width, base_ctx->surface_height,
+                                     ctx->nb_slices, ctx->tile_rows, ctx->tile_cols,
+                                     (base_ctx->b_per_p > 0) + 1);
+         if (level) {
+@@ -412,18 +412,18 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+     sps->chroma_format_idc          = chroma_format;
+     sps->separate_colour_plane_flag = 0;
+ 
+-    sps->pic_width_in_luma_samples  = ctx->surface_width;
+-    sps->pic_height_in_luma_samples = ctx->surface_height;
++    sps->pic_width_in_luma_samples  = base_ctx->surface_width;
++    sps->pic_height_in_luma_samples = base_ctx->surface_height;
+ 
+-    if (avctx->width  != ctx->surface_width ||
+-        avctx->height != ctx->surface_height) {
++    if (avctx->width  != base_ctx->surface_width ||
++        avctx->height != base_ctx->surface_height) {
+         sps->conformance_window_flag = 1;
+         sps->conf_win_left_offset   = 0;
+         sps->conf_win_right_offset  =
+-            (ctx->surface_width - avctx->width) >> desc->log2_chroma_w;
++            (base_ctx->surface_width - avctx->width) >> desc->log2_chroma_w;
+         sps->conf_win_top_offset    = 0;
+         sps->conf_win_bottom_offset =
+-            (ctx->surface_height - avctx->height) >> desc->log2_chroma_h;
++            (base_ctx->surface_height - avctx->height) >> desc->log2_chroma_h;
+     } else {
+         sps->conformance_window_flag = 0;
+     }
+@@ -1230,11 +1230,12 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+ 
+ static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
+ {
+-    VAAPIEncodeContext      *ctx = avctx->priv_data;
+-    VAAPIEncodeH265Context *priv = avctx->priv_data;
++    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
++    VAAPIEncodeH265Context    *priv = avctx->priv_data;
+ 
+ #if VA_CHECK_VERSION(1, 13, 0)
+     {
++        VAAPIEncodeContext *ctx = avctx->priv_data;
+         VAConfigAttribValEncHEVCBlockSizes block_size;
+         VAConfigAttrib attr;
+         VAStatus vas;
+@@ -1282,10 +1283,10 @@ static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
+            "min CB size %dx%d.\n", priv->ctu_size, priv->ctu_size,
+            priv->min_cb_size, priv->min_cb_size);
+ 
+-    ctx->surface_width  = FFALIGN(avctx->width,  priv->min_cb_size);
+-    ctx->surface_height = FFALIGN(avctx->height, priv->min_cb_size);
++    base_ctx->surface_width  = FFALIGN(avctx->width,  priv->min_cb_size);
++    base_ctx->surface_height = FFALIGN(avctx->height, priv->min_cb_size);
+ 
+-    ctx->slice_block_width = ctx->slice_block_height = priv->ctu_size;
++    base_ctx->slice_block_width = base_ctx->slice_block_height = priv->ctu_size;
+ 
+     return 0;
+ }
+diff --git a/libavcodec/vaapi_encode_mjpeg.c b/libavcodec/vaapi_encode_mjpeg.c
+index 48dc677bec..5d51a0b2b9 100644
+--- a/libavcodec/vaapi_encode_mjpeg.c
++++ b/libavcodec/vaapi_encode_mjpeg.c
+@@ -439,14 +439,13 @@ static int vaapi_encode_mjpeg_init_slice_params(AVCodecContext *avctx,
+ static av_cold int vaapi_encode_mjpeg_get_encoder_caps(AVCodecContext *avctx)
+ {
+     FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+-    VAAPIEncodeContext *ctx = avctx->priv_data;
+     const AVPixFmtDescriptor *desc;
+ 
+     desc = av_pix_fmt_desc_get(base_ctx->input_frames->sw_format);
+     av_assert0(desc);
+ 
+-    ctx->surface_width  = FFALIGN(avctx->width,  8 << desc->log2_chroma_w);
+-    ctx->surface_height = FFALIGN(avctx->height, 8 << desc->log2_chroma_h);
++    base_ctx->surface_width  = FFALIGN(avctx->width,  8 << desc->log2_chroma_w);
++    base_ctx->surface_height = FFALIGN(avctx->height, 8 << desc->log2_chroma_h);
+ 
+     return 0;
+ }
+diff --git a/libavcodec/vaapi_encode_vp9.c b/libavcodec/vaapi_encode_vp9.c
+index a737a0cdd7..96acd414af 100644
+--- a/libavcodec/vaapi_encode_vp9.c
++++ b/libavcodec/vaapi_encode_vp9.c
+@@ -190,11 +190,11 @@ static int vaapi_encode_vp9_init_picture_params(AVCodecContext *avctx,
+ 
+ static av_cold int vaapi_encode_vp9_get_encoder_caps(AVCodecContext *avctx)
+ {
+-    VAAPIEncodeContext *ctx = avctx->priv_data;
++    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+ 
+     // Surfaces must be aligned to 64x64 superblock boundaries.
+-    ctx->surface_width  = FFALIGN(avctx->width,  64);
+-    ctx->surface_height = FFALIGN(avctx->height, 64);
++    base_ctx->surface_width  = FFALIGN(avctx->width,  64);
++    base_ctx->surface_height = FFALIGN(avctx->height, 64);
+ 
+     return 0;
+ }
+-- 
+2.41.0.windows.1
+

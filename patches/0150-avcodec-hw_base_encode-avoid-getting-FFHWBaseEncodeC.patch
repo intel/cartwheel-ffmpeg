@@ -1,0 +1,593 @@
+From c28cb22f9887997fe06b4e3617c2deafc9e161b6 Mon Sep 17 00:00:00 2001
+From: Tong Wu <tong1.wu@intel.com>
+Date: Tue, 28 May 2024 09:34:17 +0900
+Subject: [PATCH 14/14] avcodec/hw_base_encode: avoid getting
+ FFHWBaseEncodeContext from avctx
+
+This patch is to make FFHWBaseEncodeContext a standalone component
+and avoid getting FFHWBaseEncodeContext from avctx->priv_data.
+This patch also removes some unnecessary AVCodecContext arguments.
+
+For receive_packet call, a small wrapper is introduced.
+
+Signed-off-by: Tong Wu <tong1.wu@intel.com>
+---
+ libavcodec/d3d12va_encode.c      | 17 +++++---
+ libavcodec/d3d12va_encode.h      |  2 +
+ libavcodec/d3d12va_encode_hevc.c |  2 +-
+ libavcodec/hw_base_encode.c      | 71 ++++++++++++++------------------
+ libavcodec/hw_base_encode.h      | 17 ++++----
+ libavcodec/vaapi_encode.c        | 16 ++++---
+ libavcodec/vaapi_encode.h        |  2 +
+ libavcodec/vaapi_encode_av1.c    |  2 +-
+ libavcodec/vaapi_encode_h264.c   |  2 +-
+ libavcodec/vaapi_encode_h265.c   |  2 +-
+ libavcodec/vaapi_encode_mjpeg.c  |  2 +-
+ libavcodec/vaapi_encode_mpeg2.c  |  2 +-
+ libavcodec/vaapi_encode_vp8.c    |  2 +-
+ libavcodec/vaapi_encode_vp9.c    |  2 +-
+ 14 files changed, 76 insertions(+), 65 deletions(-)
+
+diff --git a/libavcodec/d3d12va_encode.c b/libavcodec/d3d12va_encode.c
+index 0fbf8eb07c..9f7a42911e 100644
+--- a/libavcodec/d3d12va_encode.c
++++ b/libavcodec/d3d12va_encode.c
+@@ -676,6 +676,7 @@ end:
+ static int d3d12va_encode_output(AVCodecContext *avctx,
+                                  const FFHWBaseEncodePicture *base_pic, AVPacket *pkt)
+ {
++    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+     D3D12VAEncodePicture *pic = (D3D12VAEncodePicture *)base_pic;
+     AVPacket *pkt_ptr = pkt;
+     int err;
+@@ -691,7 +692,8 @@ static int d3d12va_encode_output(AVCodecContext *avctx,
+     av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
+            base_pic->display_order, base_pic->encode_order);
+ 
+-    ff_hw_base_encode_set_output_property(avctx, (FFHWBaseEncodePicture *)base_pic, pkt_ptr, 0);
++    ff_hw_base_encode_set_output_property(base_ctx, avctx, (FFHWBaseEncodePicture *)base_pic,
++                                          pkt_ptr, 0);
+ 
+     return 0;
+ }
+@@ -1119,7 +1121,7 @@ static int d3d12va_encode_init_gop_structure(AVCodecContext *avctx)
+                "replacing them with B-frames.\n");
+     }
+ 
+-    err = ff_hw_base_init_gop_structure(avctx, ref_l0, ref_l1, ctx->codec->flags, 0);
++    err = ff_hw_base_init_gop_structure(base_ctx, avctx, ref_l0, ref_l1, ctx->codec->flags, 0);
+     if (err < 0)
+         return err;
+ 
+@@ -1351,7 +1353,7 @@ static int d3d12va_encode_create_recon_frames(AVCodecContext *avctx)
+     enum AVPixelFormat recon_format;
+     int err;
+ 
+-    err = ff_hw_base_get_recon_format(avctx, NULL, &recon_format);
++    err = ff_hw_base_get_recon_format(base_ctx, NULL, &recon_format);
+     if (err < 0)
+         return err;
+ 
+@@ -1390,6 +1392,11 @@ static const FFHWEncodePictureOperation d3d12va_type = {
+     .free   = &d3d12va_encode_free,
+ };
+ 
++int ff_d3d12va_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
++{
++    return ff_hw_base_encode_receive_packet(avctx->priv_data, avctx, pkt);
++}
++
+ int ff_d3d12va_encode_init(AVCodecContext *avctx)
+ {
+     FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+@@ -1398,7 +1405,7 @@ int ff_d3d12va_encode_init(AVCodecContext *avctx)
+     int err;
+     HRESULT hr;
+ 
+-    err = ff_hw_base_encode_init(avctx);
++    err = ff_hw_base_encode_init(avctx, base_ctx);
+     if (err < 0)
+         goto fail;
+ 
+@@ -1552,7 +1559,7 @@ int ff_d3d12va_encode_close(AVCodecContext *avctx)
+     D3D12_OBJECT_RELEASE(ctx->video_device3);
+     D3D12_OBJECT_RELEASE(ctx->device3);
+ 
+-    ff_hw_base_encode_close(avctx);
++    ff_hw_base_encode_close(base_ctx);
+ 
+     return 0;
+ }
+diff --git a/libavcodec/d3d12va_encode.h b/libavcodec/d3d12va_encode.h
+index f355261f66..1a0abc5bd0 100644
+--- a/libavcodec/d3d12va_encode.h
++++ b/libavcodec/d3d12va_encode.h
+@@ -313,6 +313,8 @@ typedef struct D3D12VAEncodeType {
+                                  char *data, size_t *data_len);
+ } D3D12VAEncodeType;
+ 
++int ff_d3d12va_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
++
+ int ff_d3d12va_encode_init(AVCodecContext *avctx);
+ int ff_d3d12va_encode_close(AVCodecContext *avctx);
+ 
+diff --git a/libavcodec/d3d12va_encode_hevc.c b/libavcodec/d3d12va_encode_hevc.c
+index 24823b3c56..4a12ddd0dc 100644
+--- a/libavcodec/d3d12va_encode_hevc.c
++++ b/libavcodec/d3d12va_encode_hevc.c
+@@ -990,7 +990,7 @@ const FFCodec ff_hevc_d3d12va_encoder = {
+     .p.id           = AV_CODEC_ID_HEVC,
+     .priv_data_size = sizeof(D3D12VAEncodeHEVCContext),
+     .init           = &d3d12va_encode_hevc_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_d3d12va_encode_receive_packet),
+     .close          = &d3d12va_encode_hevc_close,
+     .p.priv_class   = &d3d12va_encode_hevc_class,
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
+diff --git a/libavcodec/hw_base_encode.c b/libavcodec/hw_base_encode.c
+index 92f69bb78c..ecb4be6aa4 100644
+--- a/libavcodec/hw_base_encode.c
++++ b/libavcodec/hw_base_encode.c
+@@ -94,14 +94,13 @@ static void hw_base_encode_remove_refs(FFHWBaseEncodePicture *pic, int level)
+     pic->ref_removed[level] = 1;
+ }
+ 
+-static void hw_base_encode_set_b_pictures(AVCodecContext *avctx,
++static void hw_base_encode_set_b_pictures(FFHWBaseEncodeContext *ctx,
+                                           FFHWBaseEncodePicture *start,
+                                           FFHWBaseEncodePicture *end,
+                                           FFHWBaseEncodePicture *prev,
+                                           int current_depth,
+                                           FFHWBaseEncodePicture **last)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+     FFHWBaseEncodePicture *pic, *next, *ref;
+     int i, len;
+ 
+@@ -148,20 +147,19 @@ static void hw_base_encode_set_b_pictures(AVCodecContext *avctx,
+             hw_base_encode_add_ref(pic, ref, 0, 1, 0);
+ 
+         if (i > 1)
+-            hw_base_encode_set_b_pictures(avctx, start, pic, pic,
++            hw_base_encode_set_b_pictures(ctx, start, pic, pic,
+                                           current_depth + 1, &next);
+         else
+             next = pic;
+ 
+-        hw_base_encode_set_b_pictures(avctx, pic, end, next,
++        hw_base_encode_set_b_pictures(ctx, pic, end, next,
+                                       current_depth + 1, last);
+     }
+ }
+ 
+-static void hw_base_encode_add_next_prev(AVCodecContext *avctx,
++static void hw_base_encode_add_next_prev(FFHWBaseEncodeContext *ctx,
+                                          FFHWBaseEncodePicture *pic)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+     int i;
+ 
+     if (!pic)
+@@ -192,9 +190,9 @@ static void hw_base_encode_add_next_prev(AVCodecContext *avctx,
+ }
+ 
+ static int hw_base_encode_pick_next(AVCodecContext *avctx,
++                                    FFHWBaseEncodeContext *ctx,
+                                     FFHWBaseEncodePicture **pic_out)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+     FFHWBaseEncodePicture *pic = NULL, *prev = NULL, *next, *start;
+     int i, b_counter, closed_gop_end;
+ 
+@@ -333,19 +331,18 @@ static int hw_base_encode_pick_next(AVCodecContext *avctx,
+     }
+ 
+     if (b_counter > 0) {
+-        hw_base_encode_set_b_pictures(avctx, start, pic, pic, 1,
++        hw_base_encode_set_b_pictures(ctx, start, pic, pic, 1,
+                                       &prev);
+     } else {
+         prev = pic;
+     }
+-    hw_base_encode_add_next_prev(avctx, prev);
++    hw_base_encode_add_next_prev(ctx, prev);
+ 
+     return 0;
+ }
+ 
+-static int hw_base_encode_clear_old(AVCodecContext *avctx)
++static int hw_base_encode_clear_old(AVCodecContext *avctx, FFHWBaseEncodeContext *ctx)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+     FFHWBaseEncodePicture *pic, *prev, *next;
+ 
+     av_assert0(ctx->pic_start);
+@@ -381,14 +378,12 @@ static int hw_base_encode_clear_old(AVCodecContext *avctx)
+     return 0;
+ }
+ 
+-static int hw_base_encode_check_frame(AVCodecContext *avctx,
++static int hw_base_encode_check_frame(FFHWBaseEncodeContext *ctx,
+                                       const AVFrame *frame)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+-
+     if ((frame->crop_top  || frame->crop_bottom ||
+          frame->crop_left || frame->crop_right) && !ctx->crop_warned) {
+-        av_log(avctx, AV_LOG_WARNING, "Cropping information on input "
++        av_log(ctx->log_ctx, AV_LOG_WARNING, "Cropping information on input "
+                "frames ignored due to lack of API support.\n");
+         ctx->crop_warned = 1;
+     }
+@@ -398,7 +393,7 @@ static int hw_base_encode_check_frame(AVCodecContext *avctx,
+             av_frame_get_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
+ 
+         if (sd && !ctx->roi_warned) {
+-            av_log(avctx, AV_LOG_WARNING, "ROI side data on input "
++            av_log(ctx->log_ctx, AV_LOG_WARNING, "ROI side data on input "
+                    "frames ignored due to lack of driver support.\n");
+             ctx->roi_warned = 1;
+         }
+@@ -407,9 +402,9 @@ static int hw_base_encode_check_frame(AVCodecContext *avctx,
+     return 0;
+ }
+ 
+-static int hw_base_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
++static int hw_base_encode_send_frame(AVCodecContext *avctx, FFHWBaseEncodeContext *ctx,
++                                     AVFrame *frame)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+     FFHWBaseEncodePicture *pic;
+     int err;
+ 
+@@ -417,7 +412,7 @@ static int hw_base_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
+         av_log(avctx, AV_LOG_DEBUG, "Input frame: %ux%u (%"PRId64").\n",
+                frame->width, frame->height, frame->pts);
+ 
+-        err = hw_base_encode_check_frame(avctx, frame);
++        err = hw_base_encode_check_frame(ctx, frame);
+         if (err < 0)
+             return err;
+ 
+@@ -488,12 +483,11 @@ fail:
+     return err;
+ }
+ 
+-int ff_hw_base_encode_set_output_property(AVCodecContext *avctx,
++int ff_hw_base_encode_set_output_property(FFHWBaseEncodeContext *ctx,
++                                          AVCodecContext *avctx,
+                                           FFHWBaseEncodePicture *pic,
+                                           AVPacket *pkt, int flag_no_delay)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+-
+     if (pic->type == FF_HW_PICTURE_TYPE_IDR)
+         pkt->flags |= AV_PKT_FLAG_KEY;
+ 
+@@ -528,9 +522,9 @@ int ff_hw_base_encode_set_output_property(AVCodecContext *avctx,
+     return 0;
+ }
+ 
+-int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
++int ff_hw_base_encode_receive_packet(FFHWBaseEncodeContext *ctx,
++                                     AVCodecContext *avctx, AVPacket *pkt)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+     FFHWBaseEncodePicture *pic = NULL;
+     AVFrame *frame = ctx->frame;
+     int err;
+@@ -558,7 +552,7 @@ start:
+     if (err == AVERROR_EOF)
+         frame = NULL;
+ 
+-    err = hw_base_encode_send_frame(avctx, frame);
++    err = hw_base_encode_send_frame(avctx, ctx, frame);
+     if (err < 0)
+         return err;
+ 
+@@ -571,7 +565,7 @@ start:
+ 
+     if (ctx->async_encode) {
+         if (av_fifo_can_write(ctx->encode_fifo)) {
+-            err = hw_base_encode_pick_next(avctx, &pic);
++            err = hw_base_encode_pick_next(avctx, ctx, &pic);
+             if (!err) {
+                 av_assert0(pic);
+                 pic->encode_order = ctx->encode_order +
+@@ -596,7 +590,7 @@ start:
+         av_fifo_read(ctx->encode_fifo, &pic, 1);
+         ctx->encode_order = pic->encode_order + 1;
+     } else {
+-        err = hw_base_encode_pick_next(avctx, &pic);
++        err = hw_base_encode_pick_next(avctx, ctx, &pic);
+         if (err < 0)
+             return err;
+         av_assert0(pic);
+@@ -619,7 +613,7 @@ start:
+     }
+ 
+     ctx->output_order = pic->encode_order;
+-    hw_base_encode_clear_old(avctx);
++    hw_base_encode_clear_old(avctx, ctx);
+ 
+     /** loop to get an available pkt in encoder flushing. */
+     if (ctx->end_of_stream && !pkt->size)
+@@ -633,11 +627,10 @@ end:
+     return 0;
+ }
+ 
+-int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
++int ff_hw_base_init_gop_structure(FFHWBaseEncodeContext *ctx, AVCodecContext *avctx,
++                                  uint32_t ref_l0, uint32_t ref_l1,
+                                   int flags, int prediction_pre_only)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+-
+     if (flags & FF_HW_FLAG_INTRA_ONLY || avctx->gop_size <= 1) {
+         av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
+         ctx->gop_size = 1;
+@@ -687,9 +680,9 @@ int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32
+     return 0;
+ }
+ 
+-int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enum AVPixelFormat *fmt)
++int ff_hw_base_get_recon_format(FFHWBaseEncodeContext *ctx, const void *hwconfig,
++                                enum AVPixelFormat *fmt)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+     AVHWFramesConstraints *constraints = NULL;
+     enum AVPixelFormat recon_format;
+     int err, i;
+@@ -722,14 +715,14 @@ int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enu
+         // No idea what to use; copy input format.
+         recon_format = ctx->input_frames->sw_format;
+     }
+-    av_log(avctx, AV_LOG_DEBUG, "Using %s as format of "
++    av_log(ctx->log_ctx, AV_LOG_DEBUG, "Using %s as format of "
+            "reconstructed frames.\n", av_get_pix_fmt_name(recon_format));
+ 
+     if (ctx->surface_width  < constraints->min_width  ||
+         ctx->surface_height < constraints->min_height ||
+         ctx->surface_width  > constraints->max_width ||
+         ctx->surface_height > constraints->max_height) {
+-        av_log(avctx, AV_LOG_ERROR, "Hardware does not support encoding at "
++        av_log(ctx->log_ctx, AV_LOG_ERROR, "Hardware does not support encoding at "
+                "size %dx%d (constraints: width %d-%d height %d-%d).\n",
+                ctx->surface_width, ctx->surface_height,
+                constraints->min_width,  constraints->max_width,
+@@ -756,9 +749,9 @@ int ff_hw_base_encode_free(FFHWBaseEncodePicture *pic)
+     return 0;
+ }
+ 
+-int ff_hw_base_encode_init(AVCodecContext *avctx)
++int ff_hw_base_encode_init(AVCodecContext *avctx, FFHWBaseEncodeContext *ctx)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
++    ctx->log_ctx = (void *)avctx;
+ 
+     ctx->frame = av_frame_alloc();
+     if (!ctx->frame)
+@@ -789,10 +782,8 @@ int ff_hw_base_encode_init(AVCodecContext *avctx)
+     return 0;
+ }
+ 
+-int ff_hw_base_encode_close(AVCodecContext *avctx)
++int ff_hw_base_encode_close(FFHWBaseEncodeContext *ctx)
+ {
+-    FFHWBaseEncodeContext *ctx = avctx->priv_data;
+-
+     av_fifo_freep2(&ctx->encode_fifo);
+ 
+     av_frame_free(&ctx->frame);
+diff --git a/libavcodec/hw_base_encode.h b/libavcodec/hw_base_encode.h
+index 15ef3d7ac6..e528f2013b 100644
+--- a/libavcodec/hw_base_encode.h
++++ b/libavcodec/hw_base_encode.h
+@@ -116,6 +116,7 @@ typedef struct FFHWEncodePictureOperation {
+ 
+ typedef struct FFHWBaseEncodeContext {
+     const AVClass *class;
++    void  *log_ctx;
+ 
+     // Hardware-specific hooks.
+     const struct FFHWEncodePictureOperation *op;
+@@ -214,21 +215,23 @@ typedef struct FFHWBaseEncodeContext {
+     AVPacket        *tail_pkt;
+ } FFHWBaseEncodeContext;
+ 
+-int ff_hw_base_encode_set_output_property(AVCodecContext *avctx, FFHWBaseEncodePicture *pic,
+-                                          AVPacket *pkt, int flag_no_delay);
++int ff_hw_base_encode_set_output_property(FFHWBaseEncodeContext *ctx, AVCodecContext *avctx,
++                                          FFHWBaseEncodePicture *pic, AVPacket *pkt, int flag_no_delay);
+ 
+-int ff_hw_base_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
++int ff_hw_base_encode_receive_packet(FFHWBaseEncodeContext *ctx, AVCodecContext *avctx, AVPacket *pkt);
+ 
+-int ff_hw_base_init_gop_structure(AVCodecContext *avctx, uint32_t ref_l0, uint32_t ref_l1,
++int ff_hw_base_init_gop_structure(FFHWBaseEncodeContext *ctx, AVCodecContext *avctx,
++                                  uint32_t ref_l0, uint32_t ref_l1,
+                                   int flags, int prediction_pre_only);
+ 
+-int ff_hw_base_get_recon_format(AVCodecContext *avctx, const void *hwconfig, enum AVPixelFormat *fmt);
++int ff_hw_base_get_recon_format(FFHWBaseEncodeContext *ctx, const void *hwconfig,
++                                enum AVPixelFormat *fmt);
+ 
+ int ff_hw_base_encode_free(FFHWBaseEncodePicture *pic);
+ 
+-int ff_hw_base_encode_init(AVCodecContext *avctx);
++int ff_hw_base_encode_init(AVCodecContext *avctx, FFHWBaseEncodeContext *ctx);
+ 
+-int ff_hw_base_encode_close(AVCodecContext *avctx);
++int ff_hw_base_encode_close(FFHWBaseEncodeContext *ctx);
+ 
+ #define HW_BASE_ENCODE_COMMON_OPTIONS \
+     { "idr_interval", \
+diff --git a/libavcodec/vaapi_encode.c b/libavcodec/vaapi_encode.c
+index b35a23e852..48ca018775 100644
+--- a/libavcodec/vaapi_encode.c
++++ b/libavcodec/vaapi_encode.c
+@@ -811,7 +811,7 @@ static int vaapi_encode_output(AVCodecContext *avctx,
+     av_log(avctx, AV_LOG_DEBUG, "Output read for pic %"PRId64"/%"PRId64".\n",
+            base_pic->display_order, base_pic->encode_order);
+ 
+-    ff_hw_base_encode_set_output_property(avctx, (FFHWBaseEncodePicture*)base_pic, pkt_ptr,
++    ff_hw_base_encode_set_output_property(base_ctx, avctx, (FFHWBaseEncodePicture*)base_pic, pkt_ptr,
+                                           ctx->codec->flags & FLAG_TIMESTAMP_NO_DELAY);
+ 
+ end:
+@@ -1658,7 +1658,8 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
+     }
+ #endif
+ 
+-    err = ff_hw_base_init_gop_structure(avctx, ref_l0, ref_l1, ctx->codec->flags, prediction_pre_only);
++    err = ff_hw_base_init_gop_structure(base_ctx, avctx, ref_l0, ref_l1,
++                                        ctx->codec->flags, prediction_pre_only);
+     if (err < 0)
+         return err;
+ 
+@@ -2059,7 +2060,7 @@ static av_cold int vaapi_encode_create_recon_frames(AVCodecContext *avctx)
+     }
+     hwconfig->config_id = ctx->va_config;
+ 
+-    err = ff_hw_base_get_recon_format(avctx, (const void*)hwconfig, &recon_format);
++    err = ff_hw_base_get_recon_format(base_ctx, (const void*)hwconfig, &recon_format);
+     if (err < 0)
+         goto fail;
+ 
+@@ -2098,6 +2099,11 @@ static const FFHWEncodePictureOperation vaapi_op = {
+     .free   = &vaapi_encode_free,
+ };
+ 
++int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
++{
++    return ff_hw_base_encode_receive_packet(avctx->priv_data, avctx, pkt);
++}
++
+ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+ {
+     FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+@@ -2106,7 +2112,7 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
+     VAStatus vas;
+     int err;
+ 
+-    err = ff_hw_base_encode_init(avctx);
++    err = ff_hw_base_encode_init(avctx, base_ctx);
+     if (err < 0)
+         goto fail;
+ 
+@@ -2313,7 +2319,7 @@ av_cold int ff_vaapi_encode_close(AVCodecContext *avctx)
+     av_freep(&ctx->codec_sequence_params);
+     av_freep(&ctx->codec_picture_params);
+ 
+-    ff_hw_base_encode_close(avctx);
++    ff_hw_base_encode_close(base_ctx);
+ 
+     return 0;
+ }
+diff --git a/libavcodec/vaapi_encode.h b/libavcodec/vaapi_encode.h
+index 8650255680..d76cdb8662 100644
+--- a/libavcodec/vaapi_encode.h
++++ b/libavcodec/vaapi_encode.h
+@@ -343,6 +343,8 @@ typedef struct VAAPIEncodeType {
+                                  char *data, size_t *data_len);
+ } VAAPIEncodeType;
+ 
++int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
++
+ int ff_vaapi_encode_init(AVCodecContext *avctx);
+ int ff_vaapi_encode_close(AVCodecContext *avctx);
+ 
+diff --git a/libavcodec/vaapi_encode_av1.c b/libavcodec/vaapi_encode_av1.c
+index ea4c391e54..26a5707bf5 100644
+--- a/libavcodec/vaapi_encode_av1.c
++++ b/libavcodec/vaapi_encode_av1.c
+@@ -1041,7 +1041,7 @@ const FFCodec ff_av1_vaapi_encoder = {
+     .p.id           = AV_CODEC_ID_AV1,
+     .priv_data_size = sizeof(VAAPIEncodeAV1Context),
+     .init           = &vaapi_encode_av1_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
+     .close          = &vaapi_encode_av1_close,
+     .p.priv_class   = &vaapi_encode_av1_class,
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
+diff --git a/libavcodec/vaapi_encode_h264.c b/libavcodec/vaapi_encode_h264.c
+index d20d8298db..d156719728 100644
+--- a/libavcodec/vaapi_encode_h264.c
++++ b/libavcodec/vaapi_encode_h264.c
+@@ -1385,7 +1385,7 @@ const FFCodec ff_h264_vaapi_encoder = {
+     .p.id           = AV_CODEC_ID_H264,
+     .priv_data_size = sizeof(VAAPIEncodeH264Context),
+     .init           = &vaapi_encode_h264_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
+     .close          = &vaapi_encode_h264_close,
+     .p.priv_class   = &vaapi_encode_h264_class,
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index 67db0b877d..614d1ec125 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -1538,7 +1538,7 @@ const FFCodec ff_hevc_vaapi_encoder = {
+     .p.id           = AV_CODEC_ID_HEVC,
+     .priv_data_size = sizeof(VAAPIEncodeH265Context),
+     .init           = &vaapi_encode_h265_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
+     .close          = &vaapi_encode_h265_close,
+     .p.priv_class   = &vaapi_encode_h265_class,
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
+diff --git a/libavcodec/vaapi_encode_mjpeg.c b/libavcodec/vaapi_encode_mjpeg.c
+index 5d51a0b2b9..0ca8d676dd 100644
+--- a/libavcodec/vaapi_encode_mjpeg.c
++++ b/libavcodec/vaapi_encode_mjpeg.c
+@@ -574,7 +574,7 @@ const FFCodec ff_mjpeg_vaapi_encoder = {
+     .p.id           = AV_CODEC_ID_MJPEG,
+     .priv_data_size = sizeof(VAAPIEncodeMJPEGContext),
+     .init           = &vaapi_encode_mjpeg_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
+     .close          = &vaapi_encode_mjpeg_close,
+     .p.priv_class   = &vaapi_encode_mjpeg_class,
+     .p.capabilities = AV_CODEC_CAP_HARDWARE | AV_CODEC_CAP_DR1 |
+diff --git a/libavcodec/vaapi_encode_mpeg2.c b/libavcodec/vaapi_encode_mpeg2.c
+index c20196fb48..be801d21d2 100644
+--- a/libavcodec/vaapi_encode_mpeg2.c
++++ b/libavcodec/vaapi_encode_mpeg2.c
+@@ -698,7 +698,7 @@ const FFCodec ff_mpeg2_vaapi_encoder = {
+     .p.id           = AV_CODEC_ID_MPEG2VIDEO,
+     .priv_data_size = sizeof(VAAPIEncodeMPEG2Context),
+     .init           = &vaapi_encode_mpeg2_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
+     .close          = &vaapi_encode_mpeg2_close,
+     .p.priv_class   = &vaapi_encode_mpeg2_class,
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
+diff --git a/libavcodec/vaapi_encode_vp8.c b/libavcodec/vaapi_encode_vp8.c
+index a95f9c5447..634b849cd2 100644
+--- a/libavcodec/vaapi_encode_vp8.c
++++ b/libavcodec/vaapi_encode_vp8.c
+@@ -252,7 +252,7 @@ const FFCodec ff_vp8_vaapi_encoder = {
+     .p.id           = AV_CODEC_ID_VP8,
+     .priv_data_size = sizeof(VAAPIEncodeVP8Context),
+     .init           = &vaapi_encode_vp8_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
+     .close          = &ff_vaapi_encode_close,
+     .p.priv_class   = &vaapi_encode_vp8_class,
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
+diff --git a/libavcodec/vaapi_encode_vp9.c b/libavcodec/vaapi_encode_vp9.c
+index 96acd414af..eac9be82b0 100644
+--- a/libavcodec/vaapi_encode_vp9.c
++++ b/libavcodec/vaapi_encode_vp9.c
+@@ -309,7 +309,7 @@ const FFCodec ff_vp9_vaapi_encoder = {
+     .p.id           = AV_CODEC_ID_VP9,
+     .priv_data_size = sizeof(VAAPIEncodeVP9Context),
+     .init           = &vaapi_encode_vp9_init,
+-    FF_CODEC_RECEIVE_PACKET_CB(&ff_hw_base_encode_receive_packet),
++    FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
+     .close          = &ff_vaapi_encode_close,
+     .p.priv_class   = &vaapi_encode_vp9_class,
+     .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |
+-- 
+2.41.0.windows.1
+
