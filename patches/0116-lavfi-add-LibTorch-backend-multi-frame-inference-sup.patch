@@ -1,4 +1,4 @@
-From 279b7bed229342606a6818c5115051f6d3055e7f Mon Sep 17 00:00:00 2001
+From d2958c6d7c648e1ad99d02f79385fb35fc609540 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Mon, 18 Jul 2022 10:13:04 +0800
 Subject: [PATCH] lavfi: add LibTorch backend multi-frame inference support
@@ -105,7 +105,7 @@ index 6afefe8115..aca113bccc 100644
  {
      int ret;
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index c70d32904f..47ec6d4ea6 100644
+index a368e6533c..174199b386 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
 @@ -30,6 +30,7 @@ extern "C" {
@@ -116,7 +116,7 @@ index c70d32904f..47ec6d4ea6 100644
  #include "libavutil/opt.h"
  #include "libavutil/mem.h"
  #include "queue.h"
-@@ -173,6 +174,9 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -172,6 +173,9 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
      DNNData input = { 0 };
      DnnContext *ctx = th_model->ctx;
      int ret, width_idx, height_idx, channel_idx;
@@ -126,7 +126,7 @@ index c70d32904f..47ec6d4ea6 100644
  
      lltask = (LastLevelTaskItem *)ff_queue_pop_front(th_model->lltask_queue);
      if (!lltask) {
-@@ -193,9 +197,10 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -192,9 +196,10 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
      input.dims[height_idx] = task->in_frame->height;
      input.dims[width_idx] = task->in_frame->width;
      input.data = av_malloc(input.dims[height_idx] * input.dims[width_idx] *
@@ -138,7 +138,7 @@ index c70d32904f..47ec6d4ea6 100644
      infer_request->input_tensor = new torch::Tensor();
      infer_request->output = new torch::Tensor();
  
-@@ -206,7 +211,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -205,7 +210,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
              if (th_model->model.frame_pre_proc != NULL) {
                  th_model->model.frame_pre_proc(task->in_frame, &input, th_model->model.filter_ctx);
              } else {
@@ -155,7 +155,7 @@ index c70d32904f..47ec6d4ea6 100644
              }
          }
          break;
-@@ -220,7 +233,7 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -219,7 +232,7 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
              deleter, torch::kFloat32);
      } else {
          *infer_request->input_tensor = torch::from_blob(input.data,
@@ -163,8 +163,8 @@ index c70d32904f..47ec6d4ea6 100644
 +            {1, task->nb_input, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
              deleter, torch::kFloat32);
      }
-     if (infer_request->input_tensor->device() != th_model->device_type)
-@@ -296,6 +309,8 @@ static void infer_completion_callback(void *args) {
+     return 0;
+@@ -297,6 +310,8 @@ static void infer_completion_callback(void *args) {
      THInferRequest *infer_request = request->infer_request;
      THModel *th_model = (THModel *)task->model;
      torch::Tensor *output = infer_request->output;
@@ -173,7 +173,7 @@ index c70d32904f..47ec6d4ea6 100644
  
      c10::IntArrayRef sizes = output->sizes();
      outputs.order = DCO_RGB;
-@@ -308,6 +323,13 @@ static void infer_completion_callback(void *args) {
+@@ -309,6 +324,13 @@ static void infer_completion_callback(void *args) {
          outputs.dims[1] = sizes.at(1); // C
          outputs.dims[2] = sizes.at(2); // H
          outputs.dims[3] = sizes.at(3); // W
@@ -187,7 +187,7 @@ index c70d32904f..47ec6d4ea6 100644
      } else {
          avpriv_report_missing_feature(th_model->ctx, "Support of this kind of model");
          goto err;
-@@ -324,7 +346,13 @@ static void infer_completion_callback(void *args) {
+@@ -325,7 +347,13 @@ static void infer_completion_callback(void *args) {
              if (th_model->model.frame_post_proc != NULL) {
                  th_model->model.frame_post_proc(task->out_frame, &outputs, th_model->model.filter_ctx);
              } else {
@@ -202,7 +202,7 @@ index c70d32904f..47ec6d4ea6 100644
              }
          } else {
              task->out_frame->width = outputs.dims[dnn_get_width_idx_by_layout(outputs.layout)];
-@@ -390,7 +418,7 @@ err:
+@@ -391,7 +419,7 @@ err:
      return ret;
  }
  
@@ -211,7 +211,7 @@ index c70d32904f..47ec6d4ea6 100644
                                     const char *output_name, int *output_width, int *output_height)
  {
      int ret = 0;
-@@ -401,6 +429,7 @@ static int get_output_th(DNNModel *model, const char *input_name, int input_widt
+@@ -402,6 +430,7 @@ static int get_output_th(DNNModel *model, const char *input_name, int input_widt
      DNNExecBaseParams exec_params = {
          .input_name     = input_name,
          .output_names   = &output_name,

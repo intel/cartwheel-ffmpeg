@@ -1,4 +1,4 @@
-From e95b5240eca75894b5bf865387116cf60111bf0f Mon Sep 17 00:00:00 2001
+From 3ce8c69eb94357c551ff453913fded2d6b0d5fba Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Tue, 22 Aug 2023 13:26:36 +0800
 Subject: [PATCH] avcodec: add D3D12VA hardware HEVC encoder
@@ -24,7 +24,7 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  create mode 100644 libavcodec/d3d12va_encode_hevc.c
 
 diff --git a/configure b/configure
-index de66188892..3b10ab5858 100755
+index df54555499..fa9ec5f559 100755
 --- a/configure
 +++ b/configure
 @@ -2635,6 +2635,7 @@ CONFIG_EXTRA="
@@ -62,7 +62,7 @@ index de66188892..3b10ab5858 100755
  check_type "d3d9.h dxva2api.h" DXVA2_ConfigPictureDecode -D_WIN32_WINNT=0x0602
  check_func_headers mfapi.h MFCreateAlignedMemoryBuffer -lmfplat
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
-index feff990890..81907a4330 100644
+index 727687acc1..05da6e3a21 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -87,6 +87,7 @@ OBJS-$(CONFIG_CBS_JPEG)                += cbs_jpeg.o
@@ -73,15 +73,15 @@ index feff990890..81907a4330 100644
  OBJS-$(CONFIG_DEFLATE_WRAPPER)         += zlib_wrapper.o
  OBJS-$(CONFIG_DOVI_RPUDEC)             += dovi_rpu.o dovi_rpudec.o
  OBJS-$(CONFIG_DOVI_RPUENC)             += dovi_rpu.o dovi_rpuenc.o
-@@ -429,6 +430,7 @@ OBJS-$(CONFIG_HDR_DECODER)             += hdrdec.o
- OBJS-$(CONFIG_HDR_ENCODER)             += hdrenc.o
+@@ -433,6 +434,7 @@ OBJS-$(CONFIG_HDR_ENCODER)             += hdrenc.o
+ OBJS-$(CONFIG_HEVC_DECODER)            += aom_film_grain.o h274.o
  OBJS-$(CONFIG_HEVC_AMF_ENCODER)        += amfenc_hevc.o
  OBJS-$(CONFIG_HEVC_CUVID_DECODER)      += cuviddec.o
 +OBJS-$(CONFIG_HEVC_D3D12VA_ENCODER)    += d3d12va_encode_hevc.o
  OBJS-$(CONFIG_HEVC_MEDIACODEC_DECODER) += mediacodecdec.o
  OBJS-$(CONFIG_HEVC_MEDIACODEC_ENCODER) += mediacodecenc.o
  OBJS-$(CONFIG_HEVC_MF_ENCODER)         += mfenc.o mf_utils.o
-@@ -1257,7 +1259,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
+@@ -1261,7 +1263,7 @@ SKIPHEADERS                            += %_tablegen.h                  \
  
  SKIPHEADERS-$(CONFIG_AMF)              += amfenc.h
  SKIPHEADERS-$(CONFIG_D3D11VA)          += d3d11va.h dxva2_internal.h
@@ -2949,5 +2949,5 @@ index 0000000000..280e1a86ec
 +    .p.wrapper_name = "d3d12va",
 +};
 -- 
-2.25.1
+2.34.1
 
