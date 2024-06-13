@@ -1,4 +1,4 @@
-From dffe988406cfe7133720113566f4ffb17b31cecd Mon Sep 17 00:00:00 2001
+From 846779ad6a4d4a10439b2e3ea3a20ff566275f55 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:40 +0800
 Subject: [PATCH] lavc/hevc_vaapi: enable sub frame support
@@ -33,10 +33,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
  libavcodec/vaapi_decode.c   | 46 ++++++++++++++++++++++++++-
  libavcodec/vaapi_decode.h   |  4 +++
- libavcodec/vaapi_hevc.c     | 32 ++++++++++++++++++-
+ libavcodec/vaapi_hevc.c     | 31 +++++++++++++++++++
  libavutil/hwcontext_vaapi.c | 62 +++++++++++++++++++++++++++++++++++--
  libavutil/hwcontext_vaapi.h | 15 ++++++++-
- 5 files changed, 153 insertions(+), 6 deletions(-)
+ 5 files changed, 153 insertions(+), 5 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
 index 7c91d50f7b..936d958c0b 100644
@@ -137,7 +137,7 @@ index 702171e108..0db1eb04de 100644
  
  typedef struct VAAPIDecodeContext {
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index 051762bfef..1c63e744fb 100644
+index ad4cd35b26..ad6da87e26 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -39,6 +39,7 @@ typedef struct VAAPIDecodePictureHEVC {
@@ -148,18 +148,15 @@ index 051762bfef..1c63e744fb 100644
      const uint8_t *last_buffer;
      size_t         last_size;
  
-@@ -128,9 +129,9 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
-     VAAPIDecodePictureHEVC *pic = h->cur_frame->hwaccel_picture_private;
-     const HEVCSPS          *sps = h->ps.sps;
-     const HEVCPPS          *pps = h->ps.pps;
--
+@@ -131,6 +132,7 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+ 
      const ScalingList *scaling_list = NULL;
      int pic_param_size, err, i;
 +    AVFrameSideData *sd;
  
  #if VA_CHECK_VERSION(1, 2, 0)
      int num_comps, pre_palette_size;
-@@ -334,6 +335,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+@@ -334,6 +336,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
              goto fail;
      }
  
