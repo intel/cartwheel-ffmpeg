@@ -1,4 +1,4 @@
-From df7252f6e2a7db49e381fefff4d9259d0edf91ed Mon Sep 17 00:00:00 2001
+From 05409cace7d817ed27f9889e027e8363df87d0f3 Mon Sep 17 00:00:00 2001
 From: Yinhang Liu <yinhangx.liu@intel.com>
 Date: Thu, 30 Jul 2020 13:33:37 +0800
 Subject: [PATCH] avfilter/vf_xcam: add xcam video filter
@@ -54,10 +54,10 @@ Reviewed-by: Zong Wei <wei.zong@intel.com>
  create mode 100644 libavfilter/vf_xcam.c
 
 diff --git a/configure b/configure
-index 0acf880580..158c8c073c 100755
+index 50c4ba3587..92c3ec5d29 100755
 --- a/configure
 +++ b/configure
-@@ -298,6 +298,7 @@ External library support:
+@@ -301,6 +301,7 @@ External library support:
    --enable-libxevd         enable EVC decoding via libxevd [no]
    --enable-libxavs         enable AVS encoding via xavs [no]
    --enable-libxavs2        enable AVS2 encoding via xavs2 [no]
@@ -65,15 +65,15 @@ index 0acf880580..158c8c073c 100755
    --enable-libxcb          enable X11 grabbing using XCB [autodetect]
    --enable-libxcb-shm      enable X11 grabbing shm communication [autodetect]
    --enable-libxcb-xfixes   enable X11 grabbing mouse rendering [autodetect]
-@@ -1965,6 +1966,7 @@ EXTERNAL_LIBRARY_LIST="
-     libvorbis
+@@ -1970,6 +1971,7 @@ EXTERNAL_LIBRARY_LIST="
      libvpx
+     libvvenc
      libwebp
 +    libxcam
      libxevd
      libxeve
      libxml2
-@@ -3932,6 +3934,7 @@ scale_vt_filter_deps="videotoolbox VTPixelTransferSessionCreate"
+@@ -3959,6 +3961,7 @@ scale_vt_filter_deps="videotoolbox VTPixelTransferSessionCreate"
  scale_vulkan_filter_deps="vulkan spirv_compiler"
  vpp_qsv_filter_deps="libmfx"
  vpp_qsv_filter_select="qsvvpp"
@@ -81,7 +81,7 @@ index 0acf880580..158c8c073c 100755
  xfade_opencl_filter_deps="opencl"
  xfade_vulkan_filter_deps="vulkan spirv_compiler"
  yadif_cuda_filter_deps="ffnvcodec"
-@@ -7005,6 +7008,8 @@ enabled libx265           && require_pkg_config libx265 x265 x265.h x265_api_get
+@@ -7007,6 +7010,8 @@ enabled libx265           && require_pkg_config libx265 x265 x265.h x265_api_get
                               require_cpp_condition libx265 x265.h "X265_BUILD >= 89"
  enabled libxavs           && require libxavs "stdint.h xavs.h" xavs_encoder_encode "-lxavs $pthreads_extralibs $libm_extralibs"
  enabled libxavs2          && require_pkg_config libxavs2 "xavs2 >= 1.3.0" "stdint.h xavs2.h" xavs2_api_get
@@ -91,10 +91,10 @@ index 0acf880580..158c8c073c 100755
  enabled libxeve           && require_pkg_config libxeve "xeve >= 0.4.3" "xeve.h" xeve_encode
  enabled libxvid           && require libxvid xvid.h xvid_global -lxvidcore
 diff --git a/doc/filters.texi b/doc/filters.texi
-index bfa8ccec8b..8522bba610 100644
+index 347103c04f..d7f8ac4d63 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -25896,6 +25896,85 @@ can be @var{first} or @var{all}. Default is @var{all}.
+@@ -25866,6 +25866,85 @@ can be @var{first} or @var{all}. Default is @var{all}.
  
  The @code{xcorrelate} filter also supports the @ref{framesync} options.
  
@@ -181,10 +181,10 @@ index bfa8ccec8b..8522bba610 100644
  
  Apply cross fade from one input video stream to another input video stream.
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index ff630d5231..b913fa590b 100644
+index d2eed57900..530608b93f 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -559,6 +559,7 @@ OBJS-$(CONFIG_W3FDIF_FILTER)                 += vf_w3fdif.o
+@@ -560,6 +560,7 @@ OBJS-$(CONFIG_W3FDIF_FILTER)                 += vf_w3fdif.o
  OBJS-$(CONFIG_WAVEFORM_FILTER)               += vf_waveform.o
  OBJS-$(CONFIG_WEAVE_FILTER)                  += vf_weave.o
  OBJS-$(CONFIG_XBR_FILTER)                    += vf_xbr.o
@@ -193,7 +193,7 @@ index ff630d5231..b913fa590b 100644
  OBJS-$(CONFIG_XFADE_FILTER)                  += vf_xfade.o
  OBJS-$(CONFIG_XFADE_OPENCL_FILTER)           += vf_xfade_opencl.o opencl.o opencl/xfade.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index dfe3d0fe63..6ebc8af62c 100644
+index 87ef05a9f9..7b94855bc2 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
 @@ -528,6 +528,7 @@ extern const AVFilter ff_vf_w3fdif;
@@ -539,5 +539,5 @@ index 0000000000..5302dc9113
 +    .flags                 = AVFILTER_FLAG_DYNAMIC_INPUTS
 +};
 -- 
-2.25.1
+2.34.1
 
