@@ -1,16 +1,16 @@
-From da51502c8085d57c6e4e5e403a21a8d65497b44a Mon Sep 17 00:00:00 2001
+From c3ee9169015457387cf9001a9d849b0a1ea218dc Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Mon, 1 Jul 2024 14:30:12 +0800
-Subject: [PATCH 3/9] lavc/vaapi_decode: Use a more meaningful variable name
+Subject: [PATCH] lavc/vaapi_decode: Use a more meaningful variable name
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
- libavcodec/vaapi_decode.c | 18 +++++++++---------
+ libavcodec/vaapi_decode.c | 20 ++++++++++----------
  libavcodec/vaapi_decode.h |  2 +-
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ 2 files changed, 11 insertions(+), 11 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 1581f78a8a..9c9fe4c6d6 100644
+index a2276b11c0..9c9fe4c6d6 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
 @@ -84,19 +84,19 @@ int ff_vaapi_decode_make_slice_buffer(AVCodecContext *avctx,
@@ -29,8 +29,9 @@ index 1581f78a8a..9c9fe4c6d6 100644
          if (!tmp)
              return AVERROR(ENOMEM);
  
-         pic->slice_buffers = tmp;
+-        pic->slice_buffers    = tmp;
 -        pic->slices_allocated = pic->slices_allocated ? pic->slices_allocated * 2 : 64;
++        pic->slice_buffers = tmp;
 +        pic->nb_slice_buffers_allocated = pic->nb_slice_buffers_allocated ? pic->nb_slice_buffers_allocated * 2 : 64;
      }
 -    av_assert0(pic->nb_slices + 1 <= pic->slices_allocated);
