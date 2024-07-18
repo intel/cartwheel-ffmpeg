@@ -1,0 +1,35 @@
+From 2ec8ef3587e47c1e82e4f281314a7a2fedd9dcc7 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Thu, 18 Jul 2024 10:56:51 +0800
+Subject: [PATCH] lavu/hwcontext_qsv: Add null check before use texture
+
+Fix Windows cmd:
+ffmpeg.exe -hwaccel qsv -hwaccel_output_format qsv -i input.mp4       \
+-vf "hwmap=derive_device=d3d11va,format=d3d11,hwdownload,format=nv12" \
+-y out.yuv
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ libavutil/hwcontext_qsv.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index 0fd9b0297e..d4b8db1ca2 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -1549,8 +1549,10 @@ static int qsv_frames_derive_from(AVHWFramesContext *dst_ctx,
+                 dst_hwctx->texture_infos[i].texture = (ID3D11Texture2D*)pair->first;
+                 dst_hwctx->texture_infos[i].index = pair->second == (mfxMemId)MFX_INFINITE ? (intptr_t)0 : (intptr_t)pair->second;
+             }
+-            ID3D11Texture2D_GetDesc(dst_hwctx->texture_infos[0].texture, &texDesc);
+-            dst_hwctx->BindFlags = texDesc.BindFlags;
++            if (src_hwctx->nb_surfaces) {
++                ID3D11Texture2D_GetDesc(dst_hwctx->texture_infos[0].texture, &texDesc);
++                dst_hwctx->BindFlags = texDesc.BindFlags;
++            }
+         }
+         break;
+ #endif
+-- 
+2.34.1
+
