@@ -1,0 +1,131 @@
+From 47a98b701fe52417e64a46d416954142e307d0b5 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Fri, 16 Aug 2024 13:20:40 +0800
+Subject: [PATCH 4/4] lavc/qsvenc: Make ffmpeg compilable with experimental API
+ of libvpl
+
+This is a temporary patch to allow ffmpeg-qsv to use hevc alpha encode,
+av1 scc encode and encode frame quality features which are under
+experimental of libvpl. Since the runtime version check been removed,
+please make sure your vpl runtime can support them when you use it.
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ configure           |  8 ++++++++
+ libavcodec/qsvenc.c | 15 ++++++++++-----
+ libavcodec/qsvenc.h | 16 ++++++++++++----
+ 3 files changed, 30 insertions(+), 9 deletions(-)
+
+diff --git a/configure b/configure
+index daf358b95b..f8765f11a1 100755
+--- a/configure
++++ b/configure
+@@ -6930,6 +6930,14 @@ elif enabled libvpl; then
+             die "ERROR: libvpl >= 2.6 not found"
+     add_cflags -DMFX_DEPRECATED_OFF
+     check_type "vpl/mfxdefs.h vpl/mfxvideo.h" "struct mfxConfigInterface"
++    add_cflags -DONEVPL_EXPERIMENTAL
++    check_cc AV1_SCC_ENCODE "mfxstructures.h" "MFX_EXTBUFF_AV1_SCREEN_CONTENT_TOOLS" && add_cflags -DQSV_HAVE_EXT_AV1_SCC
++    case $target_os in
++        win32|win64)
++            check_cc HEVC_ALPHA_ENCODE "mfxstructures.h" "MFX_EXTBUFF_ALPHA_CHANNEL_ENC_CTRL" && add_cflags -DQSV_HAVE_AC
++            check_cc FRAME_QUALITY_ENCODE "mfxstructures.h" "MFX_EXTBUFF_ENCODED_QUALITY_INFO_MODE" && add_cflags -DQSV_HAVE_EXT_MSE
++	    ;;
++    esac
+ fi
+ 
+ if enabled libmfx; then
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 14b32abd50..22a1949722 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -1386,7 +1386,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ 
+ #if QSV_HAVE_AC
+    if (q->alpha_encode) {
+-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++        // if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++        if (1) {
+             mfxIMPL impl;
+             MFXQueryIMPL(q->session, &impl);
+ 
+@@ -1417,7 +1418,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ 
+ #if QSV_HAVE_EXT_AV1_SCC
+     if (q->palette_mode || q->intrabc) {
+-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++        // if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++        if (1) {
+             if (q->param.mfx.CodecId != MFX_CODEC_AV1) {
+                 av_log(avctx, AV_LOG_ERROR, "Not supported encoder for Screen Content Tool Encode. "
+                                             "Supported: av1_qsv \n");
+@@ -1439,7 +1441,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+ 
+ #if QSV_HAVE_EXT_MSE
+     if (q->mse) {
+-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++        // if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++        if (1) {
+             q->extmseparam.Header.BufferId = MFX_EXTBUFF_ENCODED_QUALITY_INFO_MODE;
+             q->extmseparam.Header.BufferSz = sizeof(q->extmseparam);
+             q->extmseparam.QualityInfoMode = MFX_QUALITY_INFO_LEVEL_FRAME;
+@@ -1706,14 +1709,16 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+ #endif
+ 
+ #if QSV_HAVE_AC
+-    if (q->alpha_encode && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++    // if (q->alpha_encode && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++    if (q->alpha_encode) {
+         q->extaplhachannel_idx = ext_buf_num;
+         ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&alpha_encode_buf;
+     }
+ #endif
+ 
+ #if QSV_HAVE_EXT_MSE
+-    if (q->mse && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++    // if (q->mse && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++    if (q->mse) {
+         q->extmse_idx = ext_buf_num;
+         ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&mse_buf;
+     }
+diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
+index 56308ed844..6ace0cbe8e 100644
+--- a/libavcodec/qsvenc.h
++++ b/libavcodec/qsvenc.h
+@@ -40,21 +40,29 @@
+ 
+ #define QSV_HAVE_EXT_VP9_TILES QSV_VERSION_ATLEAST(1, 29)
+ #define QSV_HAVE_EXT_AV1_PARAM QSV_VERSION_ATLEAST(2, 5)
+-#define QSV_HAVE_EXT_AV1_SCC   QSV_VERSION_ATLEAST(2, 13)
+-#define QSV_HAVE_EXT_MSE       QSV_VERSION_ATLEAST(2, 13)
++
++#ifndef QSV_HAVE_EXT_AV1_SCC
++#define QSV_HAVE_EXT_AV1_SCC 0
++#endif
++
++#ifndef QSV_HAVE_EXT_MSE
++#define QSV_HAVE_EXT_MSE 0
++#endif
++
++#ifndef QSV_HAVE_AC
++#define QSV_HAVE_AC 0
++#endif
+ 
+ #if defined(_WIN32) || defined(__CYGWIN__)
+ #define QSV_HAVE_AVBR   1
+ #define QSV_HAVE_VCM    1
+ #define QSV_HAVE_MF     0
+ #define QSV_HAVE_HE     QSV_VERSION_ATLEAST(2, 4)
+-#define QSV_HAVE_AC     QSV_VERSION_ATLEAST(2, 13)
+ #else
+ #define QSV_HAVE_AVBR   0
+ #define QSV_HAVE_VCM    0
+ #define QSV_HAVE_MF     !QSV_ONEVPL
+ #define QSV_HAVE_HE     0
+-#define QSV_HAVE_AC     0
+ #endif
+ 
+ #define QSV_COMMON_OPTS \
+-- 
+2.34.1
+

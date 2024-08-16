@@ -1,0 +1,261 @@
+From 3e97199ea06e27baedbab94881c8e561288f8a28 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Fri, 16 Aug 2024 21:22:33 +0800
+Subject: [PATCH 1/4] libavcodec/qsvenc: enable Alpha Encode for HEVC
+
+This support alpha encode for HEVC introduced by Apple:
+https://developer.apple.com/videos/play/wwdc2019/506/
+
+Currently, it only support RGBA video memory as input. RGB and alpha
+channel will be encoded in different layers with 4:2:0 color format.
+
+Example cmdline:
+ffmpeg.exe -v verbose -hwaccel qsv -hwaccel_output_format qsv -f rawvideo \
+-pix_fmt bgra -s:v 1920x1080  -r:v 25 -i input.argb -vf                   \
+'format=bgra,hwupload=extra_hw_frames=120' -an -c:v hevc_qsv              \
+-alpha_encode 1 -y out.mp4
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ doc/encoders.texi         |  4 ++
+ libavcodec/qsvenc.c       | 78 +++++++++++++++++++++++++++++++++++++--
+ libavcodec/qsvenc.h       | 10 ++++-
+ libavcodec/qsvenc_hevc.c  |  3 ++
+ libavutil/hwcontext_qsv.c |  2 +-
+ 5 files changed, 91 insertions(+), 6 deletions(-)
+
+diff --git a/doc/encoders.texi b/doc/encoders.texi
+index 496852faeb..1ed4a0aa74 100644
+--- a/doc/encoders.texi
++++ b/doc/encoders.texi
+@@ -4036,6 +4036,10 @@ skip_frame metadata indicates the number of missed frames before the current
+ frame.
+ @end table
+ 
++@item @var{alpha_encode}
++Encode Alpha and RGB into different layers introduced by Apple:
++https://developer.apple.com/videos/play/wwdc2019/506/. Only support on Windows
++with RGBA video memory as input.
+ @end table
+ 
+ @subsection MPEG2 Options
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 77c592a24b..bc8c53577b 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -203,6 +203,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+ #if QSV_HAVE_HE
+     mfxExtHyperModeParam *exthypermodeparam = NULL;
+ #endif
++#if QSV_HAVE_AC
++    mfxExtAlphaChannelEncCtrl *extalphachannel = NULL;
++#endif
+ 
+     const char *tmp_str = NULL;
+     mfxExtHEVCParam *exthevcparam = NULL;
+@@ -221,6 +224,11 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+         exthypermodeparam = (mfxExtHyperModeParam *)coding_opts[q->exthypermodeparam_idx];
+ #endif
+ 
++#if QSV_HAVE_AC
++    if (q->extaplhachannel_idx > 0)
++        extalphachannel = (mfxExtAlphaChannelEncCtrl *)coding_opts[q->extaplhachannel_idx];
++#endif
++
+     if (q->exthevcparam_idx > 0)
+         exthevcparam = (mfxExtHEVCParam *)coding_opts[q->exthevcparam_idx];
+     av_log(avctx, AV_LOG_VERBOSE, "profile: %s; level: %"PRIu16"\n",
+@@ -408,6 +416,23 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+         avctx->codec_id == AV_CODEC_ID_HEVC &&
+         info->CodecProfile == MFX_PROFILE_HEVC_MAIN10)
+         av_log(avctx, AV_LOG_VERBOSE, "Main10sp (Main10 profile and one_pic_only flag): enable\n");
++
++#if QSV_HAVE_AC
++    if (extalphachannel) {
++        av_log(avctx, AV_LOG_VERBOSE, "AlphaChannel Encode: %s; ", print_threestate(extalphachannel->EnableAlphaChannelEncoding));
++
++        av_log(avctx, AV_LOG_VERBOSE, "Mode: ");
++        if (extalphachannel->AlphaChannelMode == MFX_ALPHA_MODE_PREMULTIPLIED)
++            av_log(avctx, AV_LOG_VERBOSE, "PREMULTIPLIED; ");
++        else if (extalphachannel->AlphaChannelMode == MFX_ALPHA_MODE_STRAIGHT)
++            av_log(avctx, AV_LOG_VERBOSE, "STRAIGHT; ");
++        else
++            av_log(avctx, AV_LOG_VERBOSE, "unknown; ");
++        av_log(avctx, AV_LOG_VERBOSE, "BitrateRatio: %d", extalphachannel->AlphaChannelBitrateRatio);
++
++        av_log(avctx, AV_LOG_VERBOSE, "\n");
++    }
++#endif
+ }
+ 
+ static void dump_video_vp9_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -1158,7 +1183,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+                 q->extco3.MaxFrameSizeP = q->max_frame_size_p;
+             if (sw_format == AV_PIX_FMT_BGRA &&
+                 (q->profile == MFX_PROFILE_HEVC_REXT ||
+-                q->profile == MFX_PROFILE_UNKNOWN))
++                q->profile == MFX_PROFILE_UNKNOWN) &&
++                !q->alpha_encode)
+                 q->extco3.TargetChromaFormatPlus1 = MFX_CHROMAFORMAT_YUV444 + 1;
+ 
+             q->extco3.ScenarioInfo = q->scenario;
+@@ -1302,6 +1328,37 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+     }
+ #endif
+ 
++#if QSV_HAVE_AC
++   if (q->alpha_encode) {
++        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++            mfxIMPL impl;
++            MFXQueryIMPL(q->session, &impl);
++
++            if (MFX_IMPL_VIA_MASK(impl) != MFX_IMPL_VIA_D3D11) {
++                av_log(avctx, AV_LOG_ERROR, "Alpha Channel Encode requires D3D11VA \n");
++                return AVERROR_UNKNOWN;
++            }
++
++            if (q->param.mfx.CodecId != MFX_CODEC_HEVC) {
++                av_log(avctx, AV_LOG_ERROR, "Not supported encoder for Alpha Channel Encode. "
++                                            "Supported: hevc_qsv \n");
++                return AVERROR_UNKNOWN;
++            }
++
++            q->extaplhachannelparam.Header.BufferId = MFX_EXTBUFF_ALPHA_CHANNEL_ENC_CTRL;
++            q->extaplhachannelparam.Header.BufferSz = sizeof(q->extaplhachannelparam);
++            q->extaplhachannelparam.EnableAlphaChannelEncoding = MFX_CODINGOPTION_ON;
++            q->extaplhachannelparam.AlphaChannelBitrateRatio = 25;
++            q->extaplhachannelparam.AlphaChannelMode = MFX_ALPHA_MODE_PREMULTIPLIED;
++            q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extaplhachannelparam;
++        } else {
++            av_log(avctx, AV_LOG_ERROR,
++                   "This version of runtime doesn't support Alpha Channel Encode\n");
++            return AVERROR_UNKNOWN;
++        }
++    }
++#endif
++
+     if (!check_enc_param(avctx,q)) {
+         av_log(avctx, AV_LOG_ERROR,
+                "some encoding parameters are not supported by the QSV "
+@@ -1483,17 +1540,24 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+     };
+ #endif
+ 
++#if QSV_HAVE_AC
++    mfxExtAlphaChannelEncCtrl alpha_encode_buf = {
++        .Header.BufferId = MFX_EXTBUFF_ALPHA_CHANNEL_ENC_CTRL,
++        .Header.BufferSz = sizeof(alpha_encode_buf),
++    };
++#endif
++
+     mfxExtHEVCParam hevc_param_buf = {
+         .Header.BufferId = MFX_EXTBUFF_HEVC_PARAM,
+         .Header.BufferSz = sizeof(hevc_param_buf),
+     };
+ 
+-    mfxExtBuffer *ext_buffers[7 + QSV_HAVE_HE];
++    mfxExtBuffer *ext_buffers[7 + QSV_HAVE_HE + QSV_HAVE_AC];
+     int need_pps = avctx->codec_id != AV_CODEC_ID_MPEG2VIDEO;
+     int ret, ext_buf_num = 0, extradata_offset = 0;
+ 
+     q->co2_idx = q->co3_idx = q->exthevctiles_idx = q->exthypermodeparam_idx = -1;
+-    q->exthevcparam_idx = -1;
++    q->exthevcparam_idx = q->extaplhachannel_idx = -1;
+     ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&extradata;
+     ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&co;
+ 
+@@ -1521,6 +1585,14 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+         ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&hyper_mode_param_buf;
+     }
+ #endif
++
++#if QSV_HAVE_AC
++    if (q->alpha_encode && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++        q->extaplhachannel_idx = ext_buf_num;
++        ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&alpha_encode_buf;
++    }
++#endif
++
+     if (avctx->codec_id == AV_CODEC_ID_HEVC && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 0)) {
+         q->exthevcparam_idx = ext_buf_num;
+         ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&hevc_param_buf;
+diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
+index 522f3b5b55..b91326f907 100644
+--- a/libavcodec/qsvenc.h
++++ b/libavcodec/qsvenc.h
+@@ -46,11 +46,13 @@
+ #define QSV_HAVE_VCM    1
+ #define QSV_HAVE_MF     0
+ #define QSV_HAVE_HE     QSV_VERSION_ATLEAST(2, 4)
++#define QSV_HAVE_AC     QSV_VERSION_ATLEAST(2, 13)
+ #else
+ #define QSV_HAVE_AVBR   0
+ #define QSV_HAVE_VCM    0
+ #define QSV_HAVE_MF     !QSV_ONEVPL
+ #define QSV_HAVE_HE     0
++#define QSV_HAVE_AC     0
+ #endif
+ 
+ #define QSV_COMMON_OPTS \
+@@ -191,10 +193,13 @@ typedef struct QSVEncContext {
+     mfxFrameSurface1       **opaque_surfaces;
+     AVBufferRef             *opaque_alloc_buf;
+ #endif
++#if QSV_HAVE_AC
++    mfxExtAlphaChannelEncCtrl extaplhachannelparam;
++#endif
+ 
+     mfxExtVideoSignalInfo extvsi;
+ 
+-    mfxExtBuffer  *extparam_internal[6 + (QSV_HAVE_MF * 2) + (QSV_HAVE_EXT_AV1_PARAM * 2) + QSV_HAVE_HE];
++    mfxExtBuffer  *extparam_internal[6 + (QSV_HAVE_MF * 2) + (QSV_HAVE_EXT_AV1_PARAM * 2) + QSV_HAVE_HE + QSV_HAVE_AC];
+     int         nb_extparam_internal;
+ 
+     mfxExtBuffer  **extparam_str;
+@@ -272,6 +277,7 @@ typedef struct QSVEncContext {
+ 
+     int co2_idx;
+     int co3_idx;
++    int extaplhachannel_idx;
+     int exthevctiles_idx;
+     int exthypermodeparam_idx;
+     int vp9_idx;
+@@ -324,7 +330,7 @@ typedef struct QSVEncContext {
+     AVDictionary *qsv_params;
+     int exthevcparam_idx;
+     int main10sp;
+-
++    int alpha_encode;
+ } QSVEncContext;
+ 
+ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index 3997757d48..fa3ddb18bb 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -367,6 +367,9 @@ static const AVOption options[] = {
+ 
+ #if QSV_ONEVPL
+     { "main10sp", "This profile allow to encode 10 bit single still picture", OFFSET(qsv.main10sp), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE},
++#endif
++#if QSV_HAVE_AC
++    { "alpha_encode", "Encode with alpha channel", OFFSET(qsv.alpha_encode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE},
+ #endif
+     { NULL },
+ };
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index 24ff173cbb..71ef22aa5e 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -236,7 +236,7 @@ static uint32_t qsv_get_d3d11va_bind_flags(int mem_type)
+         bind_flags = D3D11_BIND_DECODER;
+ 
+     if ((MFX_MEMTYPE_FROM_VPPOUT & mem_type) || (MFX_MEMTYPE_VIDEO_MEMORY_PROCESSOR_TARGET & mem_type))
+-        bind_flags = D3D11_BIND_RENDER_TARGET;
++        bind_flags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+ 
+     return bind_flags;
+ }
+-- 
+2.34.1
+
