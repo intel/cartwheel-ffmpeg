@@ -1,7 +1,7 @@
-From f797f4b593ab668570e0c3bf2f5089a829b648c6 Mon Sep 17 00:00:00 2001
+From 30687924de43bb75f1273ae3ee8dfc6c57b68453 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 23 Jan 2024 15:09:30 +0800
-Subject: [PATCH 8/9] lavc/vvc_dec: Add hardware decode API
+Subject: [PATCH 1/2] lavc/vvc_dec: Add hardware decode API
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
@@ -11,7 +11,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  3 files changed, 73 insertions(+), 9 deletions(-)
 
 diff --git a/libavcodec/vvc/dec.c b/libavcodec/vvc/dec.c
-index a6b601b778..c3cfd3c0e1 100644
+index 2c80f0c461..6514d5a757 100644
 --- a/libavcodec/vvc/dec.c
 +++ b/libavcodec/vvc/dec.c
 @@ -22,6 +22,8 @@
@@ -23,7 +23,7 @@ index a6b601b778..c3cfd3c0e1 100644
  #include "libavcodec/profiles.h"
  #include "libavcodec/refstruct.h"
  #include "libavutil/cpu.h"
-@@ -571,6 +573,8 @@ static int ref_frame(VVCFrame *dst, const VVCFrame *src)
+@@ -610,6 +612,8 @@ static int ref_frame(VVCFrame *dst, const VVCFrame *src)
  
      ff_refstruct_replace(&dst->rpl_tab, src->rpl_tab);
      ff_refstruct_replace(&dst->rpl, src->rpl);
@@ -32,7 +32,7 @@ index a6b601b778..c3cfd3c0e1 100644
      dst->nb_rpl_elems = src->nb_rpl_elems;
  
      dst->poc = src->poc;
-@@ -731,17 +735,41 @@ static int slice_start(SliceContext *sc, VVCContext *s, VVCFrameContext *fc,
+@@ -770,17 +774,41 @@ static int slice_start(SliceContext *sc, VVCContext *s, VVCFrameContext *fc,
      return 0;
  }
  
@@ -76,10 +76,10 @@ index a6b601b778..c3cfd3c0e1 100644
 +
 +    c->width  = pps->width  - ((pps->r->pps_conf_win_left_offset + pps->r->pps_conf_win_right_offset) << sps->hshift[CHROMA]);
 +    c->height = pps->height - ((pps->r->pps_conf_win_top_offset + pps->r->pps_conf_win_bottom_offset) << sps->vshift[CHROMA]);
+     c->has_b_frames = sps->r->sps_dpb_params.dpb_max_num_reorder_pics[sps->r->sps_max_sublayers_minus1];
  }
  
- static int frame_setup(VVCFrameContext *fc, VVCContext *s)
-@@ -784,6 +812,20 @@ static int decode_slice(VVCContext *s, VVCFrameContext *fc, const H2645NAL *nal,
+@@ -824,6 +852,20 @@ static int decode_slice(VVCContext *s, VVCFrameContext *fc, const H2645NAL *nal,
      ret = slice_init_entry_points(sc, fc, nal, unit);
      if (ret < 0)
          return ret;
@@ -100,7 +100,7 @@ index a6b601b778..c3cfd3c0e1 100644
      fc->nb_slices++;
  
      return 0;
-@@ -903,11 +945,20 @@ static int wait_delayed_frame(VVCContext *s, AVFrame *output, int *got_output)
+@@ -939,11 +981,20 @@ static int wait_delayed_frame(VVCContext *s, AVFrame *output, int *got_output)
  
  static int submit_frame(VVCContext *s, VVCFrameContext *fc, AVFrame *output, int *got_output)
  {
@@ -125,7 +125,7 @@ index a6b601b778..c3cfd3c0e1 100644
      }
  
      s->nb_frames++;
-@@ -1059,6 +1110,8 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
+@@ -1095,6 +1146,8 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
      GDR_SET_RECOVERED(s);
      ff_thread_once(&init_static_once, init_default_scale_m);
  
@@ -135,7 +135,7 @@ index a6b601b778..c3cfd3c0e1 100644
  }
  
 diff --git a/libavcodec/vvc/dec.h b/libavcodec/vvc/dec.h
-index a8492f1398..1d786654c0 100644
+index d27cf52ca2..108b258982 100644
 --- a/libavcodec/vvc/dec.h
 +++ b/libavcodec/vvc/dec.h
 @@ -101,6 +101,9 @@ typedef struct VVCFrame {
@@ -148,7 +148,7 @@ index a8492f1398..1d786654c0 100644
  } VVCFrame;
  
  typedef struct SliceContext {
-@@ -244,6 +247,8 @@ typedef struct VVCContext {
+@@ -243,6 +246,8 @@ typedef struct VVCContext {
  
      uint64_t nb_frames;     ///< processed frames
      int nb_delayed;         ///< delayed frames
@@ -158,7 +158,7 @@ index a8492f1398..1d786654c0 100644
  
  #endif /* AVCODEC_VVC_DEC_H */
 diff --git a/libavcodec/vvc/refs.c b/libavcodec/vvc/refs.c
-index af63b7b588..819b17c1bb 100644
+index f5e75d729a..a8146209ce 100644
 --- a/libavcodec/vvc/refs.c
 +++ b/libavcodec/vvc/refs.c
 @@ -26,6 +26,7 @@
