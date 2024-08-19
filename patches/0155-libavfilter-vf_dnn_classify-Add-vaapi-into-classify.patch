@@ -1,15 +1,15 @@
-From 5dcd91352cf11ab0814b45854adc4bd8764d06f3 Mon Sep 17 00:00:00 2001
+From 05bc46d5931cdff56a39d3875a4f12c9e6b93c0c Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 5 Mar 2024 16:46:12 +0800
-Subject: [PATCH 5/5] libavfilter/vf_dnn_classify: Add vaapi into classify
+Subject: [PATCH] libavfilter/vf_dnn_classify: Add vaapi into classify
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavfilter/vf_dnn_classify.c | 31 ++++++++++++++++++++++++++++++-
- 1 file changed, 30 insertions(+), 1 deletion(-)
+ libavfilter/vf_dnn_classify.c | 33 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 32 insertions(+), 1 deletion(-)
 
 diff --git a/libavfilter/vf_dnn_classify.c b/libavfilter/vf_dnn_classify.c
-index f6d3678796..b8db3c04f2 100644
+index f6d3678796..6b0ff408b7 100644
 --- a/libavfilter/vf_dnn_classify.c
 +++ b/libavfilter/vf_dnn_classify.c
 @@ -200,6 +200,9 @@ static const enum AVPixelFormat pix_fmts[] = {
@@ -22,7 +22,7 @@ index f6d3678796..b8db3c04f2 100644
      AV_PIX_FMT_NONE
  };
  
-@@ -294,6 +297,31 @@ static av_cold void dnn_classify_uninit(AVFilterContext *context)
+@@ -294,6 +297,33 @@ static av_cold void dnn_classify_uninit(AVFilterContext *context)
      free_classify_labels(ctx);
  }
  
@@ -31,10 +31,12 @@ index f6d3678796..b8db3c04f2 100644
 +    AVFilterContext *context = outlink->src;
 +    AVFilterLink *inlink = context->inputs[0];
 +    DnnClassifyContext *classify_ctx = context->priv;
-+    if (inlink->hw_frames_ctx) {
++    FilterLink *inl = ff_filter_link(inlink);
++    FilterLink *onl = ff_filter_link(outlink);
++    if (inl->hw_frames_ctx) {
 +        if (inlink->format == AV_PIX_FMT_VAAPI &&
 +            classify_ctx->dnnctx.backend_type == DNN_OV)
-+            outlink->hw_frames_ctx = av_buffer_ref(inlink->hw_frames_ctx);
++            onl->hw_frames_ctx = av_buffer_ref(inl->hw_frames_ctx);
 +        else {
 +            av_log(classify_ctx, AV_LOG_ERROR, "The dnn_backend doesn't support this pixel format\n");
 +            return AVERROR_PATCHWELCOME;
@@ -54,7 +56,7 @@ index f6d3678796..b8db3c04f2 100644
  const AVFilter ff_vf_dnn_classify = {
      .name          = "dnn_classify",
      .description   = NULL_IF_CONFIG_SMALL("Apply DNN classify filter to the input."),
-@@ -302,8 +330,9 @@ const AVFilter ff_vf_dnn_classify = {
+@@ -302,8 +332,9 @@ const AVFilter ff_vf_dnn_classify = {
      .init          = dnn_classify_init,
      .uninit        = dnn_classify_uninit,
      FILTER_INPUTS(ff_video_default_filterpad),
