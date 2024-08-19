@@ -1,22 +1,22 @@
-From 66c7d24e162a73b495edf3fe7dfec531e76ced81 Mon Sep 17 00:00:00 2001
+From e1564c33360588569157f3faf01542013b06e662 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 5 Mar 2024 16:34:40 +0800
-Subject: [PATCH 4/5] libavfilter/dnn_backend_openvino: Add vaSurface crop
- support to Openvino
+Subject: [PATCH] libavfilter/dnn_backend_openvino: Add vaSurface crop support
+ to Openvino
 
 Add vaSurface crop support to openvino backend. Prepare to add vaSurface
 support to classify filter.
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavfilter/dnn/dnn_backend_openvino.c | 93 ++++++++++++++++++++++++++
- 1 file changed, 93 insertions(+)
+ libavfilter/dnn/dnn_backend_openvino.c | 98 ++++++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)
 
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index a0c2c5f358..637588811e 100644
+index f03f80c8a6..a1db2365a2 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
-@@ -69,6 +69,9 @@ typedef struct OVModel{
+@@ -70,6 +70,9 @@ typedef struct OVModel{
      Queue *lltask_queue;     // holds LastLevelTaskItem
      int nb_outputs;
      int use_remote_context;
@@ -26,7 +26,7 @@ index a0c2c5f358..637588811e 100644
  } OVModel;
  
  // one request for one call to openvino
-@@ -82,6 +85,9 @@ typedef struct OVRequestItem {
+@@ -83,6 +86,9 @@ typedef struct OVRequestItem {
      ie_complete_call_back_t callback;
      ie_infer_request_t *infer_request;
  #endif
@@ -36,7 +36,7 @@ index a0c2c5f358..637588811e 100644
  } OVRequestItem;
  
  #define APPEND_STRING(generated_string, iterate_string)                                            \
-@@ -214,6 +220,89 @@ static int fill_model_input_remote_ov(OVModel *ov_model, OVRequestItem *request)
+@@ -215,6 +221,94 @@ static int fill_model_input_remote_ov(OVModel *ov_model, OVRequestItem *request)
          return AVERROR(ENAVAIL);
      }
      surface_id = (size_t)task->in_frame->data[3];
@@ -44,14 +44,19 @@ index a0c2c5f358..637588811e 100644
 +    if (ov_model->model.func_type == DFT_ANALYTICS_CLASSIFY) {
 +#if !HAVE_WINDOWS_H && CONFIG_VAAPI
 +        AVFrameSideData *sd;
-+        AVHWFramesContext *hw_frame_ctx = (AVHWFramesContext *)ov_model->model.filter_ctx->inputs[0]->hw_frames_ctx->data;
-+        AVVAAPIDeviceContext *vaapi_ctx = (AVVAAPIDeviceContext *)hw_frame_ctx->device_ctx->hwctx;
++        AVHWFramesContext *hw_frame_ctx = NULL;
++        AVVAAPIDeviceContext *vaapi_ctx = NULL;
 +        const AVDetectionBBox *bbox;
 +        const AVDetectionBBoxHeader *header;
++        FilterLink *fl;
 +        unsigned int rt_format, fourcc;
 +        VAImage image;
 +        VAStatus vas;
 +        VASurfaceAttrib attributes;
++
++        fl = ff_filter_link(ov_model->model.filter_ctx->inputs[0]);
++        hw_frame_ctx = (AVHWFramesContext *)fl->hw_frames_ctx->data;
++        vaapi_ctx = (AVVAAPIDeviceContext *)hw_frame_ctx->device_ctx->hwctx;
 +
 +        sd = av_frame_get_side_data(task->in_frame, AV_FRAME_DATA_DETECTION_BBOXES);
 +        av_assert0(sd);
@@ -126,7 +131,7 @@ index a0c2c5f358..637588811e 100644
      for (int i = 0; i < nb_planes; i++) {
          if (ov_model->input_port) {
              ov_output_const_port_free(ov_model->input_port);
-@@ -622,6 +711,10 @@ static void dnn_free_model_ov(DNNModel **model)
+@@ -623,6 +717,10 @@ static void dnn_free_model_ov(DNNModel **model)
      while (ff_safe_queue_size(ov_model->request_queue) != 0) {
          OVRequestItem *item = ff_safe_queue_pop_front(ov_model->request_queue);
          if (item && item->infer_request) {
