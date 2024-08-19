@@ -1,15 +1,15 @@
-From e1353b315b244098f0e1b3ce4b8f6c0bc929679b Mon Sep 17 00:00:00 2001
+From 40584b3f39197987298600e45699f73417f88e77 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 5 Mar 2024 16:22:57 +0800
-Subject: [PATCH 3/5] libavfilter/vf_dnn_detect: Add vaapi into detect
+Subject: [PATCH] libavfilter/vf_dnn_detect: Add vaapi into detect
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavfilter/vf_dnn_detect.c | 32 +++++++++++++++++++++++++++++++-
- 1 file changed, 31 insertions(+), 1 deletion(-)
+ libavfilter/vf_dnn_detect.c | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)
 
 diff --git a/libavfilter/vf_dnn_detect.c b/libavfilter/vf_dnn_detect.c
-index 2a277d4169..a48510afed 100644
+index 2a277d4169..85e26bf5a5 100644
 --- a/libavfilter/vf_dnn_detect.c
 +++ b/libavfilter/vf_dnn_detect.c
 @@ -715,6 +715,9 @@ static const enum AVPixelFormat pix_fmts[] = {
@@ -22,7 +22,7 @@ index 2a277d4169..a48510afed 100644
      AV_PIX_FMT_NONE
  };
  
-@@ -840,6 +843,24 @@ static int config_input(AVFilterLink *inlink)
+@@ -840,6 +843,26 @@ static int config_input(AVFilterLink *inlink)
      return 0;
  }
  
@@ -31,10 +31,12 @@ index 2a277d4169..a48510afed 100644
 +    AVFilterContext *context = outlink->src;
 +    AVFilterLink *inlink = context->inputs[0];
 +    DnnDetectContext *detect_ctx = context->priv;
-+    if (inlink->hw_frames_ctx) {
++    FilterLink *inl = ff_filter_link(inlink);
++    FilterLink *onl = ff_filter_link(outlink);
++    if (inl->hw_frames_ctx) {
 +        if (inlink->format == AV_PIX_FMT_VAAPI &&
 +            detect_ctx->dnnctx.backend_type == DNN_OV)
-+            outlink->hw_frames_ctx = av_buffer_ref(inlink->hw_frames_ctx);
++            onl->hw_frames_ctx = av_buffer_ref(inl->hw_frames_ctx);
 +        else {
 +            av_log(detect_ctx, AV_LOG_ERROR, "The dnn_backend doesn't support this pixel format\n");
 +            return AVERROR_PATCHWELCOME;
@@ -47,7 +49,7 @@ index 2a277d4169..a48510afed 100644
  static const AVFilterPad dnn_detect_inputs[] = {
      {
          .name         = "default",
-@@ -848,6 +869,14 @@ static const AVFilterPad dnn_detect_inputs[] = {
+@@ -848,6 +871,14 @@ static const AVFilterPad dnn_detect_inputs[] = {
      },
  };
  
@@ -62,7 +64,7 @@ index 2a277d4169..a48510afed 100644
  const AVFilter ff_vf_dnn_detect = {
      .name          = "dnn_detect",
      .description   = NULL_IF_CONFIG_SMALL("Apply DNN detect filter to the input."),
-@@ -856,8 +885,9 @@ const AVFilter ff_vf_dnn_detect = {
+@@ -856,8 +887,9 @@ const AVFilter ff_vf_dnn_detect = {
      .init          = dnn_detect_init,
      .uninit        = dnn_detect_uninit,
      FILTER_INPUTS(dnn_detect_inputs),
