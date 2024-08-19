@@ -1,8 +1,7 @@
-From 971533b1790fe38677b9140a210347f7ef6c044a Mon Sep 17 00:00:00 2001
+From 9b4342ee2830990850dce5365f1bb133d4d6e37a Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 4 Jul 2022 16:09:54 +0800
-Subject: [PATCH 2/5] avfilter/vf_hwmap: get the AVHWDeviceType from outlink
- format
+Subject: [PATCH] avfilter/vf_hwmap: get the AVHWDeviceType from outlink format
 
 When both derive_device_type and device context are not
 presented during hw->hw map, the hwmap filter should be
@@ -15,15 +14,15 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  1 file changed, 22 insertions(+), 13 deletions(-)
 
 diff --git a/libavfilter/vf_hwmap.c b/libavfilter/vf_hwmap.c
-index e246b22603..e5b40233b2 100644
+index d3e84e39d7..14b806136c 100644
 --- a/libavfilter/vf_hwmap.c
 +++ b/libavfilter/vf_hwmap.c
-@@ -70,16 +70,31 @@ static int hwmap_config_output(AVFilterLink *outlink)
+@@ -73,16 +73,31 @@ static int hwmap_config_output(AVFilterLink *outlink)
      device_is_derived = 0;
  
-     if (inlink->hw_frames_ctx) {
+     if (inl->hw_frames_ctx) {
 +        enum AVHWDeviceType type;
-         hwfc = (AVHWFramesContext*)inlink->hw_frames_ctx->data;
+         hwfc = (AVHWFramesContext*)inl->hw_frames_ctx->data;
  
 -        if (ctx->derive_device_type) {
 -            enum AVHWDeviceType type;
@@ -57,7 +56,7 @@ index e246b22603..e5b40233b2 100644
              }
  
              err = av_hwdevice_ctx_create_derived(&device, type,
-@@ -92,12 +107,6 @@ static int hwmap_config_output(AVFilterLink *outlink)
+@@ -95,12 +110,6 @@ static int hwmap_config_output(AVFilterLink *outlink)
              device_is_derived = 1;
          }
  
@@ -71,5 +70,5 @@ index e246b22603..e5b40233b2 100644
              (desc->flags & AV_PIX_FMT_FLAG_HWACCEL) &&
              !ctx->reverse) {
 -- 
-2.41.0.windows.1
+2.34.1
 
