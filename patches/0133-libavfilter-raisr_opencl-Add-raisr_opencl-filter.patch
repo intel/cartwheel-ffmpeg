@@ -1,7 +1,7 @@
-From cbbd9dcb7ec291090a4306ba168e4f93ce3c0610 Mon Sep 17 00:00:00 2001
+From d82481fd156db75a3b479167a54663fbe240dcb4 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Thu, 6 Apr 2023 13:48:23 +0800
-Subject: [PATCH 2/2] libavfilter/raisr_opencl: Add raisr_opencl filter
+Subject: [PATCH] libavfilter/raisr_opencl: Add raisr_opencl filter
 
 Add raisr_opencl filter. It uses the same algorithm as raisr filter but
 it uses cl_mem as input and output, which helps to build high speed
@@ -13,15 +13,15 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  configure                     |   1 +
  libavfilter/Makefile          |   1 +
  libavfilter/allfilters.c      |   1 +
- libavfilter/vf_raisr_opencl.c | 264 ++++++++++++++++++++++++++++++++++
- 4 files changed, 267 insertions(+)
+ libavfilter/vf_raisr_opencl.c | 266 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 269 insertions(+)
  create mode 100644 libavfilter/vf_raisr_opencl.c
 
 diff --git a/configure b/configure
-index 300ee61840..241e707092 100755
+index 993756e6b0..babc199e44 100755
 --- a/configure
 +++ b/configure
-@@ -3834,6 +3834,7 @@ procamp_vaapi_filter_deps="vaapi"
+@@ -3921,6 +3921,7 @@ procamp_vaapi_filter_deps="vaapi"
  program_opencl_filter_deps="opencl"
  pullup_filter_deps="gpl"
  raisr_filter_deps="libipp"
@@ -30,10 +30,10 @@ index 300ee61840..241e707092 100755
  removelogo_filter_deps="avcodec avformat swscale"
  repeatfields_filter_deps="gpl"
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index f6ad88dd99..5a27cd567f 100644
+index bab407b9f9..6d21234699 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -440,6 +440,7 @@ OBJS-$(CONFIG_PULLUP_FILTER)                 += vf_pullup.o
+@@ -441,6 +441,7 @@ OBJS-$(CONFIG_PULLUP_FILTER)                 += vf_pullup.o
  OBJS-$(CONFIG_QP_FILTER)                     += vf_qp.o
  OBJS-$(CONFIG_QUIRC_FILTER)                  += vf_quirc.o
  OBJS-$(CONFIG_RAISR_FILTER)                  += vf_raisr.o
@@ -42,7 +42,7 @@ index f6ad88dd99..5a27cd567f 100644
  OBJS-$(CONFIG_READEIA608_FILTER)             += vf_readeia608.o
  OBJS-$(CONFIG_READVITC_FILTER)               += vf_readvitc.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 276f1a38a2..06e5402393 100644
+index 1e51f68912..98c5bbb768 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
 @@ -416,6 +416,7 @@ extern const AVFilter ff_vf_qp;
@@ -55,10 +55,10 @@ index 276f1a38a2..06e5402393 100644
  extern const AVFilter ff_vf_readvitc;
 diff --git a/libavfilter/vf_raisr_opencl.c b/libavfilter/vf_raisr_opencl.c
 new file mode 100644
-index 0000000000..1a38984190
+index 0000000000..6939a15e27
 --- /dev/null
 +++ b/libavfilter/vf_raisr_opencl.c
-@@ -0,0 +1,264 @@
+@@ -0,0 +1,266 @@
 +/*
 + * Intel Library for Video Super Resolution ffmpeg plugin
 + *
@@ -83,7 +83,6 @@ index 0000000000..1a38984190
 +#include "raisr/RaisrDefaults.h"
 +#include "libavutil/opt.h"
 +#include "avfilter.h"
-+#include "internal.h"
 +#include "opencl.h"
 +#include "libavutil/pixdesc.h"
 +#include "video.h"
@@ -218,13 +217,14 @@ index 0000000000..1a38984190
 +static int raisr_filter_config_input(AVFilterLink *inlink)
 +{
 +    AVHWFramesContext *input_frames;
++    FilterLink *fl;
 +    int err;
 +
 +    err = ff_opencl_filter_config_input(inlink);
 +    if (err < 0)
 +        return err;
-+
-+    input_frames = (AVHWFramesContext*)inlink->hw_frames_ctx->data;
++    fl = ff_filter_link(inlink);
++    input_frames = (AVHWFramesContext*)fl->hw_frames_ctx->data;
 +    if (input_frames->format != AV_PIX_FMT_OPENCL)
 +        return AVERROR(EINVAL);
 +
@@ -243,6 +243,7 @@ index 0000000000..1a38984190
 +    RaisrOpenCLContext *ctx = avctx->priv;
 +    AVHWFramesContext *input_frames;
 +    const AVPixFmtDescriptor *desc;
++    FilterLink *fl;
 +    int err;
 +
 +    ctx->ocf.output_width = inlink->w * ctx->ratio;
@@ -252,7 +253,8 @@ index 0000000000..1a38984190
 +    if (err < 0)
 +        return err;
 +
-+    input_frames = (AVHWFramesContext*)inlink->hw_frames_ctx->data;
++    fl = ff_filter_link(inlink);
++    input_frames = (AVHWFramesContext*)fl->hw_frames_ctx->data;
 +    ctx->sw_format = (enum AVPixelFormat)input_frames->sw_format;
 +    desc = av_pix_fmt_desc_get(ctx->sw_format);
 +    if (desc && desc->comp[0].depth != ctx->bits) {
