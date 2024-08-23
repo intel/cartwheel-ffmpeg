@@ -1,4 +1,4 @@
-From 7ec0a57b1839141f1fa3d950067d72074db39320 Mon Sep 17 00:00:00 2001
+From c59b3f7660c638f15d94cb8a3f69302e93ba8d66 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 5 Mar 2024 16:14:12 +0800
 Subject: [PATCH] libavfilter/dnn_backend_openvino: Add remote_context support
@@ -12,7 +12,7 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 204 insertions(+), 16 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_openvino.c b/libavfilter/dnn/dnn_backend_openvino.c
-index 20a5335e35..f03f80c8a6 100644
+index e3cde9c233..155acdd05a 100644
 --- a/libavfilter/dnn/dnn_backend_openvino.c
 +++ b/libavfilter/dnn/dnn_backend_openvino.c
 @@ -24,6 +24,7 @@
@@ -23,18 +23,25 @@ index 20a5335e35..f03f80c8a6 100644
  #include "libavformat/avio.h"
  #include "libavutil/avassert.h"
  #include "libavutil/cpu.h"
-@@ -31,6 +32,10 @@
+@@ -31,6 +32,7 @@
  #include "libavutil/opt.h"
  #include "libavutil/avstring.h"
  #include "libavutil/detection_bbox.h"
 +#include "libavutil/hwcontext.h"
+ #include "safe_queue.h"
+ #if HAVE_OPENVINO2
+ #include <openvino/c/openvino.h>
+@@ -38,6 +40,9 @@
+ #include <c_api/ie_c_api.h>
+ #endif
+ #include "dnn_backend_common.h"
 +#if !HAVE_WINDOWS_H && CONFIG_VAAPI
 +#include "libavutil/hwcontext_vaapi.h"
 +#endif
- #include "../internal.h"
- #include "safe_queue.h"
- #if HAVE_OPENVINO2
-@@ -52,6 +57,7 @@ typedef struct OVModel{
+ 
+ typedef struct OVModel{
+     DNNModel model;
+@@ -51,6 +56,7 @@ typedef struct OVModel{
      ov_output_const_port_t** output_ports;
      ov_preprocess_output_info_t* output_info;
      ov_preprocess_prepostprocessor_t* preprocess;
@@ -42,7 +49,7 @@ index 20a5335e35..f03f80c8a6 100644
  #else
      ie_core_t *core;
      ie_network_t *network;
-@@ -63,6 +69,7 @@ typedef struct OVModel{
+@@ -62,6 +68,7 @@ typedef struct OVModel{
      Queue *task_queue;          // holds TaskItem
      Queue *lltask_queue;     // holds LastLevelTaskItem
      int nb_outputs;
@@ -50,7 +57,7 @@ index 20a5335e35..f03f80c8a6 100644
  } OVModel;
  
  // one request for one call to openvino
-@@ -174,6 +181,101 @@ static int get_datatype_size(DNNDataType dt)
+@@ -173,6 +180,101 @@ static int get_datatype_size(DNNDataType dt)
      }
  }
  
@@ -152,7 +159,7 @@ index 20a5335e35..f03f80c8a6 100644
  static int fill_model_input_ov(OVModel *ov_model, OVRequestItem *request)
  {
      DNNData input;
-@@ -577,11 +679,14 @@ static void dnn_free_model_ov(DNNModel **model)
+@@ -576,11 +678,14 @@ static void dnn_free_model_ov(DNNModel **model)
  
  static int set_model_input_info(OVModel *ov_model, const char *input_name)
  {
@@ -167,7 +174,7 @@ index 20a5335e35..f03f80c8a6 100644
      ov_layout_t* NHWC_layout = NULL;
      ov_layout_t* NCHW_layout = NULL;
      const char* NHWC_desc = "NHWC";
-@@ -649,27 +754,74 @@ static int set_model_input_info(OVModel *ov_model, const char *input_name)
+@@ -648,27 +753,74 @@ static int set_model_input_info(OVModel *ov_model, const char *input_name)
          ret = ov2_map_error(status, NULL);
          goto err;
      }
@@ -255,7 +262,7 @@ index 20a5335e35..f03f80c8a6 100644
      }
  err:
      if (NCHW_layout)
-@@ -778,6 +930,7 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+@@ -777,6 +929,7 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
  {
      int ret = 0;
      DnnContext *ctx = ov_model->ctx;
@@ -263,7 +270,7 @@ index 20a5335e35..f03f80c8a6 100644
  #if HAVE_OPENVINO2
      ov_status_e status;
      const char* device = ctx->device ? ctx->device : "CPU";
-@@ -842,8 +995,37 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
+@@ -841,8 +994,37 @@ static int init_model_ov(OVModel *ov_model, const char *input_name, const char *
          port_name = NULL;
      }
      //compile network
@@ -302,7 +309,7 @@ index 20a5335e35..f03f80c8a6 100644
          ret = ov2_map_error(status, NULL);
          goto err;
      }
-@@ -1023,7 +1205,10 @@ static int execute_model_ov(OVRequestItem *request, Queue *inferenceq)
+@@ -1022,7 +1204,10 @@ static int execute_model_ov(OVRequestItem *request, Queue *inferenceq)
      ov_model = task->model;
      ctx = ov_model->ctx;
  
@@ -314,7 +321,7 @@ index 20a5335e35..f03f80c8a6 100644
      if (ret != 0) {
          goto err;
      }
-@@ -1617,7 +1802,10 @@ static int dnn_flush_ov(const DNNModel *model)
+@@ -1616,7 +1801,10 @@ static int dnn_flush_ov(const DNNModel *model)
          return AVERROR(EINVAL);
      }
  

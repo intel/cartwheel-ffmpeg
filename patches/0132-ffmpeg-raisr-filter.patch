@@ -1,7 +1,7 @@
-From b8476cc7e202534d085a6f1a2608a1500f2f9a54 Mon Sep 17 00:00:00 2001
+From 2e50c46ab170132916c3048d094550f153ed1e3c Mon Sep 17 00:00:00 2001
 From: Anand Bodas <anand.v.bodas@intel.com>
 Date: Thu, 14 Oct 2021 18:15:54 +0530
-Subject: [PATCH 49/50] ffmpeg raisr filter
+Subject: [PATCH] ffmpeg raisr filter
 
 Add raisr filter, which is a real-time SR algorithm. It is
 accelerated by AVX2/AVX512/OpenCL.
@@ -13,15 +13,15 @@ Signed-off-by: Jun Tian <jun.tian@intel.com>
  configure                |  13 ++
  libavfilter/Makefile     |   1 +
  libavfilter/allfilters.c |   1 +
- libavfilter/vf_raisr.c   | 348 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 363 insertions(+)
+ libavfilter/vf_raisr.c   | 347 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 362 insertions(+)
  create mode 100644 libavfilter/vf_raisr.c
 
 diff --git a/configure b/configure
-index de38b0c0ba..e712e04c93 100755
+index 1d8cf689dd..993756e6b0 100755
 --- a/configure
 +++ b/configure
-@@ -240,6 +240,7 @@ External library support:
+@@ -241,6 +241,7 @@ External library support:
    --enable-libgsm          enable GSM de/encoding via libgsm [no]
    --enable-libiec61883     enable iec61883 via libiec61883 [no]
    --enable-libilbc         enable iLBC de/encoding via libilbc [no]
@@ -29,7 +29,7 @@ index de38b0c0ba..e712e04c93 100755
    --enable-libjack         enable JACK audio sound server [no]
    --enable-libjxl          enable JPEG XL de/encoding via libjxl [no]
    --enable-libklvanc       enable Kernel Labs VANC processing [no]
-@@ -1874,6 +1875,7 @@ EXTERNAL_LIBRARY_LIST="
+@@ -1927,6 +1928,7 @@ EXTERNAL_LIBRARY_LIST="
      libgsm
      libiec61883
      libilbc
@@ -37,7 +37,7 @@ index de38b0c0ba..e712e04c93 100755
      libjack
      libjxl
      libklvanc
-@@ -3831,6 +3833,7 @@ prewitt_opencl_filter_deps="opencl"
+@@ -3918,6 +3920,7 @@ prewitt_opencl_filter_deps="opencl"
  procamp_vaapi_filter_deps="vaapi"
  program_opencl_filter_deps="opencl"
  pullup_filter_deps="gpl"
@@ -45,7 +45,7 @@ index de38b0c0ba..e712e04c93 100755
  remap_opencl_filter_deps="opencl"
  removelogo_filter_deps="avcodec avformat swscale"
  repeatfields_filter_deps="gpl"
-@@ -6873,6 +6876,16 @@ enabled libopus           && {
+@@ -6959,6 +6962,16 @@ enabled libopus           && {
          require_pkg_config libopus opus opus_multistream.h opus_multistream_surround_encoder_create
      }
  }
@@ -63,10 +63,10 @@ index de38b0c0ba..e712e04c93 100755
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
  enabled libqrencode       && require_pkg_config libqrencode libqrencode qrencode.h QRcode_encodeString
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index b913fa590b..f6ad88dd99 100644
+index 65a2914ca7..bab407b9f9 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -439,6 +439,7 @@ OBJS-$(CONFIG_PSNR_FILTER)                   += vf_psnr.o framesync.o
+@@ -440,6 +440,7 @@ OBJS-$(CONFIG_PSNR_FILTER)                   += vf_psnr.o framesync.o
  OBJS-$(CONFIG_PULLUP_FILTER)                 += vf_pullup.o
  OBJS-$(CONFIG_QP_FILTER)                     += vf_qp.o
  OBJS-$(CONFIG_QUIRC_FILTER)                  += vf_quirc.o
@@ -75,7 +75,7 @@ index b913fa590b..f6ad88dd99 100644
  OBJS-$(CONFIG_READEIA608_FILTER)             += vf_readeia608.o
  OBJS-$(CONFIG_READVITC_FILTER)               += vf_readvitc.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 6ebc8af62c..276f1a38a2 100644
+index c15a9f6675..1e51f68912 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
 @@ -415,6 +415,7 @@ extern const AVFilter ff_vf_pullup;
@@ -88,10 +88,10 @@ index 6ebc8af62c..276f1a38a2 100644
  extern const AVFilter ff_vf_readvitc;
 diff --git a/libavfilter/vf_raisr.c b/libavfilter/vf_raisr.c
 new file mode 100644
-index 0000000000..1f516a2c02
+index 0000000000..1f673f8cc2
 --- /dev/null
 +++ b/libavfilter/vf_raisr.c
-@@ -0,0 +1,348 @@
+@@ -0,0 +1,347 @@
 +/*
 + * Intel Library for Video Super Resolution ffmpeg plugin
 + *
@@ -125,7 +125,6 @@ index 0000000000..1f516a2c02
 +#include "libavutil/pixfmt.h"
 +#include "avfilter.h"
 +#include "formats.h"
-+#include "internal.h"
 +#include "video.h"
 +#include "raisr/RaisrHandler.h"
 +#include "raisr/RaisrDefaults.h"
