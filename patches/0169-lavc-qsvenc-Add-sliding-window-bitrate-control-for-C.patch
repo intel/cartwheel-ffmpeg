@@ -1,0 +1,181 @@
+From 8c276d52ac27b9f6a2cede6dd99f8c3ac5c92262 Mon Sep 17 00:00:00 2001
+From: Fei Wang <fei.w.wang@intel.com>
+Date: Mon, 19 Aug 2024 16:43:10 +0800
+Subject: [PATCH] lavc/qsvenc: Add sliding window bitrate control for CBR
+
+Sliding window bitrate control will provide a more stable bitrate when
+use CBR bitrate control mode.
+
+Signed-off-by: Fei Wang <fei.w.wang@intel.com>
+---
+ doc/encoders.texi        |  9 +++++++++
+ libavcodec/qsvenc.c      | 25 +++++++++++++++++++++++++
+ libavcodec/qsvenc.h      | 11 +++++++++++
+ libavcodec/qsvenc_av1.c  |  3 +++
+ libavcodec/qsvenc_h264.c |  3 +++
+ libavcodec/qsvenc_hevc.c |  3 +++
+ 6 files changed, 54 insertions(+)
+
+diff --git a/doc/encoders.texi b/doc/encoders.texi
+index 7d1373e0e0..7cec23a353 100644
+--- a/doc/encoders.texi
++++ b/doc/encoders.texi
+@@ -3628,6 +3628,15 @@ This option allows fine-grained control over various encoder-specific settings p
+ @item @var{mse}
+ Supported in h264_qsv, hevc_qsv, and av1_qsv on Windows. Output encoded
+ frame's quality(MSE/PSNR) information in VERBOSE log.
++
++@item @var{sw_size}
++Number of frames used for sliding window(Only available for CBR bitrate
++control mode). Range from 30 to 60 for AVC and HEVC. 30 to 120 for AV1.
++
++@item @var{sw_max_bitrate_factor}
++Factor between bitrate and max bitrate for frames in sliding window.
++Range from 1.1 to 2.0.
++
+ @end table
+ 
+ @subsection H264 options
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 22a1949722..51f226ded1 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -401,6 +401,11 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+         av_log(avctx, AV_LOG_VERBOSE, "MaxFrameSizeI: %d; ", co3->MaxFrameSizeI);
+         av_log(avctx, AV_LOG_VERBOSE, "MaxFrameSizeP: %d\n", co3->MaxFrameSizeP);
+         av_log(avctx, AV_LOG_VERBOSE, "ScenarioInfo: %"PRId16"\n", co3->ScenarioInfo);
++#if QSV_HAVE_SLIDING_WINDOW
++        av_log(avctx, AV_LOG_VERBOSE,
++               "WinBRCSize: %"PRIu16"; WinBRCMaxAvgKbps: %"PRIu16"\n",
++               co3->WinBRCSize, co3->WinBRCMaxAvgKbps);
++#endif
+     }
+ 
+     if (exthevctiles) {
+@@ -655,6 +660,12 @@ static void dump_video_av1_param(AVCodecContext *avctx, QSVEncContext *q,
+         av_log(avctx, AV_LOG_VERBOSE, "\n");
+     }
+ #endif
++
++#if QSV_HAVE_SLIDING_WINDOW
++    av_log(avctx, AV_LOG_VERBOSE,
++           "WinBRCSize: %"PRIu16"; WinBRCMaxAvgKbps: %"PRIu16"\n",
++           co3->WinBRCSize, co3->WinBRCMaxAvgKbps);
++#endif
+ }
+ #endif
+ 
+@@ -1258,6 +1269,20 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+                 q->extco3.TransformSkip = MFX_CODINGOPTION_UNKNOWN;
+             q->extco3.GPB              = q->gpb ? MFX_CODINGOPTION_ON : MFX_CODINGOPTION_OFF;
+         }
++
++#if QSV_HAVE_SLIDING_WINDOW
++        if ((avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC ||
++            avctx->codec_id == AV_CODEC_ID_AV1) && q->sw_size) {
++            if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
++                q->extco3.WinBRCSize = q->sw_size;
++                q->extco3.WinBRCMaxAvgKbps = (int)(q->sw_max_bitrate_factor * q->param.mfx.TargetKbps);
++            } else {
++                av_log(avctx, AV_LOG_ERROR,
++                       "This version of runtime doesn't support sliding windows bitrate control\n");
++                return AVERROR_UNKNOWN;
++            }
++        }
++#endif
+         q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extco3;
+     }
+ 
+diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
+index 98e4fa313b..a8ec5c2fb2 100644
+--- a/libavcodec/qsvenc.h
++++ b/libavcodec/qsvenc.h
+@@ -24,6 +24,7 @@
+ #define AVCODEC_QSVENC_H
+ 
+ #include <stdint.h>
++#include <float.h>
+ #include <sys/types.h>
+ 
+ #include "libavutil/common.h"
+@@ -56,11 +57,13 @@
+ #define QSV_HAVE_VCM    1
+ #define QSV_HAVE_MF     0
+ #define QSV_HAVE_HE     QSV_VERSION_ATLEAST(2, 4)
++#define QSV_HAVE_SLIDING_WINDOW    1
+ #else
+ #define QSV_HAVE_AVBR   0
+ #define QSV_HAVE_VCM    0
+ #define QSV_HAVE_MF     !QSV_ONEVPL
+ #define QSV_HAVE_HE     0
++#define QSV_HAVE_SLIDING_WINDOW    0
+ #endif
+ 
+ #define QSV_COMMON_OPTS \
+@@ -165,6 +168,12 @@
+ { "mse", "Enable output MSE(Mean Squared Error) of each frame", OFFSET(qsv.mse), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+ #endif
+ 
++#if QSV_HAVE_SLIDING_WINDOW
++#define QSV_SLIDING_WINDOW_OPTIONS \
++{ "sw_size", "Number of frames used for sliding window(Only available for CBR bitrate control mode)", OFFSET(qsv.sw_size), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, VE },    \
++{ "sw_max_bitrate_factor", "Factor between bitrate and max bitrate for frames in sliding window(Only available when sw_size is set)", OFFSET(qsv.sw_max_bitrate_factor), AV_OPT_TYPE_FLOAT, { .i64 = 0 }, 0, FLT_MAX, VE },
++#endif
++
+ extern const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[];
+ 
+ typedef int SetEncodeCtrlCB (AVCodecContext *avctx,
+@@ -355,6 +364,8 @@ typedef struct QSVEncContext {
+     int palette_mode;
+     int intrabc;
+     int mse;
++    int sw_size;
++    float sw_max_bitrate_factor;
+ } QSVEncContext;
+ 
+ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
+diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
+index 2bfcdceac0..0dd92c5fd8 100644
+--- a/libavcodec/qsvenc_av1.c
++++ b/libavcodec/qsvenc_av1.c
+@@ -185,6 +185,9 @@ static const AVOption options[] = {
+     QSV_OPTION_MAX_FRAME_SIZE
+ #if QSV_HAVE_EXT_MSE
+     QSV_MSE_OPTIONS
++#endif
++#if QSV_HAVE_SLIDING_WINDOW
++    QSV_SLIDING_WINDOW_OPTIONS
+ #endif
+     { "profile", NULL, OFFSET(qsv.profile), AV_OPT_TYPE_INT, { .i64 = MFX_PROFILE_UNKNOWN }, 0, INT_MAX, VE, .unit = "profile" },
+         { "unknown" , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_UNKNOWN      }, INT_MIN, INT_MAX,     VE, .unit = "profile" },
+diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
+index 9a3806ab56..4e728038ba 100644
+--- a/libavcodec/qsvenc_h264.c
++++ b/libavcodec/qsvenc_h264.c
+@@ -123,6 +123,9 @@ static const AVOption options[] = {
+ #if QSV_HAVE_EXT_MSE
+     QSV_MSE_OPTIONS
+ #endif
++#if QSV_HAVE_SLIDING_WINDOW
++    QSV_SLIDING_WINDOW_OPTIONS
++#endif
+ 
+     { "cavlc",          "Enable CAVLC",                           OFFSET(qsv.cavlc),          AV_OPT_TYPE_BOOL, { .i64 = 0 },   0,          1, VE },
+ #if QSV_HAVE_VCM
+diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
+index 0d771f246b..bc00dcc5e5 100644
+--- a/libavcodec/qsvenc_hevc.c
++++ b/libavcodec/qsvenc_hevc.c
+@@ -326,6 +326,9 @@ static const AVOption options[] = {
+ #if QSV_HAVE_EXT_MSE
+     QSV_MSE_OPTIONS
+ #endif
++#if QSV_HAVE_SLIDING_WINDOW
++    QSV_SLIDING_WINDOW_OPTIONS
++#endif
+ 
+     { "idr_interval", "Distance (in I-frames) between IDR frames", OFFSET(qsv.idr_interval), AV_OPT_TYPE_INT, { .i64 = 0 }, -1, INT_MAX, VE, .unit = "idr_interval" },
+     { "begin_only", "Output an IDR-frame only at the beginning of the stream", 0, AV_OPT_TYPE_CONST, { .i64 = -1 }, 0, 0, VE, .unit = "idr_interval" },
+-- 
+2.34.1
+
