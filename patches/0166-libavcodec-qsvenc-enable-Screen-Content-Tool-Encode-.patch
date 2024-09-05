@@ -1,8 +1,7 @@
-From e191706fba29424ac72dcb28f9a97b49db070e2b Mon Sep 17 00:00:00 2001
+From 6d2fcb8a36d51b9316c4fb743152d5b2b2dc7c0a Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Fri, 16 Aug 2024 21:47:40 +0800
-Subject: [PATCH 2/4] libavcodec/qsvenc: enable Screen Content Tool Encode for
- AV1
+Subject: [PATCH] libavcodec/qsvenc: enable Screen Content Tool Encode for AV1
 
 Screen Content Tool provides Intra Block Copy and Palette Mode when encoding.
 ---
@@ -13,13 +12,13 @@ Screen Content Tool provides Intra Block Copy and Palette Mode when encoding.
  4 files changed, 61 insertions(+), 1 deletion(-)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 1ed4a0aa74..9d6be0bdef 100644
+index 6094434ed4..85be976a46 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -4113,6 +4113,12 @@ by frame. Value: -1-default 0-off 1-on
- Set the allowed max size in bytes for each frame. If the frame size exceeds
- the limitation, encoder will adjust the QP value to control the frame size.
- Invalid in CQP rate control mode.
+@@ -4121,6 +4121,12 @@ than zero, then for I frames the value set by max_frame_size is ignored.
+ @item @var{max_frame_size_p}
+ Maximum encoded frame size for P frames in bytes. If this value is set as larger
+ than zero, then for P frames the value set by max_frame_size is ignored.
 +
 +@item @var{palette_mode}
 +Use palette mode in Screen Content Tool.
@@ -110,10 +109,10 @@ index bc8c53577b..ee5f7548b6 100644
  
      if (!QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 5)) {
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index b91326f907..378460c6fe 100644
+index d7a094e251..f67113ca6c 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
-@@ -40,6 +40,7 @@
+@@ -38,6 +38,7 @@
  
  #define QSV_HAVE_EXT_VP9_TILES QSV_VERSION_ATLEAST(1, 29)
  #define QSV_HAVE_EXT_AV1_PARAM QSV_VERSION_ATLEAST(2, 5)
@@ -121,7 +120,7 @@ index b91326f907..378460c6fe 100644
  
  #if defined(_WIN32) || defined(__CYGWIN__)
  #define QSV_HAVE_AVBR   1
-@@ -196,10 +197,14 @@ typedef struct QSVEncContext {
+@@ -194,10 +195,14 @@ typedef struct QSVEncContext {
  #if QSV_HAVE_AC
      mfxExtAlphaChannelEncCtrl extaplhachannelparam;
  #endif
@@ -137,7 +136,7 @@ index b91326f907..378460c6fe 100644
      int         nb_extparam_internal;
  
      mfxExtBuffer  **extparam_str;
-@@ -331,6 +336,8 @@ typedef struct QSVEncContext {
+@@ -329,6 +334,8 @@ typedef struct QSVEncContext {
      int exthevcparam_idx;
      int main10sp;
      int alpha_encode;
@@ -147,10 +146,10 @@ index b91326f907..378460c6fe 100644
  
  int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
 diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
-index 56002746b9..eb59ce2e83 100644
+index f7505a69f8..612772557a 100644
 --- a/libavcodec/qsvenc_av1.c
 +++ b/libavcodec/qsvenc_av1.c
-@@ -191,6 +191,10 @@ static const AVOption options[] = {
+@@ -189,6 +189,10 @@ static const AVOption options[] = {
      { "tile_cols",  "Number of columns for tiled encoding",   OFFSET(qsv.tile_cols),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
      { "tile_rows",  "Number of rows for tiled encoding",      OFFSET(qsv.tile_rows),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
      { "look_ahead_depth", "Depth of look ahead in number frames, available when extbrc option is enabled", OFFSET(qsv.look_ahead_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 100, VE },
