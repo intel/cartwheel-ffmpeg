@@ -1,7 +1,7 @@
-From 477c1b35a21ba0a255cf10194cb68e3b9a7ec041 Mon Sep 17 00:00:00 2001
+From 9be5b17121d2405f6b647ead68b1577deafe66d5 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Tue, 23 Jan 2024 10:35:16 +0800
-Subject: [PATCH 6/9] lavc/vvc_refs: Define FF_VVC_FRAME_FLAG* to h header
+Subject: [PATCH] lavc/vvc_refs: Define FF_VVC_FRAME_FLAG* to h header
 
 So that hardware decoder can use the flags too.
 
@@ -12,7 +12,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  2 files changed, 22 insertions(+), 21 deletions(-)
 
 diff --git a/libavcodec/vvc/refs.c b/libavcodec/vvc/refs.c
-index 26a5b0b34c..af63b7b588 100644
+index 133ff9eaba..3e5573df29 100644
 --- a/libavcodec/vvc/refs.c
 +++ b/libavcodec/vvc/refs.c
 @@ -29,10 +29,6 @@
@@ -42,8 +42,8 @@ index 26a5b0b34c..af63b7b588 100644
 -        ref->flags = VVC_FRAME_FLAG_SHORT_REF;
 +        ref->flags = FF_VVC_FRAME_FLAG_SHORT_REF;
      else if (ph->r->ph_pic_output_flag)
--        ref->flags = VVC_FRAME_FLAG_OUTPUT;
-+        ref->flags = FF_VVC_FRAME_FLAG_OUTPUT;
+-        ref->flags = VVC_FRAME_FLAG_OUTPUT | VVC_FRAME_FLAG_SHORT_REF;
++        ref->flags = FF_VVC_FRAME_FLAG_OUTPUT | FF_VVC_FRAME_FLAG_SHORT_REF;
  
      if (!ph->r->ph_non_ref_pic_flag)
 -        ref->flags |= VVC_FRAME_FLAG_SHORT_REF;

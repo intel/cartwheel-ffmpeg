@@ -1,32 +1,37 @@
-From 9924c50f61883a6f479f33e19ba746fafa3308b7 Mon Sep 17 00:00:00 2001
+From 33f729d784c84d2aa9c173b04db6f3d280b22737 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
-Date: Sun, 18 Oct 2020 16:15:37 -0400
+Date: Wed, 18 Sep 2024 10:26:51 +0800
 Subject: [PATCH] FFmpeg vaapi HEVC SCC encode.
 
 Depend on 0008 hevc low power enable patch.
 
 Main:
-ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt yuv420p -s:v 320x240 -r:v 30 -i 320x240_100.i420 -vf 'format=nv12,hwupload' -c:v hevc_vaapi -profile:v main -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt yuv420p -s:v 320x240 -r:v 30 -i 320x240_100.i420 -vf 'format=nv12,hwupload' -c:v hevc_vaapi -profile:v main -rc_mode
+ CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
 
 Main10:
-ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt p010 -s:v 320x240 -r:v 30 -i 320x240_100.p010 -vf 'format=p010,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt p010 -s:v 320x240 -r:v 30 -i 320x240_100.p010 -vf 'format=p010,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP
+ -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
 
 Main 444:
-ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt vuyx -s:v 320x240 -r:v 30 -i 320x240_100.ayuv -vf 'format=vuyx,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt vuyx -s:v 320x240 -r:v 30 -i 320x240_100.ayuv -vf 'format=vuyx,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP
+ -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
 
 Main 444-10:
-ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt y410 -s:v 320x240 -r:v 30 -i 320x240_100.y410 -vf 'format=y410,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
+ffmpeg -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -v verbose -f rawvideo -pix_fmt y410 -s:v 320x240 -r:v 30 -i 320x240_100.y410 -vf 'format=y410,hwupload' -c:v hevc_vaapi -profile:v scc -rc_mode CQP
+ -g 30 -slices 1 -bf 3  -low_power 1 -vframes 150 -y out.h265
 
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
- libavcodec/vaapi_encode_h265.c | 48 ++++++++++++++++++++++++++++++----
- 1 file changed, 43 insertions(+), 5 deletions(-)
+ libavcodec/hw_base_encode_h265.c | 18 ++++++++++++++++--
+ libavcodec/vaapi_encode_h265.c   | 23 ++++++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 3 deletions(-)
 
-diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
-index bbd174f975..1c138ce20d 100644
---- a/libavcodec/vaapi_encode_h265.c
-+++ b/libavcodec/vaapi_encode_h265.c
-@@ -341,9 +341,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+diff --git a/libavcodec/hw_base_encode_h265.c b/libavcodec/hw_base_encode_h265.c
+index dceec8aba9..52ad8f69be 100644
+--- a/libavcodec/hw_base_encode_h265.c
++++ b/libavcodec/hw_base_encode_h265.c
+@@ -104,9 +104,9 @@ int ff_hw_base_encode_init_params_h265(FFHWBaseEncodeContext *base_ctx,
      ptl->general_max_422chroma_constraint_flag  = chroma_format <= 2;
      ptl->general_max_420chroma_constraint_flag  = chroma_format <= 1;
      ptl->general_max_monochrome_constraint_flag = chroma_format == 0;
@@ -38,7 +43,7 @@ index bbd174f975..1c138ce20d 100644
  
      ptl->general_lower_bit_rate_constraint_flag = 1;
  
-@@ -564,6 +564,14 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -291,6 +291,14 @@ int ff_hw_base_encode_init_params_h265(FFHWBaseEncodeContext *base_ctx,
      vui->log2_max_mv_length_horizontal = 15;
      vui->log2_max_mv_length_vertical   = 15;
  
@@ -53,7 +58,7 @@ index bbd174f975..1c138ce20d 100644
  
      // PPS
  
-@@ -637,6 +645,12 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -347,5 +355,11 @@ int ff_hw_base_encode_init_params_h265(FFHWBaseEncodeContext *base_ctx,
  
      pps->pps_loop_filter_across_slices_enabled_flag = 1;
  
@@ -63,10 +68,13 @@ index bbd174f975..1c138ce20d 100644
 +        pps->pps_curr_pic_ref_enabled_flag = 1;
 +    }
 +
-     // Fill VAAPI parameter buffers.
- 
-     *vseq = (VAEncSequenceParameterBufferHEVC) {
-@@ -692,6 +706,11 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+     return 0;
+ }
+diff --git a/libavcodec/vaapi_encode_h265.c b/libavcodec/vaapi_encode_h265.c
+index f4a9003c82..7d11123903 100644
+--- a/libavcodec/vaapi_encode_h265.c
++++ b/libavcodec/vaapi_encode_h265.c
+@@ -392,6 +392,10 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
              sps->log2_diff_max_min_pcm_luma_coding_block_size,
  
          .vui_parameters_present_flag = 0,
@@ -74,39 +82,34 @@ index bbd174f975..1c138ce20d 100644
 +        .scc_fields.bits = {
 +            .palette_mode_enabled_flag = sps->palette_mode_enabled_flag,
 +        }
-+
      };
  
      *vpic = (VAEncPictureParameterBufferHEVC) {
-@@ -744,6 +763,10 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
+@@ -444,6 +448,9 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
              .enable_gpu_weighted_prediction = 0,
              .no_output_of_prior_pics_flag   = 0,
          },
-+
 +        .scc_fields.bits = {
 +            .pps_curr_pic_ref_enabled_flag = pps->pps_curr_pic_ref_enabled_flag,
 +        }
      };
  
      if (pps->tiles_enabled_flag) {
-@@ -1105,8 +1128,14 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -805,8 +812,13 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
              sh->collocated_ref_idx      = 0;
          }
  
--        sh->num_ref_idx_active_override_flag = 0;
--        sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
-+
-+        if (avctx->profile == AV_PROFILE_HEVC_SCC) {
-+            sh->num_ref_idx_active_override_flag = 1;
-+            sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1 + 1;
-+        } else {
-+            sh->num_ref_idx_active_override_flag = 0;
-+            sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
-+        }
++    if (avctx->profile == AV_PROFILE_HEVC_SCC) {
++        sh->num_ref_idx_active_override_flag = 1;
++        sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1 + 1;
++    } else {
+         sh->num_ref_idx_active_override_flag = 0;
+         sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
++    }
          sh->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
      }
  
-@@ -1128,7 +1157,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
+@@ -828,7 +840,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
          .slice_type                 = sh->slice_type,
          .slice_pic_parameter_set_id = sh->slice_pic_parameter_set_id,
  
@@ -117,7 +120,7 @@ index bbd174f975..1c138ce20d 100644
          .num_ref_idx_l1_active_minus1 = sh->num_ref_idx_l1_active_minus1,
  
          .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
-@@ -1319,6 +1350,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
+@@ -1019,6 +1033,12 @@ static const VAAPIEncodeProfile vaapi_encode_h265_profiles[] = {
      { AV_PROFILE_HEVC_REXT,     8, 3, 0, 0, VAProfileHEVCMain444 },
      { AV_PROFILE_HEVC_REXT,    10, 3, 0, 0, VAProfileHEVCMain444_10 },
      { AV_PROFILE_HEVC_REXT,    12, 3, 0, 0, VAProfileHEVCMain444_12 },
@@ -130,7 +133,7 @@ index bbd174f975..1c138ce20d 100644
  #endif
      { AV_PROFILE_UNKNOWN }
  };
-@@ -1418,6 +1455,7 @@ static const AVOption vaapi_encode_h265_options[] = {
+@@ -1118,6 +1138,7 @@ static const AVOption vaapi_encode_h265_options[] = {
      { PROFILE("main",               AV_PROFILE_HEVC_MAIN) },
      { PROFILE("main10",             AV_PROFILE_HEVC_MAIN_10) },
      { PROFILE("rext",               AV_PROFILE_HEVC_REXT) },
