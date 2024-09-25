@@ -1,4 +1,4 @@
-From e89bf2f7394c39f6f17e18e812111bf2c2772167 Mon Sep 17 00:00:00 2001
+From 5d393ca42b40186fedccf0531075d167780d98fe Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:38 +0800
 Subject: [PATCH] lavu: add sub frame side data
@@ -45,10 +45,10 @@ index 6e6fa8d800..1ec25a9d1e 100644
  
  OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
 diff --git a/libavutil/frame.c b/libavutil/frame.c
-index 2758f90e27..ca35130a0b 100644
+index f0a0dba018..d836d29608 100644
 --- a/libavutil/frame.c
 +++ b/libavutil/frame.c
-@@ -57,6 +57,7 @@ static const AVSideDataDescriptor sd_props[] = {
+@@ -58,6 +58,7 @@ static const AVSideDataDescriptor sd_props[] = {
      [AV_FRAME_DATA_SPHERICAL]                   = { "Spherical Mapping",                            AV_SIDE_DATA_PROP_GLOBAL },
      [AV_FRAME_DATA_ICC_PROFILE]                 = { "ICC profile",                                  AV_SIDE_DATA_PROP_GLOBAL },
      [AV_FRAME_DATA_SEI_UNREGISTERED]            = { "H.26[45] User Data Unregistered SEI message",  AV_SIDE_DATA_PROP_MULTI },
@@ -56,7 +56,7 @@ index 2758f90e27..ca35130a0b 100644
  };
  
  static void get_frame_defaults(AVFrame *frame)
-@@ -359,7 +360,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -360,7 +361,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
          if (   sd_src->type == AV_FRAME_DATA_PANSCAN
              && (src->width != dst->width || src->height != dst->height))
              continue;
@@ -68,13 +68,13 @@ index 2758f90e27..ca35130a0b 100644
                                              sd_src->size);
              if (!sd_dst) {
 diff --git a/libavutil/frame.h b/libavutil/frame.h
-index 5e0d8ae648..b1717c549a 100644
+index f7806566d5..7ec9c8b65b 100644
 --- a/libavutil/frame.h
 +++ b/libavutil/frame.h
-@@ -234,6 +234,11 @@ enum AVFrameSideDataType {
-      * bytes intact.
+@@ -243,6 +243,11 @@ enum AVFrameSideDataType {
+      * The data is an int storing the view ID.
       */
-     AV_FRAME_DATA_LCEVC,
+     AV_FRAME_DATA_VIEW_ID,
 +
 +    /**
 +     * Sub frame of a target frame, as described by AVFrame.
