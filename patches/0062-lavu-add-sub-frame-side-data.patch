@@ -1,4 +1,4 @@
-From 756612fcd3a945ac59d52920bb77ba1302a13a5f Mon Sep 17 00:00:00 2001
+From 5d393ca42b40186fedccf0531075d167780d98fe Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:38 +0800
 Subject: [PATCH] lavu: add sub frame side data
@@ -45,10 +45,10 @@ index 6e6fa8d800..1ec25a9d1e 100644
  
  OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
 diff --git a/libavutil/frame.c b/libavutil/frame.c
-index 930f01dc19..a48501a43d 100644
+index f0a0dba018..d836d29608 100644
 --- a/libavutil/frame.c
 +++ b/libavutil/frame.c
-@@ -56,6 +56,7 @@ static const AVSideDataDescriptor sd_props[] = {
+@@ -58,6 +58,7 @@ static const AVSideDataDescriptor sd_props[] = {
      [AV_FRAME_DATA_SPHERICAL]                   = { "Spherical Mapping",                            AV_SIDE_DATA_PROP_GLOBAL },
      [AV_FRAME_DATA_ICC_PROFILE]                 = { "ICC profile",                                  AV_SIDE_DATA_PROP_GLOBAL },
      [AV_FRAME_DATA_SEI_UNREGISTERED]            = { "H.26[45] User Data Unregistered SEI message",  AV_SIDE_DATA_PROP_MULTI },
@@ -56,7 +56,7 @@ index 930f01dc19..a48501a43d 100644
  };
  
  static void get_frame_defaults(AVFrame *frame)
-@@ -356,7 +357,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -360,7 +361,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
          if (   sd_src->type == AV_FRAME_DATA_PANSCAN
              && (src->width != dst->width || src->height != dst->height))
              continue;
@@ -68,13 +68,13 @@ index 930f01dc19..a48501a43d 100644
                                              sd_src->size);
              if (!sd_dst) {
 diff --git a/libavutil/frame.h b/libavutil/frame.h
-index 3b6d746a16..31ae7fc08e 100644
+index f7806566d5..7ec9c8b65b 100644
 --- a/libavutil/frame.h
 +++ b/libavutil/frame.h
-@@ -228,6 +228,11 @@ enum AVFrameSideDataType {
-      * encoding.
+@@ -243,6 +243,11 @@ enum AVFrameSideDataType {
+      * The data is an int storing the view ID.
       */
-     AV_FRAME_DATA_VIDEO_HINT,
+     AV_FRAME_DATA_VIEW_ID,
 +
 +    /**
 +     * Sub frame of a target frame, as described by AVFrame.
@@ -192,5 +192,5 @@ index 0000000000..621fb31e42
 +
 +#endif /* AVUTIL_SUB_FRAME_METADATA_H */
 -- 
-2.25.1
+2.34.1
 
