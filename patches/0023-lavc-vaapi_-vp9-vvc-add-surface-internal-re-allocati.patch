@@ -1,0 +1,37 @@
+From 8a910a6c44ef32b5ebce563faf551d8e32c78b2a Mon Sep 17 00:00:00 2001
+From: Linjie Fu <linjie.fu@intel.com>
+Date: Thu, 2 Jan 2020 11:16:31 +0800
+Subject: [PATCH] lavc/vaapi_{vp9, vvc}: add surface internal re-allocation
+ capability
+
+Signed-off-by: Linjie Fu <linjie.fu@intel.com>
+---
+ libavcodec/vaapi_vp9.c | 2 +-
+ libavcodec/vaapi_vvc.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/vaapi_vp9.c b/libavcodec/vaapi_vp9.c
+index a28fc75a59..60416d19ca 100644
+--- a/libavcodec/vaapi_vp9.c
++++ b/libavcodec/vaapi_vp9.c
+@@ -181,5 +181,5 @@ const FFHWAccel ff_vp9_vaapi_hwaccel = {
+     .uninit               = ff_vaapi_decode_uninit,
+     .frame_params         = ff_vaapi_common_frame_params,
+     .priv_data_size       = sizeof(VAAPIDecodeContext),
+-    .caps_internal        = HWACCEL_CAP_ASYNC_SAFE,
++    .caps_internal        = HWACCEL_CAP_ASYNC_SAFE | HWACCEL_CAP_INTERNAL_ALLOC,
+ };
+diff --git a/libavcodec/vaapi_vvc.c b/libavcodec/vaapi_vvc.c
+index 310b56e5a4..5f040a73ad 100644
+--- a/libavcodec/vaapi_vvc.c
++++ b/libavcodec/vaapi_vvc.c
+@@ -653,5 +653,5 @@ const FFHWAccel ff_vvc_vaapi_hwaccel = {
+     .uninit               = &ff_vaapi_decode_uninit,
+     .frame_params         = &ff_vaapi_common_frame_params,
+     .priv_data_size       = sizeof(VAAPIDecodeContext),
+-    .caps_internal        = HWACCEL_CAP_ASYNC_SAFE,
++    .caps_internal        = HWACCEL_CAP_ASYNC_SAFE | HWACCEL_CAP_INTERNAL_ALLOC,
+ };
+-- 
+2.34.1
+
