@@ -1,4 +1,4 @@
-From 846779ad6a4d4a10439b2e3ea3a20ff566275f55 Mon Sep 17 00:00:00 2001
+From 74687432b13e613cd83d0b5e524ee02063d5c273 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:40 +0800
 Subject: [PATCH] lavc/hevc_vaapi: enable sub frame support
@@ -39,10 +39,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  5 files changed, 153 insertions(+), 5 deletions(-)
 
 diff --git a/libavcodec/vaapi_decode.c b/libavcodec/vaapi_decode.c
-index 7c91d50f7b..936d958c0b 100644
+index 4ac2df5b43..ed981fa88c 100644
 --- a/libavcodec/vaapi_decode.c
 +++ b/libavcodec/vaapi_decode.c
-@@ -165,6 +165,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
+@@ -178,6 +178,10 @@ int ff_vaapi_decode_issue(AVCodecContext *avctx,
      av_log(avctx, AV_LOG_DEBUG, "Decode to surface %#x.\n",
             pic->output_surface);
  
@@ -53,7 +53,7 @@ index 7c91d50f7b..936d958c0b 100644
      vas = vaBeginPicture(ctx->hwctx->display, ctx->va_context,
                           pic->output_surface);
      if (vas != VA_STATUS_SUCCESS) {
-@@ -471,6 +475,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -491,6 +495,9 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
      AVHWDeviceContext    *device = (AVHWDeviceContext*)device_ref->data;
      AVVAAPIDeviceContext *hwctx = device->hwctx;
  
@@ -63,7 +63,7 @@ index 7c91d50f7b..936d958c0b 100644
      codec_desc = avcodec_descriptor_get(avctx->codec_id);
      if (!codec_desc) {
          err = AVERROR(EINVAL);
-@@ -549,8 +556,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -569,8 +576,23 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
          }
      }
  
@@ -88,7 +88,7 @@ index 7c91d50f7b..936d958c0b 100644
                           va_config);
      if (vas != VA_STATUS_SUCCESS) {
          av_log(avctx, AV_LOG_ERROR, "Failed to create decode "
-@@ -595,10 +617,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
+@@ -615,10 +637,32 @@ static int vaapi_decode_make_config(AVCodecContext *avctx,
  
      if (frames_ref) {
          AVHWFramesContext *frames = (AVHWFramesContext *)frames_ref->data;
@@ -122,13 +122,13 @@ index 7c91d50f7b..936d958c0b 100644
          err = vaapi_decode_find_best_format(avctx, device,
                                              *va_config, frames);
 diff --git a/libavcodec/vaapi_decode.h b/libavcodec/vaapi_decode.h
-index 702171e108..0db1eb04de 100644
+index 7813473c98..6504f1a101 100644
 --- a/libavcodec/vaapi_decode.h
 +++ b/libavcodec/vaapi_decode.h
-@@ -45,6 +45,10 @@ typedef struct VAAPIDecodePicture {
+@@ -42,6 +42,10 @@ typedef struct VAAPIDecodePicture {
      int                nb_slices;
      VABufferID           *slice_buffers;
-     int                   slices_allocated;
+     int                   nb_slice_buffers_allocated;
 +
 +    VASurfaceID           sub_frame_surface;
 +    VARectangle           sub_frame_src;
@@ -137,7 +137,7 @@ index 702171e108..0db1eb04de 100644
  
  typedef struct VAAPIDecodeContext {
 diff --git a/libavcodec/vaapi_hevc.c b/libavcodec/vaapi_hevc.c
-index ad4cd35b26..ad6da87e26 100644
+index 0c5a829220..a140acbe1e 100644
 --- a/libavcodec/vaapi_hevc.c
 +++ b/libavcodec/vaapi_hevc.c
 @@ -39,6 +39,7 @@ typedef struct VAAPIDecodePictureHEVC {
@@ -148,7 +148,7 @@ index ad4cd35b26..ad6da87e26 100644
      const uint8_t *last_buffer;
      size_t         last_size;
  
-@@ -131,6 +132,7 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+@@ -133,6 +134,7 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
  
      const ScalingList *scaling_list = NULL;
      int pic_param_size, err, i;
@@ -156,7 +156,7 @@ index ad4cd35b26..ad6da87e26 100644
  
  #if VA_CHECK_VERSION(1, 2, 0)
      int num_comps, pre_palette_size;
-@@ -334,6 +336,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
+@@ -336,6 +338,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
              goto fail;
      }
  
@@ -193,7 +193,7 @@ index ad4cd35b26..ad6da87e26 100644
  
  fail:
 diff --git a/libavutil/hwcontext_vaapi.c b/libavutil/hwcontext_vaapi.c
-index 4cb25dd032..84dc78e1f9 100644
+index 95aa38d9d2..e9f46948a6 100644
 --- a/libavutil/hwcontext_vaapi.c
 +++ b/libavutil/hwcontext_vaapi.c
 @@ -58,8 +58,7 @@ typedef HRESULT (WINAPI *PFN_CREATE_DXGI_FACTORY)(REFIID riid, void **ppFactory)
@@ -345,5 +345,5 @@ index 0b2e071cb3..aea0ec9263 100644
  
  /**
 -- 
-2.25.1
+2.34.1
 
