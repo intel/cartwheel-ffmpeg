@@ -26,20 +26,20 @@ index 6bdeb664e7..fdcfdcaea3 100644
 +@item sub_frame
 +Export sub frame through frame side data (see @code{AV_FRAME_DATA_SUB_FRAME}).
 +Supported at present by hevc VAAPI decoder.
+ @item enhancements
+ Export picture enhancement metadata through frame side data, e.g. LCEVC (see @code{AV_FRAME_DATA_LCEVC}).
  @end table
- 
- @item threads @var{integer} (@emph{decoding/encoding,video})
-@@ -1018,6 +1021,12 @@ Note: The required alignment depends on if @code{AV_CODEC_FLAG_UNALIGNED} is set
+@@ -1020,6 +1023,12 @@ Note: The required alignment depends on if @code{AV_CODEC_FLAG_UNALIGNED} is set
  CPU. @code{AV_CODEC_FLAG_UNALIGNED} cannot be changed from the command line. Also hardware
  decoders will not apply left/top Cropping.
- 
+
 +@item sub_frame_opts @var{dict} (@emph{decoding,video})
 +Sub frames parameters, like width/height/format etc.
 +@example
 +-sub_frame_opts "width=640:height=480:format=nv12"
 +@end example
 +
- 
+
  @end table
  
 diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
