@@ -14,19 +14,20 @@ https://patchwork.ffmpeg.org/project/ffmpeg/list/?series=6504
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
  libavutil/Makefile             |  4 ++-
- libavutil/frame.c              |  5 ++-
+ libavutil/frame.c              |  4 ++-
  libavutil/frame.h              |  5 +++
+ libavutil/side_data.c          |  1 +
  libavutil/sub_frame_metadata.c | 61 ++++++++++++++++++++++++++++++++++
  libavutil/sub_frame_metadata.h | 35 +++++++++++++++++++
- 5 files changed, 108 insertions(+), 2 deletions(-)
+ 6 files changed, 108 insertions(+), 2 deletions(-)
  create mode 100644 libavutil/sub_frame_metadata.c
  create mode 100644 libavutil/sub_frame_metadata.h
 
 diff --git a/libavutil/Makefile b/libavutil/Makefile
-index 847878d7a4..dda2e90e94 100644
+index b7ed339ab3..bfcd57f800 100644
 --- a/libavutil/Makefile
 +++ b/libavutil/Makefile
-@@ -94,7 +94,8 @@ HEADERS = adler32.h                                                     \
+@@ -97,7 +97,8 @@ HEADERS = adler32.h                                                     \
            xtea.h                                                        \
            tea.h                                                         \
            tx.h                                                          \
@@ -36,7 +37,7 @@ index 847878d7a4..dda2e90e94 100644
  
  ARCH_HEADERS = bswap.h                                                  \
                 intmath.h                                                \
-@@ -190,6 +191,7 @@ OBJS = adler32.o                                                        \
+@@ -197,6 +198,7 @@ OBJS = adler32.o                                                        \
         version.o                                                        \
         video_enc_params.o                                               \
         video_hint.o                                                     \
@@ -45,18 +46,10 @@ index 847878d7a4..dda2e90e94 100644
  
  OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
 diff --git a/libavutil/frame.c b/libavutil/frame.c
-index ab0d8f53..08a04c87 100644
+index 71bde48f8b..9a57f60b8c 100644
 --- a/libavutil/frame.c
 +++ b/libavutil/frame.c
-@@ -58,6 +58,7 @@ static const AVSideDataDescriptor sd_props[] = {
-     [AV_FRAME_DATA_SPHERICAL]                   = { "Spherical Mapping",                            AV_SIDE_DATA_PROP_GLOBAL | AV_SIDE_DATA_PROP_SIZE_DEPENDENT },
-     [AV_FRAME_DATA_ICC_PROFILE]                 = { "ICC profile",                                  AV_SIDE_DATA_PROP_GLOBAL | AV_SIDE_DATA_PROP_COLOR_DEPENDENT },
-     [AV_FRAME_DATA_SEI_UNREGISTERED]            = { "H.26[45] User Data Unregistered SEI message",  AV_SIDE_DATA_PROP_MULTI },
-+    [AV_FRAME_DATA_SUB_FRAME]                   = { "Sub frame Metadata" },
-     [AV_FRAME_DATA_VIDEO_HINT]                  = { "Encoding video hint",                          AV_SIDE_DATA_PROP_SIZE_DEPENDENT },
- };
-
-@@ -373,7 +374,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -280,7 +280,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
          if (   sd_src->type == AV_FRAME_DATA_PANSCAN
              && (src->width != dst->width || src->height != dst->height))
              continue;
@@ -68,7 +61,7 @@ index ab0d8f53..08a04c87 100644
                                              sd_src->size);
              if (!sd_dst) {
 diff --git a/libavutil/frame.h b/libavutil/frame.h
-index f7806566d5..7ec9c8b65b 100644
+index 49260ae2dd..2d96379ebe 100644
 --- a/libavutil/frame.h
 +++ b/libavutil/frame.h
 @@ -243,6 +243,11 @@ enum AVFrameSideDataType {
@@ -83,6 +76,18 @@ index f7806566d5..7ec9c8b65b 100644
  };
  
  enum AVActiveFormatDescription {
+diff --git a/libavutil/side_data.c b/libavutil/side_data.c
+index 17965f2d3c..de746598bf 100644
+--- a/libavutil/side_data.c
++++ b/libavutil/side_data.c
+@@ -54,6 +54,7 @@ static const AVSideDataDescriptor sd_props[] = {
+     [AV_FRAME_DATA_SPHERICAL]                   = { "Spherical Mapping",                            AV_SIDE_DATA_PROP_GLOBAL | AV_SIDE_DATA_PROP_SIZE_DEPENDENT },
+     [AV_FRAME_DATA_ICC_PROFILE]                 = { "ICC profile",                                  AV_SIDE_DATA_PROP_GLOBAL | AV_SIDE_DATA_PROP_COLOR_DEPENDENT },
+     [AV_FRAME_DATA_SEI_UNREGISTERED]            = { "H.26[45] User Data Unregistered SEI message",  AV_SIDE_DATA_PROP_MULTI },
++    [AV_FRAME_DATA_SUB_FRAME]                   = { "Sub frame Metadata" },
+     [AV_FRAME_DATA_VIDEO_HINT]                  = { "Encoding video hint",                          AV_SIDE_DATA_PROP_SIZE_DEPENDENT },
+ };
+ 
 diff --git a/libavutil/sub_frame_metadata.c b/libavutil/sub_frame_metadata.c
 new file mode 100644
 index 0000000000..82ea32383f
@@ -192,5 +197,5 @@ index 0000000000..621fb31e42
 +
 +#endif /* AVUTIL_SUB_FRAME_METADATA_H */
 -- 
-2.34.1
+2.43.0
 

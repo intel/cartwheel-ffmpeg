@@ -21,10 +21,10 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  create mode 100644 libavfilter/vf_exportsubframe.c
 
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index 71e198bbf9..0657e42123 100644
+index 4d9681768b..b1caab7f16 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -291,6 +291,7 @@ OBJS-$(CONFIG_EROSION_FILTER)                += vf_neighbor.o
+@@ -303,6 +303,7 @@ OBJS-$(CONFIG_EROSION_FILTER)                += vf_neighbor.o
  OBJS-$(CONFIG_EROSION_OPENCL_FILTER)         += vf_neighbor_opencl.o opencl.o \
                                                  opencl/neighbor.o
  OBJS-$(CONFIG_ESTDIF_FILTER)                 += vf_estdif.o
@@ -33,20 +33,20 @@ index 71e198bbf9..0657e42123 100644
  OBJS-$(CONFIG_EXTRACTPLANES_FILTER)          += vf_extractplanes.o
  OBJS-$(CONFIG_FADE_FILTER)                   += vf_fade.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index d7db46c2af..737ebae919 100644
+index c9178ba27b..b0fd42992d 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -268,6 +268,7 @@ extern const AVFilter ff_vf_eq;
- extern const AVFilter ff_vf_erosion;
- extern const AVFilter ff_vf_erosion_opencl;
- extern const AVFilter ff_vf_estdif;
-+extern const AVFilter ff_vf_exportsubframe;
- extern const AVFilter ff_vf_exposure;
- extern const AVFilter ff_vf_extractplanes;
- extern const AVFilter ff_vf_fade;
+@@ -277,6 +277,7 @@ extern const FFFilter ff_vf_eq;
+ extern const FFFilter ff_vf_erosion;
+ extern const FFFilter ff_vf_erosion_opencl;
+ extern const FFFilter ff_vf_estdif;
++extern const FFFilter ff_vf_exportsubframe;
+ extern const FFFilter ff_vf_exposure;
+ extern const FFFilter ff_vf_extractplanes;
+ extern const FFFilter ff_vf_fade;
 diff --git a/libavfilter/vf_exportsubframe.c b/libavfilter/vf_exportsubframe.c
 new file mode 100644
-index 0000000000..4d16d2ff93
+index 0000000000..f447916e67
 --- /dev/null
 +++ b/libavfilter/vf_exportsubframe.c
 @@ -0,0 +1,139 @@
@@ -181,14 +181,14 @@ index 0000000000..4d16d2ff93
 +    },
 +};
 +
-+const AVFilter ff_vf_exportsubframe = {
-+    .name        = "exportsubframe",
-+    .description = NULL_IF_CONFIG_SMALL("Export and output subframe."),
++const FFFilter ff_vf_exportsubframe = {
++    .p.name        = "exportsubframe",
++    .p.description = NULL_IF_CONFIG_SMALL("Export and output subframe."),
++    .p.priv_class  = &exportsubframe_class,
 +    .priv_size   = sizeof(ExportSubframeContext),
-+    .priv_class  = &exportsubframe_class,
 +    FILTER_INPUTS(inputs),
 +    FILTER_OUTPUTS(outputs),
 +};
 -- 
-2.25.1
+2.43.0
 

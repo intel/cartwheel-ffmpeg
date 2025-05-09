@@ -13,15 +13,15 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  configure                     |   1 +
  libavfilter/Makefile          |   1 +
  libavfilter/allfilters.c      |   1 +
- libavfilter/vf_raisr_opencl.c | 266 ++++++++++++++++++++++++++++++++++
- 4 files changed, 269 insertions(+)
+ libavfilter/vf_raisr_opencl.c | 267 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 270 insertions(+)
  create mode 100644 libavfilter/vf_raisr_opencl.c
 
 diff --git a/configure b/configure
-index 993756e6b0..babc199e44 100755
+index 4b507eafbb..c68340db2f 100755
 --- a/configure
 +++ b/configure
-@@ -3921,6 +3921,7 @@ procamp_vaapi_filter_deps="vaapi"
+@@ -3959,6 +3959,7 @@ procamp_vaapi_filter_deps="vaapi"
  program_opencl_filter_deps="opencl"
  pullup_filter_deps="gpl"
  raisr_filter_deps="libipp"
@@ -30,10 +30,10 @@ index 993756e6b0..babc199e44 100755
  removelogo_filter_deps="avcodec avformat swscale"
  repeatfields_filter_deps="gpl"
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index bab407b9f9..6d21234699 100644
+index 75dc1a1a40..563ecb26d4 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -441,6 +441,7 @@ OBJS-$(CONFIG_PULLUP_FILTER)                 += vf_pullup.o
+@@ -445,6 +445,7 @@ OBJS-$(CONFIG_PULLUP_FILTER)                 += vf_pullup.o
  OBJS-$(CONFIG_QP_FILTER)                     += vf_qp.o
  OBJS-$(CONFIG_QUIRC_FILTER)                  += vf_quirc.o
  OBJS-$(CONFIG_RAISR_FILTER)                  += vf_raisr.o
@@ -42,23 +42,23 @@ index bab407b9f9..6d21234699 100644
  OBJS-$(CONFIG_READEIA608_FILTER)             += vf_readeia608.o
  OBJS-$(CONFIG_READVITC_FILTER)               += vf_readvitc.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 1e51f68912..98c5bbb768 100644
+index f81baf6d59..ba1f577cff 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -416,6 +416,7 @@ extern const AVFilter ff_vf_qp;
- extern const AVFilter ff_vf_qrencode;
- extern const AVFilter ff_vf_quirc;
- extern const AVFilter ff_vf_raisr;
-+extern const AVFilter ff_vf_raisr_opencl;
- extern const AVFilter ff_vf_random;
- extern const AVFilter ff_vf_readeia608;
- extern const AVFilter ff_vf_readvitc;
+@@ -418,6 +418,7 @@ extern const FFFilter ff_vf_qp;
+ extern const FFFilter ff_vf_qrencode;
+ extern const FFFilter ff_vf_quirc;
+ extern const FFFilter ff_vf_raisr;
++extern const FFFilter ff_vf_raisr_opencl;
+ extern const FFFilter ff_vf_random;
+ extern const FFFilter ff_vf_readeia608;
+ extern const FFFilter ff_vf_readvitc;
 diff --git a/libavfilter/vf_raisr_opencl.c b/libavfilter/vf_raisr_opencl.c
 new file mode 100644
-index 0000000000..6939a15e27
+index 0000000000..45799cf521
 --- /dev/null
 +++ b/libavfilter/vf_raisr_opencl.c
-@@ -0,0 +1,266 @@
+@@ -0,0 +1,267 @@
 +/*
 + * Intel Library for Video Super Resolution ffmpeg plugin
 + *
@@ -313,18 +313,19 @@ index 0000000000..6939a15e27
 +    },
 +};
 +
-+const AVFilter ff_vf_raisr_opencl = {
-+    .name           = "raisr_opencl",
-+    .description    = NULL_IF_CONFIG_SMALL("Raisr"),
++const FFFilter ff_vf_raisr_opencl = {
++    .p.name           = "raisr_opencl",
++    .p.description    = NULL_IF_CONFIG_SMALL("Raisr"),
++    .p.priv_class     = &raisr_opencl_class,
++    .p.flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 +    .priv_size      = sizeof(RaisrOpenCLContext),
-+    .priv_class     = &raisr_opencl_class,
 +    .init           = &ff_opencl_filter_init,
 +    .uninit         = &raisr_opencl_uninit,
 +    FILTER_INPUTS(raisr_opencl_inputs),
 +    FILTER_OUTPUTS(raisr_opencl_outputs),
 +    FILTER_SINGLE_PIXFMT(AV_PIX_FMT_OPENCL),
-+    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
++
 +};
 -- 
-2.34.1
+2.43.0
 

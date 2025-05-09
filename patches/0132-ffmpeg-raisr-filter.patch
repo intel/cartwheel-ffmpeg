@@ -18,7 +18,7 @@ Signed-off-by: Jun Tian <jun.tian@intel.com>
  create mode 100644 libavfilter/vf_raisr.c
 
 diff --git a/configure b/configure
-index 1d8cf689dd..993756e6b0 100755
+index 41ff5a0007..a27f487e52 100755
 --- a/configure
 +++ b/configure
 @@ -241,6 +241,7 @@ External library support:
@@ -29,7 +29,7 @@ index 1d8cf689dd..993756e6b0 100755
    --enable-libjack         enable JACK audio sound server [no]
    --enable-libjxl          enable JPEG XL de/encoding via libjxl [no]
    --enable-libklvanc       enable Kernel Labs VANC processing [no]
-@@ -1927,6 +1928,7 @@ EXTERNAL_LIBRARY_LIST="
+@@ -1932,6 +1933,7 @@ EXTERNAL_LIBRARY_LIST="
      libgsm
      libiec61883
      libilbc
@@ -37,7 +37,7 @@ index 1d8cf689dd..993756e6b0 100755
      libjack
      libjxl
      libklvanc
-@@ -3918,6 +3920,7 @@ prewitt_opencl_filter_deps="opencl"
+@@ -3964,6 +3966,7 @@ prewitt_opencl_filter_deps="opencl"
  procamp_vaapi_filter_deps="vaapi"
  program_opencl_filter_deps="opencl"
  pullup_filter_deps="gpl"
@@ -45,7 +45,7 @@ index 1d8cf689dd..993756e6b0 100755
  remap_opencl_filter_deps="opencl"
  removelogo_filter_deps="avcodec avformat swscale"
  repeatfields_filter_deps="gpl"
-@@ -6959,6 +6962,16 @@ enabled libopus           && {
+@@ -7023,6 +7026,16 @@ enabled libopus           && {
          require_pkg_config libopus opus opus_multistream.h opus_multistream_surround_encoder_create
      }
  }
@@ -59,14 +59,14 @@ index 1d8cf689dd..993756e6b0 100755
 +   check_lib libipp "$ipp_header_for_check" ippInit -Wl,--start-group -lippi -lipps -lippcore -lippvm -Wl,--end-group ||
 +   die "ERROR: Intel IPP not found"
 +fi
- enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 4.192.0" libplacebo/vulkan.h pl_vulkan_create
+ enabled libplacebo        && require_pkg_config libplacebo "libplacebo >= 5.229.0" libplacebo/vulkan.h pl_vulkan_create
  enabled libpulse          && require_pkg_config libpulse libpulse pulse/pulseaudio.h pa_context_new
  enabled libqrencode       && require_pkg_config libqrencode libqrencode qrencode.h QRcode_encodeString
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index 65a2914ca7..bab407b9f9 100644
+index 390c05a408..b7a29a908a 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -440,6 +440,7 @@ OBJS-$(CONFIG_PSNR_FILTER)                   += vf_psnr.o framesync.o
+@@ -445,6 +445,7 @@ OBJS-$(CONFIG_PSNR_FILTER)                   += vf_psnr.o framesync.o psnr.o
  OBJS-$(CONFIG_PULLUP_FILTER)                 += vf_pullup.o
  OBJS-$(CONFIG_QP_FILTER)                     += vf_qp.o
  OBJS-$(CONFIG_QUIRC_FILTER)                  += vf_quirc.o
@@ -75,20 +75,20 @@ index 65a2914ca7..bab407b9f9 100644
  OBJS-$(CONFIG_READEIA608_FILTER)             += vf_readeia608.o
  OBJS-$(CONFIG_READVITC_FILTER)               += vf_readvitc.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index c15a9f6675..1e51f68912 100644
+index 1cd3328c6f..56547f3a54 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -415,6 +415,7 @@ extern const AVFilter ff_vf_pullup;
- extern const AVFilter ff_vf_qp;
- extern const AVFilter ff_vf_qrencode;
- extern const AVFilter ff_vf_quirc;
-+extern const AVFilter ff_vf_raisr;
- extern const AVFilter ff_vf_random;
- extern const AVFilter ff_vf_readeia608;
- extern const AVFilter ff_vf_readvitc;
+@@ -418,6 +418,7 @@ extern const FFFilter ff_vf_pullup;
+ extern const FFFilter ff_vf_qp;
+ extern const FFFilter ff_vf_qrencode;
+ extern const FFFilter ff_vf_quirc;
++extern const FFFilter ff_vf_raisr;
+ extern const FFFilter ff_vf_random;
+ extern const FFFilter ff_vf_readeia608;
+ extern const FFFilter ff_vf_readvitc;
 diff --git a/libavfilter/vf_raisr.c b/libavfilter/vf_raisr.c
 new file mode 100644
-index 0000000000..1f673f8cc2
+index 0000000000..da7a3f5132
 --- /dev/null
 +++ b/libavfilter/vf_raisr.c
 @@ -0,0 +1,347 @@
@@ -427,18 +427,18 @@ index 0000000000..1f673f8cc2
 +    },
 +};
 +
-+AVFilter ff_vf_raisr = {
-+    .name = "raisr",
-+    .description = NULL_IF_CONFIG_SMALL("Perform Raisr super resolution."),
++FFFilter ff_vf_raisr = {
++    .p.name = "raisr",
++    .p.description = NULL_IF_CONFIG_SMALL("Perform Raisr super resolution."),
++    .p.priv_class = &raisr_class,
++    .p.flags = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 +    .priv_size = sizeof(RaisrContext),
 +    .init = init,
 +    .uninit = uninit,
 +    FILTER_QUERY_FUNC(query_formats),
 +    FILTER_INPUTS(raisr_inputs),
 +    FILTER_OUTPUTS(raisr_outputs),
-+    .priv_class = &raisr_class,
-+    .flags = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 +};
 -- 
-2.34.1
+2.43.0
 
