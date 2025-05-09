@@ -9,10 +9,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 32 insertions(+), 1 deletion(-)
 
 diff --git a/libavfilter/vf_dnn_classify.c b/libavfilter/vf_dnn_classify.c
-index f6d3678796..6b0ff408b7 100644
+index f92c41ab76..388c1d346b 100644
 --- a/libavfilter/vf_dnn_classify.c
 +++ b/libavfilter/vf_dnn_classify.c
-@@ -200,6 +200,9 @@ static const enum AVPixelFormat pix_fmts[] = {
+@@ -199,6 +199,9 @@ static const enum AVPixelFormat pix_fmts[] = {
      AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
      AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
      AV_PIX_FMT_NV12,
@@ -22,7 +22,7 @@ index f6d3678796..6b0ff408b7 100644
      AV_PIX_FMT_NONE
  };
  
-@@ -294,6 +297,33 @@ static av_cold void dnn_classify_uninit(AVFilterContext *context)
+@@ -293,16 +296,44 @@ static av_cold void dnn_classify_uninit(AVFilterContext *context)
      free_classify_labels(ctx);
  }
  
@@ -53,20 +53,21 @@ index f6d3678796..6b0ff408b7 100644
 +    },
 +};
 +
- const AVFilter ff_vf_dnn_classify = {
-     .name          = "dnn_classify",
-     .description   = NULL_IF_CONFIG_SMALL("Apply DNN classify filter to the input."),
-@@ -302,8 +332,9 @@ const AVFilter ff_vf_dnn_classify = {
+ const FFFilter ff_vf_dnn_classify = {
+     .p.name        = "dnn_classify",
+     .p.description = NULL_IF_CONFIG_SMALL("Apply DNN classify filter to the input."),
+     .p.priv_class  = &dnn_classify_class,
++    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
+     .priv_size     = sizeof(DnnClassifyContext),
+     .preinit       = ff_dnn_filter_init_child_class,
      .init          = dnn_classify_init,
      .uninit        = dnn_classify_uninit,
      FILTER_INPUTS(ff_video_default_filterpad),
 -    FILTER_OUTPUTS(ff_video_default_filterpad),
 +    FILTER_OUTPUTS(dnn_classify_outputs),
      FILTER_PIXFMTS_ARRAY(pix_fmts),
-     .priv_class    = &dnn_classify_class,
      .activate      = dnn_classify_activate,
-+    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
  };
 -- 
-2.34.1
+2.43.0
 

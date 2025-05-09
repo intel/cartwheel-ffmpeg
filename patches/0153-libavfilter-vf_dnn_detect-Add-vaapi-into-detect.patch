@@ -9,10 +9,10 @@ Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
  1 file changed, 33 insertions(+), 1 deletion(-)
 
 diff --git a/libavfilter/vf_dnn_detect.c b/libavfilter/vf_dnn_detect.c
-index 2a277d4169..85e26bf5a5 100644
+index 590e4e256d..078d262a78 100644
 --- a/libavfilter/vf_dnn_detect.c
 +++ b/libavfilter/vf_dnn_detect.c
-@@ -715,6 +715,9 @@ static const enum AVPixelFormat pix_fmts[] = {
+@@ -719,6 +719,9 @@ static const enum AVPixelFormat pix_fmts[] = {
      AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
      AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
      AV_PIX_FMT_NV12,
@@ -22,7 +22,7 @@ index 2a277d4169..85e26bf5a5 100644
      AV_PIX_FMT_NONE
  };
  
-@@ -840,6 +843,26 @@ static int config_input(AVFilterLink *inlink)
+@@ -844,6 +847,26 @@ static int config_input(AVFilterLink *inlink)
      return 0;
  }
  
@@ -49,7 +49,7 @@ index 2a277d4169..85e26bf5a5 100644
  static const AVFilterPad dnn_detect_inputs[] = {
      {
          .name         = "default",
-@@ -848,6 +871,14 @@ static const AVFilterPad dnn_detect_inputs[] = {
+@@ -852,16 +875,25 @@ static const AVFilterPad dnn_detect_inputs[] = {
      },
  };
  
@@ -61,20 +61,21 @@ index 2a277d4169..85e26bf5a5 100644
 +    },
 +};
 +
- const AVFilter ff_vf_dnn_detect = {
-     .name          = "dnn_detect",
-     .description   = NULL_IF_CONFIG_SMALL("Apply DNN detect filter to the input."),
-@@ -856,8 +887,9 @@ const AVFilter ff_vf_dnn_detect = {
+ const FFFilter ff_vf_dnn_detect = {
+     .p.name        = "dnn_detect",
+     .p.description = NULL_IF_CONFIG_SMALL("Apply DNN detect filter to the input."),
+     .p.priv_class  = &dnn_detect_class,
++    .p.flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
+     .priv_size     = sizeof(DnnDetectContext),
+     .preinit       = ff_dnn_filter_init_child_class,
      .init          = dnn_detect_init,
      .uninit        = dnn_detect_uninit,
      FILTER_INPUTS(dnn_detect_inputs),
 -    FILTER_OUTPUTS(ff_video_default_filterpad),
 +    FILTER_OUTPUTS(dnn_detect_outputs),
      FILTER_PIXFMTS_ARRAY(pix_fmts),
-     .priv_class    = &dnn_detect_class,
      .activate      = dnn_detect_activate,
-+    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
  };
 -- 
-2.34.1
+2.43.0
 

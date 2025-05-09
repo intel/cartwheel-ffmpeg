@@ -1,4 +1,4 @@
-From 015c913a10daa24046ac26b86c393a9cf14c17fb Mon Sep 17 00:00:00 2001
+From f9918711d03eae40653825220e42e4d4dd336b36 Mon Sep 17 00:00:00 2001
 From: Linjie Fu <linjie.fu@intel.com>
 Date: Tue, 14 Jul 2020 14:56:25 +0800
 Subject: [PATCH] lavc/vaapi_hevc: add -skip_frame invalid to skip invalid
@@ -21,10 +21,10 @@ Signed-off-by: Linjie Fu <linjie.justin.fu@gmail.com>
  4 files changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/libavcodec/defs.h b/libavcodec/defs.h
-index 7ddfdcad0b..e46f2a5227 100644
+index 24250f8af5..733f039cd1 100644
 --- a/libavcodec/defs.h
 +++ b/libavcodec/defs.h
-@@ -213,6 +213,7 @@ enum AVDiscard{
+@@ -214,6 +214,7 @@ enum AVDiscard{
       * keyframes for intra-only or drop just some bidir frames). */
      AVDISCARD_NONE    =-16, ///< discard nothing
      AVDISCARD_DEFAULT =  0, ///< discard useless packets like 0 size packets in avi
@@ -33,10 +33,10 @@ index 7ddfdcad0b..e46f2a5227 100644
      AVDISCARD_BIDIR   = 16, ///< discard all bidirectional frames
      AVDISCARD_NONINTRA= 24, ///< discard all non intra frames
 diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
-index 88f2bcecad..f6018af4fe 100644
+index 3655ed0039..07d0c4d682 100644
 --- a/libavcodec/hevc/hevcdec.c
 +++ b/libavcodec/hevc/hevcdec.c
-@@ -600,8 +600,11 @@ static int hls_slice_header(SliceHeader *sh, const HEVCContext *s, GetBitContext
+@@ -722,8 +722,11 @@ static int hls_slice_header(SliceHeader *sh, const HEVCContext *s, GetBitContext
      sh->first_slice_in_pic_flag = get_bits1(gb);
  
      sh->no_output_of_prior_pics_flag = 0;
@@ -49,7 +49,7 @@ index 88f2bcecad..f6018af4fe 100644
  
      pps_id = get_ue_golomb_long(gb);
      if (pps_id >= HEVC_MAX_PPS_COUNT || !s->ps.pps_list[pps_id]) {
-@@ -3162,6 +3165,7 @@ static int decode_slice(HEVCContext *s, const H2645NAL *nal, GetBitContext *gb)
+@@ -3476,6 +3479,7 @@ static int decode_slice(HEVCContext *s, unsigned nal_idx, GetBitContext *gb)
  
      if ((s->avctx->skip_frame >= AVDISCARD_BIDIR && s->sh.slice_type == HEVC_SLICE_B) ||
          (s->avctx->skip_frame >= AVDISCARD_NONINTRA && s->sh.slice_type != HEVC_SLICE_I) ||
@@ -58,10 +58,10 @@ index 88f2bcecad..f6018af4fe 100644
          ((s->nal_unit_type == HEVC_NAL_RASL_R || s->nal_unit_type == HEVC_NAL_RASL_N) &&
           s->no_rasl_output_flag)) {
 diff --git a/libavcodec/options_table.h b/libavcodec/options_table.h
-index 33f1bce887..4225747b39 100644
+index 47da41b0ad..c8fc0bd532 100644
 --- a/libavcodec/options_table.h
 +++ b/libavcodec/options_table.h
-@@ -256,6 +256,7 @@ static const AVOption avcodec_options[] = {
+@@ -257,6 +257,7 @@ static const AVOption avcodec_options[] = {
  {"skip_frame"      , "skip decoding for the selected frames",               OFFSET(skip_frame),       AV_OPT_TYPE_INT, {.i64 = AVDISCARD_DEFAULT }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
  {"none"            , "discard no frame",                    0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_NONE    }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
  {"default"         , "discard useless frames",              0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_DEFAULT }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
@@ -70,17 +70,17 @@ index 33f1bce887..4225747b39 100644
  {"bidir"           , "discard all bidirectional frames",    0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_BIDIR   }, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
  {"nointra"         , "discard all frames except I frames",  0, AV_OPT_TYPE_CONST, {.i64 = AVDISCARD_NONINTRA}, INT_MIN, INT_MAX, V|D, .unit = "avdiscard"},
 diff --git a/libavcodec/pthread_frame.c b/libavcodec/pthread_frame.c
-index 85a3dce929..537c8b7ae6 100644
+index d9df0d62a8..6a15c758eb 100644
 --- a/libavcodec/pthread_frame.c
 +++ b/libavcodec/pthread_frame.c
-@@ -293,6 +293,7 @@ static int update_context_from_thread(AVCodecContext *dst, const AVCodecContext
-         dst->has_b_frames = src->has_b_frames;
-         dst->idct_algo    = src->idct_algo;
+@@ -370,6 +370,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
          dst->properties   = src->properties;
+ FF_ENABLE_DEPRECATION_WARNINGS
+ #endif
 +        dst->skip_frame   = src->skip_frame;
  
          dst->bits_per_coded_sample = src->bits_per_coded_sample;
          dst->sample_aspect_ratio   = src->sample_aspect_ratio;
 -- 
-2.25.1
+2.43.0
 

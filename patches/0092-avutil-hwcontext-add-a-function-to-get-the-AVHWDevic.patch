@@ -14,11 +14,11 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 23 insertions(+)
 
 diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
-index cf14707182..9a19e53704 100644
+index 16fdacdf2f..3684dc132d 100644
 --- a/libavutil/hwcontext.c
 +++ b/libavutil/hwcontext.c
-@@ -80,6 +80,17 @@ static const char *const hw_type_names[] = {
-     [AV_HWDEVICE_TYPE_VULKAN] = "vulkan",
+@@ -88,6 +88,17 @@ static const char *const hw_type_names[] = {
+     [AV_HWDEVICE_TYPE_AMF] = "amf",
  };
  
 +enum AVHWDeviceType av_hwdevice_get_type_by_pix_fmt(enum AVPixelFormat fmt)
@@ -36,10 +36,10 @@ index cf14707182..9a19e53704 100644
  {
      int type;
 diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
-index 7cea44f9d4..b32b1fd9ca 100644
+index 13eb55f49c..c1a8fe43a5 100644
 --- a/libavutil/hwcontext.h
 +++ b/libavutil/hwcontext.h
-@@ -230,6 +230,18 @@ typedef struct AVHWFramesContext {
+@@ -219,6 +219,18 @@ typedef struct AVHWFramesContext {
      int width, height;
  } AVHWFramesContext;
  
@@ -59,5 +59,5 @@ index 7cea44f9d4..b32b1fd9ca 100644
   * Look up an AVHWDeviceType by name.
   *
 -- 
-2.41.0.windows.1
+2.43.0
 
