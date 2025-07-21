@@ -1,0 +1,215 @@
+From 0600ecc8018fddace991f43888c198d4e4eb997f Mon Sep 17 00:00:00 2001
+From: rajalakshmipr <rajalakshmi.palanisamy.rengasamy@intel.com>
+Date: Thu, 31 Jul 2025 17:16:56 -0700
+Subject: [PATCH] Enable HDRtoSDR conversion for inputs without side data
+
+---
+ libavfilter/vf_tonemap_vaapi.c         | 135 ++++++++++++++-----------
+ libavfilter/vf_vpp_qsv.c               |  14 ++-
+ libavutil/mastering_display_metadata.h |   5 +
+ 3 files changed, 93 insertions(+), 61 deletions(-)
+
+diff --git a/libavfilter/vf_tonemap_vaapi.c b/libavfilter/vf_tonemap_vaapi.c
+index 9fe82cbb1b..7b82ddf819 100644
+--- a/libavfilter/vf_tonemap_vaapi.c
++++ b/libavfilter/vf_tonemap_vaapi.c
+@@ -49,11 +49,28 @@ typedef struct HDRVAAPIContext {
+     AVFrameSideData    *src_light;
+ } HDRVAAPIContext;
+ 
++const AVMasteringDisplayMetadata default_hdr_metadata = {
++    .display_primaries = {
++        { {13250, 50000}, {34500, 50000} }, // Red X, Red Y
++        { { 7500, 50000}, {30000, 50000} }, // Green X, Green Y
++        { {34000, 50000}, { 1600, 50000} }, // Blue X, Blue Y
++    },
++    .white_point = {
++        {15635, 50000}, // X
++        {16450, 50000}, // Y
++    },
++    .max_luminance = {1000, 1},
++    .min_luminance = {5, 1000},
++    .has_primaries = 1,
++    .has_luminance = 1,
++};
++
+ static int tonemap_vaapi_save_metadata(AVFilterContext *avctx, AVFrame *input_frame)
+ {
+     HDRVAAPIContext *ctx = avctx->priv;
+     AVMasteringDisplayMetadata *hdr_meta;
+     AVContentLightMetadata *light_meta;
++    AVMasteringDisplayMetadata display_data;
+ 
+     if (input_frame->color_trc != AVCOL_TRC_SMPTE2084) {
+         av_log(avctx, AV_LOG_WARNING, "Only support HDR10 as input for vaapi tone-mapping\n");
+@@ -61,69 +78,69 @@ static int tonemap_vaapi_save_metadata(AVFilterContext *avctx, AVFrame *input_fr
+ 
+     ctx->src_display = av_frame_get_side_data(input_frame,
+                                               AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
+-    if (ctx->src_display) {
++
++    if(ctx->src_display) {
+         hdr_meta = (AVMasteringDisplayMetadata *)ctx->src_display->data;
+-        if (!hdr_meta) {
+-            av_log(avctx, AV_LOG_ERROR, "No mastering display data\n");
+-            return AVERROR(EINVAL);
+-        }
++    }
++    else{
++        // Since side data is not available, assigning default values for side data
++        av_log(avctx, AV_LOG_WARNING, "No mastering display metadata from input, using default values\n");
++        display_data = default_hdr_metadata; // Use default values if no side data is available
++        hdr_meta = &display_data;
++    }
+ 
+-        if (hdr_meta->has_luminance) {
+-            const int luma_den = 10000;
+-            ctx->in_metadata.max_display_mastering_luminance =
+-                lrint(luma_den * av_q2d(hdr_meta->max_luminance));
+-            ctx->in_metadata.min_display_mastering_luminance =
+-                FFMIN(lrint(luma_den * av_q2d(hdr_meta->min_luminance)),
+-                      ctx->in_metadata.max_display_mastering_luminance);
+-
+-            av_log(avctx, AV_LOG_DEBUG,
+-                   "Mastering Display Metadata(in luminance):\n");
+-            av_log(avctx, AV_LOG_DEBUG,
+-                   "min_luminance=%u, max_luminance=%u\n",
+-                   ctx->in_metadata.min_display_mastering_luminance,
+-                   ctx->in_metadata.max_display_mastering_luminance);
+-        }
++    if (hdr_meta->has_luminance) {
++        const int luma_den = 10000;
++        ctx->in_metadata.max_display_mastering_luminance =
++            lrint(luma_den * av_q2d(hdr_meta->max_luminance));
++        ctx->in_metadata.min_display_mastering_luminance =
++            FFMIN(lrint(luma_den * av_q2d(hdr_meta->min_luminance)),
++                    ctx->in_metadata.max_display_mastering_luminance);
+ 
+-        if (hdr_meta->has_primaries) {
+-            int i;
+-            const int mapping[3] = {1, 2, 0};  //green, blue, red
+-            const int chroma_den = 50000;
+-
+-            for (i = 0; i < 3; i++) {
+-                const int j = mapping[i];
+-                ctx->in_metadata.display_primaries_x[i] =
+-                    FFMIN(lrint(chroma_den *
+-                                av_q2d(hdr_meta->display_primaries[j][0])),
+-                          chroma_den);
+-                ctx->in_metadata.display_primaries_y[i] =
+-                    FFMIN(lrint(chroma_den *
+-                                av_q2d(hdr_meta->display_primaries[j][1])),
+-                          chroma_den);
+-            }
+-
+-            ctx->in_metadata.white_point_x =
+-                FFMIN(lrint(chroma_den * av_q2d(hdr_meta->white_point[0])),
+-                      chroma_den);
+-            ctx->in_metadata.white_point_y =
+-                FFMIN(lrint(chroma_den * av_q2d(hdr_meta->white_point[1])),
+-                      chroma_den);
+-
+-            av_log(avctx, AV_LOG_DEBUG,
+-                   "Mastering Display Metadata(in primaries):\n");
+-            av_log(avctx, AV_LOG_DEBUG,
+-                   "G(%u,%u) B(%u,%u) R(%u,%u) WP(%u,%u)\n",
+-                   ctx->in_metadata.display_primaries_x[0],
+-                   ctx->in_metadata.display_primaries_y[0],
+-                   ctx->in_metadata.display_primaries_x[1],
+-                   ctx->in_metadata.display_primaries_y[1],
+-                   ctx->in_metadata.display_primaries_x[2],
+-                   ctx->in_metadata.display_primaries_y[2],
+-                   ctx->in_metadata.white_point_x,
+-                   ctx->in_metadata.white_point_y);
++        av_log(avctx, AV_LOG_DEBUG,
++                "Mastering Display Metadata(in luminance):\n");
++        av_log(avctx, AV_LOG_DEBUG,
++                "min_luminance=%u, max_luminance=%u\n",
++                ctx->in_metadata.min_display_mastering_luminance,
++                ctx->in_metadata.max_display_mastering_luminance);
++    }
++
++    if (hdr_meta->has_primaries) {
++        int i;
++        const int mapping[3] = {1, 2, 0};  //green, blue, red
++        const int chroma_den = 50000;
++
++        for (i = 0; i < 3; i++) {
++            const int j = mapping[i];
++            ctx->in_metadata.display_primaries_x[i] =
++                FFMIN(lrint(chroma_den *
++                            av_q2d(hdr_meta->display_primaries[j][0])),
++                        chroma_den);
++            ctx->in_metadata.display_primaries_y[i] =
++                FFMIN(lrint(chroma_den *
++                            av_q2d(hdr_meta->display_primaries[j][1])),
++                        chroma_den);
+         }
+-    } else {
+-        av_log(avctx, AV_LOG_ERROR, "No mastering display data from input\n");
+-        return AVERROR(EINVAL);
++
++        ctx->in_metadata.white_point_x =
++            FFMIN(lrint(chroma_den * av_q2d(hdr_meta->white_point[0])),
++                    chroma_den);
++        ctx->in_metadata.white_point_y =
++            FFMIN(lrint(chroma_den * av_q2d(hdr_meta->white_point[1])),
++                    chroma_den);
++
++        av_log(avctx, AV_LOG_DEBUG,
++                "Mastering Display Metadata(in primaries):\n");
++        av_log(avctx, AV_LOG_DEBUG,
++                "G(%u,%u) B(%u,%u) R(%u,%u) WP(%u,%u)\n",
++                ctx->in_metadata.display_primaries_x[0],
++                ctx->in_metadata.display_primaries_y[0],
++                ctx->in_metadata.display_primaries_x[1],
++                ctx->in_metadata.display_primaries_y[1],
++                ctx->in_metadata.display_primaries_x[2],
++                ctx->in_metadata.display_primaries_y[2],
++                ctx->in_metadata.white_point_x,
++                ctx->in_metadata.white_point_y);
+     }
+ 
+     ctx->src_light = av_frame_get_side_data(input_frame,
+diff --git a/libavfilter/vf_vpp_qsv.c b/libavfilter/vf_vpp_qsv.c
+index 0a33c377c8..4bf8de9bb4 100644
+--- a/libavfilter/vf_vpp_qsv.c
++++ b/libavfilter/vf_vpp_qsv.c
+@@ -416,8 +416,18 @@ static int vpp_set_frame_ext_params(AVFilterContext *ctx, const AVFrame *in, AVF
+ 
+     memset(&mdcv_conf, 0, sizeof(mfxExtMasteringDisplayColourVolume));
+     sd = av_frame_get_side_data(in, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
+-    if (vpp->tonemap && sd) {
+-        AVMasteringDisplayMetadata *mdm = (AVMasteringDisplayMetadata *)sd->data;
++    if (vpp->tonemap) {
++        AVMasteringDisplayMetadata *mdm;
++        AVMasteringDisplayMetadata mdm_default;
++        if(sd){
++            mdm = (AVMasteringDisplayMetadata *)sd->data;
++        }
++        else {
++            // Since side data is not available, assigning default values for side data
++            av_log(ctx, AV_LOG_WARNING, "No mastering display metadata from input, using default values\n");
++            mdm_default = default_hdr_metadata;
++            mdm = &mdm_default;
++        }
+ 
+         if (mdm->has_primaries && mdm->has_luminance) {
+             const int mapping[3] = {1, 2, 0};
+diff --git a/libavutil/mastering_display_metadata.h b/libavutil/mastering_display_metadata.h
+index 52fcef9e37..286ec3e10c 100644
+--- a/libavutil/mastering_display_metadata.h
++++ b/libavutil/mastering_display_metadata.h
+@@ -134,4 +134,9 @@ AVContentLightMetadata *av_content_light_metadata_alloc(size_t *size);
+  */
+ AVContentLightMetadata *av_content_light_metadata_create_side_data(AVFrame *frame);
+ 
++/**
++ * Default values if the input doesn't have mastering metadata.
++ */
++extern const AVMasteringDisplayMetadata default_hdr_metadata;
++
+ #endif /* AVUTIL_MASTERING_DISPLAY_METADATA_H */
+-- 
+2.43.0
+
