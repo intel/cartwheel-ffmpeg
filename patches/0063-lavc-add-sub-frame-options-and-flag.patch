@@ -1,4 +1,4 @@
-From f2c449a62dee3804c56fc5b5356e19e08897706f Mon Sep 17 00:00:00 2001
+From 3f899c9ec23bf9f1d1fd231b3bd61275578be792 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:39 +0800
 Subject: [PATCH] lavc: add sub frame options and flag
@@ -16,7 +16,7 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  3 files changed, 24 insertions(+)
 
 diff --git a/doc/codecs.texi b/doc/codecs.texi
-index 6bdeb664e7..fdcfdcaea3 100644
+index eec5d8e8c7..fee2b4200f 100644
 --- a/doc/codecs.texi
 +++ b/doc/codecs.texi
 @@ -664,6 +664,9 @@ for codecs that support it. At present, those are H.264 and VP9.
@@ -29,24 +29,23 @@ index 6bdeb664e7..fdcfdcaea3 100644
  @item enhancements
  Export picture enhancement metadata through frame side data, e.g. LCEVC (see @code{AV_FRAME_DATA_LCEVC}).
  @end table
-@@ -1020,6 +1023,12 @@ Note: The required alignment depends on if @code{AV_CODEC_FLAG_UNALIGNED} is set
+@@ -1028,6 +1031,11 @@ Note: The required alignment depends on if @code{AV_CODEC_FLAG_UNALIGNED} is set
  CPU. @code{AV_CODEC_FLAG_UNALIGNED} cannot be changed from the command line. Also hardware
  decoders will not apply left/top Cropping.
-
+ 
 +@item sub_frame_opts @var{dict} (@emph{decoding,video})
 +Sub frames parameters, like width/height/format etc.
 +@example
 +-sub_frame_opts "width=640:height=480:format=nv12"
 +@end example
-+
-
+ 
  @end table
  
 diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index 77ca8dee1f..7fdec356fd 100644
+index 83a4e56e22..955a1dd7c3 100644
 --- a/libavcodec/avcodec.h
 +++ b/libavcodec/avcodec.h
-@@ -425,6 +425,12 @@ typedef struct RcOverride{
+@@ -405,6 +405,12 @@ typedef struct RcOverride{
   */
  #define AV_CODEC_EXPORT_DATA_ENHANCEMENTS (1 << 4)
  
@@ -59,10 +58,11 @@ index 77ca8dee1f..7fdec356fd 100644
  /**
   * The decoder will keep a reference to the frame and may reuse it later.
   */
-@@ -2086,6 +2092,13 @@ typedef struct AVCodecContext {
+@@ -1930,6 +1936,14 @@ typedef struct AVCodecContext {
+      * - decoding: Set by libavcodec
       */
-     AVFrameSideData  **decoded_side_data;
-     int             nb_decoded_side_data;
+     enum AVAlphaMode alpha_mode;
++
 +    /**
 +     * Set sub frame's parameters like: width/height/format etc.
 +     *
@@ -74,10 +74,10 @@ index 77ca8dee1f..7fdec356fd 100644
  
  /**
 diff --git a/libavcodec/options_table.h b/libavcodec/options_table.h
-index c8fc0bd532..3300b72ca2 100644
+index 8567451919..9fc0ee0857 100644
 --- a/libavcodec/options_table.h
 +++ b/libavcodec/options_table.h
-@@ -94,6 +94,7 @@ static const AVOption avcodec_options[] = {
+@@ -91,6 +91,7 @@ static const AVOption avcodec_options[] = {
  {"venc_params", "export video encoding parameters through frame side data", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_EXPORT_DATA_VIDEO_ENC_PARAMS}, INT_MIN, INT_MAX, V|D, .unit = "export_side_data"},
  {"film_grain", "export film grain parameters through frame side data", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_EXPORT_DATA_FILM_GRAIN}, INT_MIN, INT_MAX, V|D, .unit = "export_side_data"},
  {"enhancements", "export picture enhancement metadata through frame side data", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_EXPORT_DATA_ENHANCEMENTS}, INT_MIN, INT_MAX, V|D, .unit = "export_side_data"},
@@ -85,10 +85,10 @@ index c8fc0bd532..3300b72ca2 100644
  {"time_base", NULL, OFFSET(time_base), AV_OPT_TYPE_RATIONAL, {.dbl = 0}, 0, INT_MAX},
  {"g", "set the group of picture (GOP) size", OFFSET(gop_size), AV_OPT_TYPE_INT, {.i64 = 12 }, INT_MIN, INT_MAX, V|E},
  {"ar", "set audio sampling rate (in Hz)", OFFSET(sample_rate), AV_OPT_TYPE_INT, {.i64 = DEFAULT }, 0, INT_MAX, A|D|E},
-@@ -413,6 +414,7 @@ static const AVOption avcodec_options[] = {
-     {"mastering_display_metadata",  .default_val.i64 = AV_PKT_DATA_MASTERING_DISPLAY_METADATA,  .type = AV_OPT_TYPE_CONST, .flags = A|D, .unit = "side_data_pkt" },
+@@ -412,6 +413,7 @@ static const AVOption avcodec_options[] = {
      {"content_light_level",         .default_val.i64 = AV_PKT_DATA_CONTENT_LIGHT_LEVEL,         .type = AV_OPT_TYPE_CONST, .flags = A|D, .unit = "side_data_pkt" },
      {"icc_profile",                 .default_val.i64 = AV_PKT_DATA_ICC_PROFILE,                 .type = AV_OPT_TYPE_CONST, .flags = A|D, .unit = "side_data_pkt" },
+     {"exif",                        .default_val.i64 = AV_PKT_DATA_EXIF,                        .type = AV_OPT_TYPE_CONST, .flags = A|D, .unit = "side_data_pkt" },
 +{"sub_frame_opts", "set sub frame opts", OFFSET(sub_frame_opts), AV_OPT_TYPE_DICT, {.str = NULL}, -1, INT_MAX, V|D},
  {NULL},
  };

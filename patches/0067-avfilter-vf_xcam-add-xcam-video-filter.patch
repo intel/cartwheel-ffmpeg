@@ -1,4 +1,4 @@
-From 44c8dcb30827006a23e6d8a806f2e66e32968d66 Mon Sep 17 00:00:00 2001
+From 2a1d0d6ca2a8d4ac7d3ab04225f7e6ccb2b7253d Mon Sep 17 00:00:00 2001
 From: Yinhang Liu <yinhangx.liu@intel.com>
 Date: Thu, 30 Jul 2020 13:33:37 +0800
 Subject: [PATCH] avfilter/vf_xcam: add xcam video filter
@@ -54,26 +54,26 @@ Reviewed-by: Zong Wei <wei.zong@intel.com>
  create mode 100644 libavfilter/vf_xcam.c
 
 diff --git a/configure b/configure
-index 102778ba26..6331d7ee89 100755
+index 2cb39cbd57..d4132183f0 100755
 --- a/configure
 +++ b/configure
-@@ -302,6 +302,7 @@ External library support:
-   --enable-libxevd         enable EVC decoding via libxevd [no]
+@@ -306,6 +306,7 @@ External library support:
+   --enable-libxevdb        enable EVC decoding via libxevd (Base profile) [no]
    --enable-libxavs         enable AVS encoding via xavs [no]
    --enable-libxavs2        enable AVS2 encoding via xavs2 [no]
 +  --enable-libxcam         enable image processing via xcam [no]
    --enable-libxcb          enable X11 grabbing using XCB [autodetect]
    --enable-libxcb-shm      enable X11 grabbing shm communication [autodetect]
    --enable-libxcb-xfixes   enable X11 grabbing mouse rendering [autodetect]
-@@ -1976,6 +1977,7 @@ EXTERNAL_LIBRARY_LIST="
+@@ -2023,6 +2024,7 @@ EXTERNAL_LIBRARY_LIST="
      libvpx
      libvvenc
      libwebp
 +    libxcam
      libxevd
+     libxevdb
      libxeve
-     libxml2
-@@ -4009,6 +4011,7 @@ scale_vt_filter_deps="videotoolbox VTPixelTransferSessionCreate"
+@@ -4123,6 +4125,7 @@ scale_vt_filter_deps="videotoolbox VTPixelTransferSessionCreate"
  scale_vulkan_filter_deps="vulkan spirv_compiler"
  vpp_qsv_filter_deps="libmfx"
  vpp_qsv_filter_select="qsvvpp"
@@ -81,20 +81,20 @@ index 102778ba26..6331d7ee89 100755
  xfade_opencl_filter_deps="opencl"
  xfade_vulkan_filter_deps="vulkan spirv_compiler"
  yadif_cuda_filter_deps="ffnvcodec"
-@@ -7084,6 +7087,8 @@ enabled libx265           && require_pkg_config libx265 x265 x265.h x265_api_get
+@@ -7293,6 +7296,8 @@ enabled libx265           && require_pkg_config libx265 x265 x265.h x265_api_get
                               require_cpp_condition libx265 x265.h "X265_BUILD >= 89"
  enabled libxavs           && require libxavs "stdint.h xavs.h" xavs_encoder_encode "-lxavs $pthreads_extralibs $libm_extralibs"
  enabled libxavs2          && require_pkg_config libxavs2 "xavs2 >= 1.3.0" "stdint.h xavs2.h" xavs2_api_get
 +enabled libxcam           && { check_pkg_config libxcam "libxcam >= 1.4.0" "capi/xcam_handle.h" xcam_create_handle ||
 +                               die "ERROR: libXCam must be installed and version must be >= 1.4.0"; }
  enabled libxevd           && require_pkg_config libxevd "xevd >= 0.4.1" "xevd.h" xevd_decode
+ enabled libxevdb          && require_pkg_config libxevdb "xevdb >= 0.4.1" "xevd.h" xevd_decode
  enabled libxeve           && require_pkg_config libxeve "xeve >= 0.5.1" "xeve.h" xeve_encode
- enabled libxvid           && require libxvid xvid.h xvid_global -lxvidcore
 diff --git a/doc/filters.texi b/doc/filters.texi
-index c2817b2661..36a6e59917 100644
+index 8224574220..2503fdd141 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -25994,6 +25994,85 @@ can be @var{first} or @var{all}. Default is @var{all}.
+@@ -25775,6 +25775,85 @@ can be @var{first} or @var{all}. Default is @var{all}.
  
  The @code{xcorrelate} filter also supports the @ref{framesync} options.
  
@@ -181,10 +181,10 @@ index c2817b2661..36a6e59917 100644
  
  Apply cross fade from one input video stream to another input video stream.
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index b1caab7f16..f27c1acf41 100644
+index 1f5de29ba2..f965d537fd 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -564,6 +564,7 @@ OBJS-$(CONFIG_W3FDIF_FILTER)                 += vf_w3fdif.o
+@@ -573,6 +573,7 @@ OBJS-$(CONFIG_W3FDIF_FILTER)                 += vf_w3fdif.o
  OBJS-$(CONFIG_WAVEFORM_FILTER)               += vf_waveform.o
  OBJS-$(CONFIG_WEAVE_FILTER)                  += vf_weave.o
  OBJS-$(CONFIG_XBR_FILTER)                    += vf_xbr.o
@@ -193,10 +193,10 @@ index b1caab7f16..f27c1acf41 100644
  OBJS-$(CONFIG_XFADE_FILTER)                  += vf_xfade.o
  OBJS-$(CONFIG_XFADE_OPENCL_FILTER)           += vf_xfade_opencl.o opencl.o opencl/xfade.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index b0fd42992d..c75aacf336 100644
+index 84f15f85c5..9b00984f4b 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -530,6 +530,7 @@ extern const FFFilter ff_vf_w3fdif;
+@@ -538,6 +538,7 @@ extern const FFFilter ff_vf_w3fdif;
  extern const FFFilter ff_vf_waveform;
  extern const FFFilter ff_vf_weave;
  extern const FFFilter ff_vf_xbr;
@@ -206,7 +206,7 @@ index b0fd42992d..c75aacf336 100644
  extern const FFFilter ff_vf_xfade_opencl;
 diff --git a/libavfilter/vf_xcam.c b/libavfilter/vf_xcam.c
 new file mode 100644
-index 0000000000..87c32fcf55
+index 0000000000..5b58b000de
 --- /dev/null
 +++ b/libavfilter/vf_xcam.c
 @@ -0,0 +1,327 @@

@@ -1,4 +1,4 @@
-From 3c40560035d4574fca45b6febbd7ea9195ece1e8 Mon Sep 17 00:00:00 2001
+From 9c785777f4945eba68a9442e729d84665da07793 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang-at-intel.com@ffmpeg.org>
 Date: Fri, 29 Apr 2022 15:59:38 +0800
 Subject: [PATCH] lavu: add sub frame side data
@@ -24,20 +24,21 @@ Signed-off-by: Fei Wang <fei.w.wang@intel.com>
  create mode 100644 libavutil/sub_frame_metadata.h
 
 diff --git a/libavutil/Makefile b/libavutil/Makefile
-index b7ed339ab3..bfcd57f800 100644
+index ee77e51c08..e81568f296 100644
 --- a/libavutil/Makefile
 +++ b/libavutil/Makefile
-@@ -97,7 +97,8 @@ HEADERS = adler32.h                                                     \
+@@ -99,7 +99,9 @@ HEADERS = adler32.h                                                     \
            xtea.h                                                        \
            tea.h                                                         \
            tx.h                                                          \
 -          video_hint.h
-+          video_hint.h							\
++          video_hint.h                                                  \
 +          sub_frame_metadata.h
++
  
  ARCH_HEADERS = bswap.h                                                  \
                 intmath.h                                                \
-@@ -197,6 +198,7 @@ OBJS = adler32.o                                                        \
+@@ -201,6 +203,7 @@ OBJS = adler32.o                                                        \
         version.o                                                        \
         video_enc_params.o                                               \
         video_hint.o                                                     \
@@ -46,10 +47,10 @@ index b7ed339ab3..bfcd57f800 100644
  
  OBJS-$(CONFIG_CUDA)                     += hwcontext_cuda.o
 diff --git a/libavutil/frame.c b/libavutil/frame.c
-index 71bde48f8b..9a57f60b8c 100644
+index be30eb09d2..180e9c511c 100644
 --- a/libavutil/frame.c
 +++ b/libavutil/frame.c
-@@ -280,7 +280,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
+@@ -251,7 +251,9 @@ static int frame_copy_props(AVFrame *dst, const AVFrame *src, int force_copy)
          if (   sd_src->type == AV_FRAME_DATA_PANSCAN
              && (src->width != dst->width || src->height != dst->height))
              continue;
@@ -61,36 +62,36 @@ index 71bde48f8b..9a57f60b8c 100644
                                              sd_src->size);
              if (!sd_dst) {
 diff --git a/libavutil/frame.h b/libavutil/frame.h
-index 49260ae2dd..2d96379ebe 100644
+index 088b24b717..713a481761 100644
 --- a/libavutil/frame.h
 +++ b/libavutil/frame.h
-@@ -243,6 +243,11 @@ enum AVFrameSideDataType {
-      * The data is an int storing the view ID.
+@@ -244,6 +244,11 @@ enum AVFrameSideDataType {
       */
      AV_FRAME_DATA_VIEW_ID,
-+
+ 
 +    /**
 +     * Sub frame of a target frame, as described by AVFrame.
 +     */
 +    AV_FRAME_DATA_SUB_FRAME,
- };
- 
- enum AVActiveFormatDescription {
++
+     /**
+      * This side data contains information about the reference display width(s)
+      * and reference viewing distance(s) as well as information about the
 diff --git a/libavutil/side_data.c b/libavutil/side_data.c
-index 17965f2d3c..de746598bf 100644
+index 8df117478a..17e9bb2ce2 100644
 --- a/libavutil/side_data.c
 +++ b/libavutil/side_data.c
-@@ -54,6 +54,7 @@ static const AVSideDataDescriptor sd_props[] = {
-     [AV_FRAME_DATA_SPHERICAL]                   = { "Spherical Mapping",                            AV_SIDE_DATA_PROP_GLOBAL | AV_SIDE_DATA_PROP_SIZE_DEPENDENT },
+@@ -55,6 +55,7 @@ static const AVSideDataDescriptor sd_props[] = {
      [AV_FRAME_DATA_ICC_PROFILE]                 = { "ICC profile",                                  AV_SIDE_DATA_PROP_GLOBAL | AV_SIDE_DATA_PROP_COLOR_DEPENDENT },
+     [AV_FRAME_DATA_EXIF]                        = { "EXIF metadata",                                AV_SIDE_DATA_PROP_GLOBAL },
      [AV_FRAME_DATA_SEI_UNREGISTERED]            = { "H.26[45] User Data Unregistered SEI message",  AV_SIDE_DATA_PROP_MULTI },
 +    [AV_FRAME_DATA_SUB_FRAME]                   = { "Sub frame Metadata" },
      [AV_FRAME_DATA_VIDEO_HINT]                  = { "Encoding video hint",                          AV_SIDE_DATA_PROP_SIZE_DEPENDENT },
+     [AV_FRAME_DATA_3D_REFERENCE_DISPLAYS]       = { "3D Reference Displays Information",            AV_SIDE_DATA_PROP_GLOBAL },
  };
- 
 diff --git a/libavutil/sub_frame_metadata.c b/libavutil/sub_frame_metadata.c
 new file mode 100644
-index 0000000000..82ea32383f
+index 0000000000..cb76e7ae13
 --- /dev/null
 +++ b/libavutil/sub_frame_metadata.c
 @@ -0,0 +1,61 @@

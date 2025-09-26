@@ -1,4 +1,4 @@
-From 85b7306c95d044c090bbfb2636639687be7fd070 Mon Sep 17 00:00:00 2001
+From 756471a008a2c0cb96a05b6afdbe02bdaace968a Mon Sep 17 00:00:00 2001
 From: Soft Works <softworkz@hotmail.com>
 Date: Thu, 25 Nov 2021 02:41:32 +0000
 Subject: [PATCH 09/46] avutils/hwcontext: When deriving a hwdevice, search for
@@ -65,11 +65,11 @@ Signed-off-by: Haihao Xiang <haihao.xiang@intel.com>
  4 files changed, 74 insertions(+), 18 deletions(-)
 
 diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
-index f06d49c45c..16fdacdf2f 100644
+index 83bd7457e8..d1e5de54fd 100644
 --- a/libavutil/hwcontext.c
 +++ b/libavutil/hwcontext.c
-@@ -88,21 +88,6 @@ static const char *const hw_type_names[] = {
-     [AV_HWDEVICE_TYPE_AMF] = "amf",
+@@ -92,21 +92,6 @@ static const char *const hw_type_names[] = {
+     [AV_HWDEVICE_TYPE_OHCODEC] = "ohcodec",
  };
  
 -typedef struct FFHWDeviceContext {
@@ -90,7 +90,7 @@ index f06d49c45c..16fdacdf2f 100644
  enum AVHWDeviceType av_hwdevice_find_type_by_name(const char *name)
  {
      int type;
-@@ -147,6 +132,7 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
+@@ -158,6 +143,7 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
  {
      FFHWDeviceContext *ctxi = (FFHWDeviceContext*)data;
      AVHWDeviceContext *ctx  = &ctxi->p;
@@ -98,7 +98,7 @@ index f06d49c45c..16fdacdf2f 100644
  
      /* uninit might still want access the hw context and the user
       * free() callback might destroy it, so uninit has to be called first */
-@@ -157,6 +143,8 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
+@@ -168,6 +154,8 @@ static void hwdevice_ctx_free(void *opaque, uint8_t *data)
          ctx->free(ctx);
  
      av_buffer_unref(&ctxi->source_device);
@@ -107,7 +107,7 @@ index f06d49c45c..16fdacdf2f 100644
  
      av_freep(&ctx->hwctx);
      av_freep(&ctx);
-@@ -637,6 +625,28 @@ fail:
+@@ -648,6 +636,28 @@ fail:
      return ret;
  }
  
@@ -136,7 +136,7 @@ index f06d49c45c..16fdacdf2f 100644
  int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
                                          enum AVHWDeviceType type,
                                          AVBufferRef *src_ref,
-@@ -660,6 +670,16 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
+@@ -671,6 +681,16 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
          tmp_ref = tmp_ctx->source_device;
      }
  
@@ -153,7 +153,7 @@ index f06d49c45c..16fdacdf2f 100644
      dst_ref = av_hwdevice_ctx_alloc(type);
      if (!dst_ref) {
          ret = AVERROR(ENOMEM);
-@@ -680,6 +700,11 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
+@@ -691,6 +711,11 @@ int av_hwdevice_ctx_create_derived_opts(AVBufferRef **dst_ref_ptr,
                      ret = AVERROR(ENOMEM);
                      goto fail;
                  }
@@ -166,24 +166,24 @@ index f06d49c45c..16fdacdf2f 100644
                  if (ret < 0)
                      goto fail;
 diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
-index 96042ba197..13eb55f49c 100644
+index 29374cf0a7..a4c29998d5 100644
 --- a/libavutil/hwcontext.h
 +++ b/libavutil/hwcontext.h
-@@ -39,6 +39,7 @@ enum AVHWDeviceType {
-     AV_HWDEVICE_TYPE_VULKAN,
-     AV_HWDEVICE_TYPE_D3D12VA,
+@@ -41,6 +41,7 @@ enum AVHWDeviceType {
      AV_HWDEVICE_TYPE_AMF,
+     /* OpenHarmony Codec device */
+     AV_HWDEVICE_TYPE_OHCODEC,
 +    AV_HWDEVICE_TYPE_NB,          ///< number of hw device types, not part of API/ABI.
  };
  
  /**
 diff --git a/libavutil/hwcontext_internal.h b/libavutil/hwcontext_internal.h
-index db23579c9e..e24904e9cc 100644
+index dcfdc2016a..88e7823945 100644
 --- a/libavutil/hwcontext_internal.h
 +++ b/libavutil/hwcontext_internal.h
-@@ -165,4 +165,25 @@ extern const HWContextType ff_hwcontext_type_mediacodec;
- extern const HWContextType ff_hwcontext_type_vulkan;
+@@ -166,4 +166,25 @@ extern const HWContextType ff_hwcontext_type_vulkan;
  extern const HWContextType ff_hwcontext_type_amf;
+ extern const HWContextType ff_hwcontext_type_oh;
  
 +typedef struct FFHWDeviceContext {
 +    /**
@@ -208,7 +208,7 @@ index db23579c9e..e24904e9cc 100644
 +
  #endif /* AVUTIL_HWCONTEXT_INTERNAL_H */
 diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
-index 721c841c2a..24ff173cbb 100644
+index b92c9cb0ad..68518edfe4 100644
 --- a/libavutil/hwcontext_qsv.c
 +++ b/libavutil/hwcontext_qsv.c
 @@ -379,7 +379,7 @@ static void qsv_frames_uninit(AVHWFramesContext *ctx)

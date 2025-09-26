@@ -1,4 +1,4 @@
-From b61f88ad16f0a6e558c9e1d157831af46367304e Mon Sep 17 00:00:00 2001
+From 4f291ec1161b9b352b72d3c1abdffeda0c02672f Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 4 Jul 2022 16:09:53 +0800
 Subject: [PATCH 1/5] avutil/hwcontext: add a function to get the
@@ -14,11 +14,11 @@ Signed-off-by: Tong Wu <tong1.wu@intel.com>
  2 files changed, 23 insertions(+)
 
 diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
-index 16fdacdf2f..3684dc132d 100644
+index d1e5de54fd..317bf20639 100644
 --- a/libavutil/hwcontext.c
 +++ b/libavutil/hwcontext.c
-@@ -88,6 +88,17 @@ static const char *const hw_type_names[] = {
-     [AV_HWDEVICE_TYPE_AMF] = "amf",
+@@ -92,6 +92,17 @@ static const char *const hw_type_names[] = {
+     [AV_HWDEVICE_TYPE_OHCODEC] = "ohcodec",
  };
  
 +enum AVHWDeviceType av_hwdevice_get_type_by_pix_fmt(enum AVPixelFormat fmt)
@@ -36,10 +36,10 @@ index 16fdacdf2f..3684dc132d 100644
  {
      int type;
 diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
-index 13eb55f49c..c1a8fe43a5 100644
+index a4c29998d5..0bfe40383b 100644
 --- a/libavutil/hwcontext.h
 +++ b/libavutil/hwcontext.h
-@@ -219,6 +219,18 @@ typedef struct AVHWFramesContext {
+@@ -221,6 +221,18 @@ typedef struct AVHWFramesContext {
      int width, height;
  } AVHWFramesContext;
  
