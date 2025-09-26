@@ -22,7 +22,7 @@ index daf358b95b..f8765f11a1 100755
 +++ b/configure
 @@ -6930,6 +6930,14 @@ elif enabled libvpl; then
              die "ERROR: libvpl >= 2.6 not found"
-     add_cflags -DMFX_DEPRECATED_OFF
+     add_cppflags -DMFX_DEPRECATED_OFF
      check_type "vpl/mfxdefs.h vpl/mfxvideo.h" "struct mfxConfigInterface"
 +    add_cflags -DONEVPL_EXPERIMENTAL
 +    check_cc AV1_SCC_ENCODE "mfxstructures.h" "MFX_EXTBUFF_AV1_SCREEN_CONTENT_TOOLS" && add_cflags -DQSV_HAVE_EXT_AV1_SCC

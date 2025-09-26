@@ -72,7 +72,7 @@ index f029ac5c88..a3163a0033 100644
                      }
                  }
              }
- 
+
 -            /**
 -             * Couldn't merge format lists; auto-insert conversion filters
 -             * in reverse order to keep the order consistent with the list
