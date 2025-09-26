@@ -1,4 +1,4 @@
-From 25823b80e7ecd155d190c84f78885e70c009f934 Mon Sep 17 00:00:00 2001
+From 24d5962feed2b66f2b57e9b7955fe685b021a56c Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 4 Jul 2022 16:09:57 +0800
 Subject: [PATCH 3/3] lavfi/format: add a hwmap auto conversion filter
@@ -10,17 +10,17 @@ an auto hwmap filter to do the hwmap conversion automatically.
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
- libavfilter/avfiltergraph.c | 3 ++-
- libavfilter/formats.c       | 4 ++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ libavfilter/avfiltergraph.c | 24 +++---------------------
+ libavfilter/formats.c       |  4 ++++
+ 2 files changed, 7 insertions(+), 21 deletions(-)
 
 diff --git a/libavfilter/avfiltergraph.c b/libavfilter/avfiltergraph.c
-index d3ecdda070..db79ef0f5f 100644
+index a3163a0033..f2bced36a4 100644
 --- a/libavfilter/avfiltergraph.c
 +++ b/libavfilter/avfiltergraph.c
-@@ -400,7 +400,8 @@ static int insert_auto_filter(AVFilterContext **convert, AVFilterGraph *graph,
+@@ -451,7 +451,8 @@ static int insert_auto_filter(AVFilterContext **convert, AVFilterGraph *graph,
+     const AVFilter *filter;
      AVFilterContext *ctx;
-     AVFilterLink *inlink, *outlink;
      char inst_name[30];
 -    const char *opts = FF_FIELD_AT(char *, neg->conversion_filters[conv_step].conversion_opts_offset, *graph);
 +    const char *opts = neg->conversion_filters[conv_step].conversion_opts_offset == 0 ? NULL :
@@ -28,11 +28,53 @@ index d3ecdda070..db79ef0f5f 100644
      const char *name = neg->conversion_filters[conv_step].conversion_filter;
  
      if (!(filter = avfilter_get_by_name(name))) {
+@@ -624,7 +625,6 @@ static int query_formats(AVFilterGraph *graph, void *log_ctx)
+     }
+ 
+     /* go through and merge as many format lists as possible */
+-retry:
+     for (i = 0; i < graph->nb_filters; i++) {
+         AVFilterContext *filter = graph->filters[i];
+ 
+@@ -638,24 +638,6 @@ retry:
+ 
+             neg = ff_filter_get_negotiation(link);
+             av_assert0(neg);
+-            for (neg_step = 0; neg_step < neg->nb_mergers; neg_step++) {
+-                const AVFilterFormatsMerger *m = &neg->mergers[neg_step];
+-                void *a = FF_FIELD_AT(void *, m->offset, link->incfg);
+-                void *b = FF_FIELD_AT(void *, m->offset, link->outcfg);
+-                if (a && b && a != b && !m->can_merge(a, b)) {
+-                    for (k = 0; k < num_conv; k++) {
+-                        if (conv_filters[k] == m->conversion_filter)
+-                            break;
+-                    }
+-                    if (k == num_conv) {
+-                        av_assert1(num_conv < FF_ARRAY_ELEMS(conv_filters));
+-                        conv_filters[num_conv] = m->conversion_filter;
+-                        if (m->conversion_opts_offset)
+-                            conv_opts[num_conv] = FF_FIELD_AT(char *, m->conversion_opts_offset, *graph);
+-                        num_conv++;
+-                    }
+-                }
+-            }
+             for (neg_step = 0; neg_step < neg->nb_mergers; neg_step++) {
+                 const AVFilterFormatsMerger *m = &neg->mergers[neg_step];
+                 void *a = FF_FIELD_AT(void *, m->offset, link->incfg);
+@@ -664,7 +646,7 @@ retry:
+                     count_delayed++;
+                 } else if (a == b) {
+                     count_already_merged++;
+-                } else if (!num_conv) {
++                } else {
+                     count_merged++;
+                     ret = m->merge(a, b);
+                     if (ret < 0)
 diff --git a/libavfilter/formats.c b/libavfilter/formats.c
-index 63adf2d485..54fd17477f 100644
+index df341160d8..d4d6906a57 100644
 --- a/libavfilter/formats.c
 +++ b/libavfilter/formats.c
-@@ -386,6 +386,10 @@ static const AVFilterFormatsFilter filters_video[] = {
+@@ -406,6 +406,10 @@ static const AVFilterFormatsFilter filters_video[] = {
          .conversion_filter = "scale",
          .conversion_opts_offset = offsetof(AVFilterGraph, scale_sws_opts),
      },
