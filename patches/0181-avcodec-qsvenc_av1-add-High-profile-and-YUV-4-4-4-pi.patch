@@ -1,0 +1,45 @@
+From 3172affbe942a0323527640af9452f3f769d2a99 Mon Sep 17 00:00:00 2001
+From: "Kumar, Sachin" <sachin.kumar@intel.com>
+Date: Tue, 3 Mar 2026 10:38:07 +0530
+Subject: [PATCH] avcodec/qsvenc_av1: add High profile and YUV 4:4:4 pixel
+ format support
+
+AV1 High profile (MFX_PROFILE_AV1_HIGH, profile_idc=2) is required
+for 4:4:4 chroma subsampling. Expose it as a selectable profile option
+alongside the existing main/unknown entries.
+
+Add AV_PIX_FMT_VUYX (YUV 4:4:4 8-bit packed) and AV_PIX_FMT_XV30
+(YUV 4:4:4 10-bit packed) to CODEC_PIXFMTS so the format negotiation
+path can select them.
+
+Signed-off-by: Kumar, Sachin <sachin.kumar@intel.com>
+---
+ libavcodec/qsvenc_av1.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
+index c7aa6e58d5..65c8729647 100644
+--- a/libavcodec/qsvenc_av1.c
++++ b/libavcodec/qsvenc_av1.c
+@@ -186,6 +186,7 @@ static const AVOption options[] = {
+     { "profile", NULL, OFFSET(qsv.profile), AV_OPT_TYPE_INT, { .i64 = MFX_PROFILE_UNKNOWN }, 0, INT_MAX, VE, .unit = "profile" },
+         { "unknown" , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_UNKNOWN      }, INT_MIN, INT_MAX,     VE, .unit = "profile" },
+         { "main"    , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_AV1_MAIN     }, INT_MIN, INT_MAX,     VE, .unit = "profile" },
++        { "high"    , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_AV1_HIGH     }, INT_MIN, INT_MAX,     VE, .unit = "profile" },
+     { "tile_cols",  "Number of columns for tiled encoding",   OFFSET(qsv.tile_cols),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
+     { "tile_rows",  "Number of rows for tiled encoding",      OFFSET(qsv.tile_rows),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
+     { "look_ahead_depth", "Depth of look ahead in number frames, available when extbrc option is enabled", OFFSET(qsv.look_ahead_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 100, VE },
+@@ -217,7 +218,9 @@ FFCodec ff_av1_qsv_encoder = {
+     FF_CODEC_ENCODE_CB(qsv_enc_frame),
+     .close            = qsv_enc_close,
+     .p.capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HYBRID,
+-    CODEC_PIXFMTS(AV_PIX_FMT_NV12, AV_PIX_FMT_P010, AV_PIX_FMT_QSV),
++    CODEC_PIXFMTS(AV_PIX_FMT_NV12, AV_PIX_FMT_P010,
++                  AV_PIX_FMT_VUYX, AV_PIX_FMT_XV30,
++                  AV_PIX_FMT_QSV),
+     .color_ranges     = AVCOL_RANGE_MPEG | AVCOL_RANGE_JPEG,
+     .p.priv_class     = &class,
+     .defaults       = qsv_enc_defaults,
+-- 
+2.34.1
+
