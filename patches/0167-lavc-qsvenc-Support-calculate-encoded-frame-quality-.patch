@@ -1,7 +1,7 @@
-From ba65bc901db4824b3dc9df2e8f076e151687c4a1 Mon Sep 17 00:00:00 2001
+From 5b1f91a218885d4d93528781ce7b77a6bf43cab1 Mon Sep 17 00:00:00 2001
 From: Fei Wang <fei.w.wang@intel.com>
 Date: Fri, 16 Aug 2024 21:58:32 +0800
-Subject: [PATCH 3/4] lavc/qsvenc: Support calculate encoded frame
+Subject: [PATCH 34/37] lavc/qsvenc: Support calculate encoded frame
  quality(MSE/PSNR) when encoding
 
 Once the '-mse' option enabled, MSE/PSNR of each frame will be shown in
@@ -10,18 +10,18 @@ VERBOSE debug level log.
 Signed-off-by: Fei Wang <fei.w.wang@intel.com>
 ---
  doc/encoders.texi        |   4 +
- libavcodec/qsvenc.c      | 162 +++++++++++++++++++++++++++++++++++----
+ libavcodec/qsvenc.c      | 164 +++++++++++++++++++++++++++++++++++----
  libavcodec/qsvenc.h      |  11 +++
  libavcodec/qsvenc_av1.c  |   3 +
  libavcodec/qsvenc_h264.c |   3 +
  libavcodec/qsvenc_hevc.c |   3 +
- 6 files changed, 172 insertions(+), 14 deletions(-)
+ 6 files changed, 173 insertions(+), 15 deletions(-)
 
 diff --git a/doc/encoders.texi b/doc/encoders.texi
-index 9d6be0bdef..5770269a14 100644
+index da1efdb529..e0e7b7a251 100644
 --- a/doc/encoders.texi
 +++ b/doc/encoders.texi
-@@ -3624,6 +3624,10 @@ ffmpeg -i input.mp4 -c:v h264_qsv -qsv_params "CodingOption1=1:CodingOption2=2"
+@@ -3901,6 +3901,10 @@ ffmpeg -i input.mp4 -c:v h264_qsv -qsv_params "CodingOption1=1:CodingOption2=2"
  @end example
  
  This option allows fine-grained control over various encoder-specific settings provided by the QSV encoder.
@@ -33,10 +33,10 @@ index 9d6be0bdef..5770269a14 100644
  
  @subsection H264 options
 diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
-index ee5f7548b6..14b32abd50 100644
+index 50015f78b7..9c1f7dfe1e 100644
 --- a/libavcodec/qsvenc.c
 +++ b/libavcodec/qsvenc.c
-@@ -95,6 +95,9 @@ typedef struct QSVPacket {
+@@ -93,6 +93,9 @@ typedef struct QSVPacket {
      AVPacket        pkt;
      mfxSyncPoint   *sync;
      mfxBitstream   *bs;
@@ -46,7 +46,7 @@ index ee5f7548b6..14b32abd50 100644
  } QSVPacket;
  
  static const char *print_profile(enum AVCodecID codec_id, mfxU16 profile)
-@@ -206,6 +209,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -204,6 +207,9 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
  #if QSV_HAVE_AC
      mfxExtAlphaChannelEncCtrl *extalphachannel = NULL;
  #endif
@@ -56,7 +56,7 @@ index ee5f7548b6..14b32abd50 100644
  
      const char *tmp_str = NULL;
      mfxExtHEVCParam *exthevcparam = NULL;
-@@ -229,6 +235,11 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -227,6 +233,11 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
          extalphachannel = (mfxExtAlphaChannelEncCtrl *)coding_opts[q->extaplhachannel_idx];
  #endif
  
@@ -68,7 +68,7 @@ index ee5f7548b6..14b32abd50 100644
      if (q->exthevcparam_idx > 0)
          exthevcparam = (mfxExtHEVCParam *)coding_opts[q->exthevcparam_idx];
      av_log(avctx, AV_LOG_VERBOSE, "profile: %s; level: %"PRIu16"\n",
-@@ -433,6 +444,22 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -431,6 +442,22 @@ static void dump_video_param(AVCodecContext *avctx, QSVEncContext *q,
          av_log(avctx, AV_LOG_VERBOSE, "\n");
      }
  #endif
@@ -91,7 +91,7 @@ index ee5f7548b6..14b32abd50 100644
  }
  
  static void dump_video_vp9_param(AVCodecContext *avctx, QSVEncContext *q,
-@@ -530,6 +557,9 @@ static void dump_video_av1_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -528,6 +555,9 @@ static void dump_video_av1_param(AVCodecContext *avctx, QSVEncContext *q,
  #if QSV_HAVE_EXT_AV1_SCC
      mfxExtAV1ScreenContentTools *scc = (mfxExtAV1ScreenContentTools*)coding_opts[4];
  #endif
@@ -101,7 +101,7 @@ index ee5f7548b6..14b32abd50 100644
  
      av_log(avctx, AV_LOG_VERBOSE, "profile: %s; level: %"PRIu16"\n",
             print_profile(avctx->codec_id, info->CodecProfile), info->CodecLevel);
-@@ -610,6 +640,21 @@ static void dump_video_av1_param(AVCodecContext *avctx, QSVEncContext *q,
+@@ -608,6 +638,21 @@ static void dump_video_av1_param(AVCodecContext *avctx, QSVEncContext *q,
                 print_threestate(scc->Palette), print_threestate(scc->IntraBlockCopy));
      }
  #endif
@@ -123,7 +123,7 @@ index ee5f7548b6..14b32abd50 100644
  }
  #endif
  
-@@ -1392,6 +1437,21 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1390,6 +1435,21 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
      }
  #endif
  
@@ -145,7 +145,7 @@ index ee5f7548b6..14b32abd50 100644
      if (!check_enc_param(avctx,q)) {
          av_log(avctx, AV_LOG_ERROR,
                 "some encoding parameters are not supported by the QSV "
-@@ -1506,6 +1566,12 @@ static int qsv_retrieve_enc_av1_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1504,6 +1564,12 @@ static int qsv_retrieve_enc_av1_params(AVCodecContext *avctx, QSVEncContext *q)
      };
  #endif
  
@@ -158,7 +158,7 @@ index ee5f7548b6..14b32abd50 100644
      mfxExtBuffer *ext_buffers[] = {
          (mfxExtBuffer*)&av1_extend_tile_buf,
          (mfxExtBuffer*)&av1_bs_param,
-@@ -1513,6 +1579,9 @@ static int qsv_retrieve_enc_av1_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1511,6 +1577,9 @@ static int qsv_retrieve_enc_av1_params(AVCodecContext *avctx, QSVEncContext *q)
          (mfxExtBuffer*)&co3,
  #if QSV_HAVE_EXT_AV1_SCC
          (mfxExtBuffer*)&scc_buf,
@@ -168,7 +168,7 @@ index ee5f7548b6..14b32abd50 100644
  #endif
      };
  
-@@ -1590,12 +1659,19 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1588,12 +1657,19 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
      };
  #endif
  
@@ -189,7 +189,7 @@ index ee5f7548b6..14b32abd50 100644
      int need_pps = avctx->codec_id != AV_CODEC_ID_MPEG2VIDEO;
      int ret, ext_buf_num = 0, extradata_offset = 0;
  
-@@ -1636,6 +1712,13 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
+@@ -1634,6 +1710,13 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
      }
  #endif
  
@@ -203,7 +203,7 @@ index ee5f7548b6..14b32abd50 100644
      if (avctx->codec_id == AV_CODEC_ID_HEVC && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 0)) {
          q->exthevcparam_idx = ext_buf_num;
          ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&hevc_param_buf;
-@@ -2256,7 +2339,8 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
+@@ -2254,7 +2337,8 @@ static int submit_frame(QSVEncContext *q, const AVFrame *frame,
              return ret;
          }
      }
@@ -213,7 +213,7 @@ index ee5f7548b6..14b32abd50 100644
  
      *new_frame = qf;
  
-@@ -2606,11 +2690,15 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+@@ -2604,11 +2688,15 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
  {
      QSVPacket pkt = { { 0 } };
      mfxExtAVCEncodedFrameInfo *enc_info = NULL;
@@ -229,7 +229,7 @@ index ee5f7548b6..14b32abd50 100644
      int ret;
  
      if (frame) {
-@@ -2650,13 +2738,30 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
+@@ -2648,13 +2736,30 @@ static int encode_frame(AVCodecContext *avctx, QSVEncContext *q,
  
          enc_info->Header.BufferId = MFX_EXTBUFF_ENCODED_FRAME_INFO;
          enc_info->Header.BufferSz = sizeof (*enc_info);
@@ -264,7 +264,7 @@ index ee5f7548b6..14b32abd50 100644
      }
  
      if (q->set_encode_ctrl_cb && enc_ctrl) {
-@@ -2711,8 +2816,13 @@ free:
+@@ -2709,8 +2814,13 @@ free:
          av_freep(&pkt.bs);
          if (avctx->codec_id == AV_CODEC_ID_H264) {
              av_freep(&enc_info);
@@ -279,7 +279,7 @@ index ee5f7548b6..14b32abd50 100644
      }
  
      return ret;
-@@ -2798,7 +2908,7 @@ int ff_qsv_encode(AVCodecContext *avctx, QSVEncContext *q,
+@@ -2796,7 +2906,7 @@ int ff_qsv_encode(AVCodecContext *avctx, QSVEncContext *q,
          (!frame && av_fifo_can_read(q->async_fifo))) {
          QSVPacket qpkt;
          mfxExtAVCEncodedFrameInfo *enc_info;
@@ -288,15 +288,16 @@ index ee5f7548b6..14b32abd50 100644
          enum AVPictureType pict_type;
  
          av_fifo_read(q->async_fifo, &qpkt, 1);
-@@ -2831,13 +2941,29 @@ int ff_qsv_encode(AVCodecContext *avctx, QSVEncContext *q,
+@@ -2829,13 +2939,29 @@ int ff_qsv_encode(AVCodecContext *avctx, QSVEncContext *q,
          }
  
          if (avctx->codec_id == AV_CODEC_ID_H264) {
 -            enc_buf = qpkt.bs->ExtParam;
 -            enc_info = (mfxExtAVCEncodedFrameInfo *)(*enc_buf);
+-            ff_encode_add_stats_side_data(&qpkt.pkt,
 +            enc_buf = qpkt.bs->ExtParam[qpkt.frameinfo_buf_idx];
 +            enc_info = (mfxExtAVCEncodedFrameInfo *)enc_buf;
-             ff_side_data_set_encoder_stats(&qpkt.pkt,
++            ff_side_data_set_encoder_stats(&qpkt.pkt,
                  enc_info->QP * FF_QP2LAMBDA, NULL, 0, pict_type);
              av_freep(&enc_info);
 -            av_freep(&enc_buf);
@@ -321,7 +322,7 @@ index ee5f7548b6..14b32abd50 100644
          av_freep(&qpkt.bs);
          av_freep(&qpkt.sync);
  
-@@ -2875,11 +3001,19 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
+@@ -2873,11 +2999,19 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
          QSVPacket pkt;
          while (av_fifo_read(q->async_fifo, &pkt, 1) >= 0) {
              if (avctx->codec_id == AV_CODEC_ID_H264) {
@@ -345,10 +346,10 @@ index ee5f7548b6..14b32abd50 100644
              av_freep(&pkt.bs);
              av_packet_unref(&pkt.pkt);
 diff --git a/libavcodec/qsvenc.h b/libavcodec/qsvenc.h
-index 378460c6fe..56308ed844 100644
+index f67113ca6c..3849d7b0ef 100644
 --- a/libavcodec/qsvenc.h
 +++ b/libavcodec/qsvenc.h
-@@ -41,6 +41,7 @@
+@@ -39,6 +39,7 @@
  #define QSV_HAVE_EXT_VP9_TILES QSV_VERSION_ATLEAST(1, 29)
  #define QSV_HAVE_EXT_AV1_PARAM QSV_VERSION_ATLEAST(2, 5)
  #define QSV_HAVE_EXT_AV1_SCC   QSV_VERSION_ATLEAST(2, 13)
@@ -356,7 +357,7 @@ index 378460c6fe..56308ed844 100644
  
  #if defined(_WIN32) || defined(__CYGWIN__)
  #define QSV_HAVE_AVBR   1
-@@ -153,6 +154,11 @@
+@@ -151,6 +152,11 @@
  { "brc_only",       "skip_frame metadata indicates the number of missed frames before the current frame", \
      0, AV_OPT_TYPE_CONST, { .i64 = MFX_SKIPFRAME_BRC_ONLY },          .flags = VE, .unit = "skip_frame" },
  
@@ -368,7 +369,7 @@ index 378460c6fe..56308ed844 100644
  extern const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[];
  
  typedef int SetEncodeCtrlCB (AVCodecContext *avctx,
-@@ -200,6 +206,9 @@ typedef struct QSVEncContext {
+@@ -198,6 +204,9 @@ typedef struct QSVEncContext {
  #if QSV_HAVE_EXT_AV1_SCC
      mfxExtAV1ScreenContentTools extsccparam;
  #endif
@@ -378,7 +379,7 @@ index 378460c6fe..56308ed844 100644
  
      mfxExtVideoSignalInfo extvsi;
  
-@@ -285,6 +294,7 @@ typedef struct QSVEncContext {
+@@ -283,6 +292,7 @@ typedef struct QSVEncContext {
      int extaplhachannel_idx;
      int exthevctiles_idx;
      int exthypermodeparam_idx;
@@ -386,7 +387,7 @@ index 378460c6fe..56308ed844 100644
      int vp9_idx;
  
      int max_qp_i;
-@@ -338,6 +348,7 @@ typedef struct QSVEncContext {
+@@ -336,6 +346,7 @@ typedef struct QSVEncContext {
      int alpha_encode;
      int palette_mode;
      int intrabc;
@@ -395,10 +396,10 @@ index 378460c6fe..56308ed844 100644
  
  int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
 diff --git a/libavcodec/qsvenc_av1.c b/libavcodec/qsvenc_av1.c
-index eb59ce2e83..d45783fb43 100644
+index 32b79c7da0..b84bad46dc 100644
 --- a/libavcodec/qsvenc_av1.c
 +++ b/libavcodec/qsvenc_av1.c
-@@ -185,6 +185,9 @@ static const AVOption options[] = {
+@@ -183,6 +183,9 @@ static const AVOption options[] = {
      QSV_OPTION_EXTBRC
      QSV_OPTION_LOW_DELAY_BRC
      QSV_OPTION_MAX_FRAME_SIZE
@@ -409,7 +410,7 @@ index eb59ce2e83..d45783fb43 100644
          { "unknown" , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_UNKNOWN      }, INT_MIN, INT_MAX,     VE, .unit = "profile" },
          { "main"    , NULL, 0, AV_OPT_TYPE_CONST, { .i64 = MFX_PROFILE_AV1_MAIN     }, INT_MIN, INT_MAX,     VE, .unit = "profile" },
 diff --git a/libavcodec/qsvenc_h264.c b/libavcodec/qsvenc_h264.c
-index 53e4e744b2..652c2ac559 100644
+index 7d39338d6a..175eb12906 100644
 --- a/libavcodec/qsvenc_h264.c
 +++ b/libavcodec/qsvenc_h264.c
 @@ -120,6 +120,9 @@ static const AVOption options[] = {
@@ -423,7 +424,7 @@ index 53e4e744b2..652c2ac559 100644
      { "cavlc",          "Enable CAVLC",                           OFFSET(qsv.cavlc),          AV_OPT_TYPE_BOOL, { .i64 = 0 },   0,          1, VE },
  #if QSV_HAVE_VCM
 diff --git a/libavcodec/qsvenc_hevc.c b/libavcodec/qsvenc_hevc.c
-index fa3ddb18bb..a687af72a4 100644
+index 3cc983fcad..f07e5fcd5f 100644
 --- a/libavcodec/qsvenc_hevc.c
 +++ b/libavcodec/qsvenc_hevc.c
 @@ -323,6 +323,9 @@ static const AVOption options[] = {

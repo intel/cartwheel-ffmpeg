@@ -1,18 +1,19 @@
-From bf6812ea9f780401c02c0d4015ad898576d6f4e3 Mon Sep 17 00:00:00 2001
+From 63c4968f41ff8e77584ba1d5463840f66e734358 Mon Sep 17 00:00:00 2001
 From: Wenbin Chen <wenbin.chen@intel.com>
 Date: Tue, 14 Nov 2023 16:38:52 +0800
-Subject: [PATCH] libavfilter/dnn/dnn_backend_torch: Add async to torch backend
+Subject: [PATCH 22/37] libavfilter/dnn/dnn_backend_torch: Add async to torch
+ backend
 
 Signed-off-by: Wenbin Chen <wenbin.chen@intel.com>
 ---
- libavfilter/dnn/dnn_backend_torch.cpp | 55 ++++++++++++++++++---------
- 1 file changed, 37 insertions(+), 18 deletions(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 50 +++++++++++++++++++--------
+ 1 file changed, 35 insertions(+), 15 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index 47ec6d4ea6..da1d07409b 100644
+index db2f9e842f..f0ad926ef1 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -69,6 +69,8 @@ static const AVOption dnn_th_options[] = {
+@@ -67,6 +67,8 @@ static const AVOption dnn_th_options[] = {
      { NULL }
  };
  
@@ -21,7 +22,7 @@ index 47ec6d4ea6..da1d07409b 100644
  static int extract_lltask_from_task(TaskItem *task, Queue *lltask_queue)
  {
      THModel *th_model = (THModel *)task->model;
-@@ -380,6 +382,7 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+@@ -376,6 +378,7 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
      LastLevelTaskItem *lltask;
      TaskItem *task = NULL;
      int ret = 0;
@@ -29,26 +30,27 @@ index 47ec6d4ea6..da1d07409b 100644
  
      if (ff_queue_size(lltask_queue) == 0) {
          destroy_request_item(&request);
-@@ -394,13 +397,17 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
+@@ -390,6 +393,7 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
      }
      task = lltask->task;
      th_model = (THModel *)task->model;
 +    ctx = th_model->ctx;
  
      ret = fill_model_input_th(th_model, request);
-     if ( ret != 0) {
-         goto err;
+     if (ret != 0) {
+@@ -397,7 +401,10 @@ static int execute_model_th(THRequestItem *request, Queue *lltask_queue)
      }
+ 
      if (task->async) {
--        avpriv_report_missing_feature(th_model->ctx, "LibTorch async");
+-        return ff_dnn_start_inference_async(th_model->ctx, &request->exec_module);
 +        if (ff_dnn_start_inference_async(ctx, &request->exec_module) != 0) {
 +            goto err;
 +        }
 +        return 0;
      } else {
+         // Synchronous execution path
          ret = th_start_inference((void *)(request));
-         if (ret != 0) {
-@@ -512,29 +519,41 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -511,28 +518,41 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      }
      first_param = *th_model->jit_model->named_parameters().begin();
  
@@ -68,20 +70,16 @@ index 47ec6d4ea6..da1d07409b 100644
 -    if (!item) {
 -        goto fail;
 -    }
--    item->lltask = NULL;
 -    item->infer_request = th_create_inference_request();
 -    if (!item->infer_request) {
--        av_log(NULL, AV_LOG_ERROR, "Failed to allocate memory for Torch inference request\n");
 -        goto fail;
 -    }
--    item->exec_module.start_inference = &th_start_inference;
--    item->exec_module.callback = &infer_completion_callback;
--    item->exec_module.args = item;
 +    if (ctx->nireq <= 0)
 +        ctx->nireq = 1;
  
--    if (ff_safe_queue_push_back(th_model->request_queue, item) < 0) {
--        goto fail;
+-    item->exec_module.start_inference = &th_start_inference;
+-    item->exec_module.callback = &infer_completion_callback;
+-    item->exec_module.args = item;
 +    for (int i = 0; i < ctx->nireq; i++) {
 +        item = (THRequestItem *)av_mallocz(sizeof(THRequestItem));
 +        if (!item) {
@@ -96,7 +94,9 @@ index 47ec6d4ea6..da1d07409b 100644
 +        item->exec_module.start_inference = &th_start_inference;
 +        item->exec_module.callback = &infer_completion_callback;
 +        item->exec_module.args = item;
-+
+ 
+-    if (ff_safe_queue_push_back(th_model->request_queue, item) < 0) {
+-        goto fail;
 +        if (ff_safe_queue_push_back(th_model->request_queue, item) < 0) {
 +            goto fail;
 +        }
@@ -106,15 +106,6 @@ index 47ec6d4ea6..da1d07409b 100644
  
      th_model->task_queue = ff_queue_create();
      if (!th_model->task_queue) {
-@@ -589,7 +608,7 @@ static int dnn_execute_model_th(const DNNModel *model, DNNExecBaseParams *exec_p
-         return AVERROR(ENOMEM);
-     }
- 
--    ret = ff_dnn_fill_task(task, exec_params, th_model, 0, 1);
-+    ret = ff_dnn_fill_task(task, exec_params, th_model, ctx->async, 1);
-     if (ret != 0) {
-         av_freep(&task);
-         av_log(ctx, AV_LOG_ERROR, "unable to fill task.\n");
 -- 
 2.34.1
 
