@@ -1,7 +1,7 @@
-From 4ef205c08d0550b1ede57585d5af68c6b8829bc8 Mon Sep 17 00:00:00 2001
+From 6869b6bedec8b962a6fdc6f110430cae90e252af Mon Sep 17 00:00:00 2001
 From: Tong Wu <tong1.wu@intel.com>
 Date: Mon, 4 Jul 2022 16:09:56 +0800
-Subject: [PATCH 2/3] lavfi/format: wrap auto filters into structures
+Subject: [PATCH 19/37] lavfi/format: wrap auto filters into structures
 
 This patch wraps auto conversion filters into new structures, making it
 easier to add more auto filters. And it adds a loop to automatically insert
@@ -9,16 +9,16 @@ every possible conversion filter until merge succeeds.
 
 Signed-off-by: Tong Wu <tong1.wu@intel.com>
 ---
- libavfilter/avfiltergraph.c | 97 +++++++++++++++++++++++--------------
- libavfilter/formats.c       | 18 +++++++
- libavfilter/formats.h       |  7 +++
- 3 files changed, 85 insertions(+), 37 deletions(-)
+ libavfilter/avfiltergraph.c | 102 +++++++++++++++++++++---------------
+ libavfilter/formats.c       |  18 +++++++
+ libavfilter/formats.h       |   7 +++
+ 3 files changed, 86 insertions(+), 41 deletions(-)
 
 diff --git a/libavfilter/avfiltergraph.c b/libavfilter/avfiltergraph.c
-index f029ac5c88..a3163a0033 100644
+index 0d7a9e1537..ba1982bf39 100644
 --- a/libavfilter/avfiltergraph.c
 +++ b/libavfilter/avfiltergraph.c
-@@ -444,24 +444,24 @@ static int formats_declared(AVFilterContext *f)
+@@ -514,24 +514,24 @@ static void print_filter_formats(void *log_ctx, int level, const AVFilterContext
  }
  
  static int insert_auto_filter(AVFilterContext **convert, AVFilterGraph *graph,
@@ -40,7 +40,7 @@ index f029ac5c88..a3163a0033 100644
 -               "'%s' filter not present, cannot convert formats.\n",
 -               filter_name);
 +               "'%s' filter not present, cannot convert formats.\n", name);
-         print_link_formats(log_ctx, AV_LOG_ERROR, link);
+         print_link_formats(log_ctx, AV_LOG_ERROR, link, NULL, 0);
          return AVERROR(EINVAL);
      }
 -    snprintf(inst_name, sizeof(inst_name), "auto_%s_%d",
@@ -51,19 +51,23 @@ index f029ac5c88..a3163a0033 100644
      if (ret < 0)
          return ret;
  
-@@ -631,8 +631,6 @@ retry:
+@@ -646,10 +646,7 @@ retry:
          for (j = 0; j < filter->nb_inputs; j++) {
              AVFilterLink *link = filter->inputs[j];
              const AVFilterNegotiation *neg;
 -            AVFilterContext *conv[4];
+-            const AVFilterFormatsMerger *mergers[4]; /* triggered mergers */
 -            const char *conv_filters[4], *conv_opts[4] = {0};
-             unsigned neg_step, num_conv = 0;
+-            unsigned neg_step, num_conv = 0, num_mergers = 0;
++            unsigned neg_step, num_conv = 0;
  
              if (!link)
-@@ -672,20 +670,14 @@ retry:
+                 continue;
+@@ -690,21 +687,14 @@ retry:
                      if (ret < 0)
                          return ret;
                      if (!ret) {
+-                        mergers[num_mergers++] = m;
 -                        conv_filters[num_conv] = m->conversion_filter;
 -                        if (m->conversion_opts_offset)
 -                            conv_opts[num_conv] = FF_FIELD_AT(char *, m->conversion_opts_offset, *graph);
@@ -72,7 +76,7 @@ index f029ac5c88..a3163a0033 100644
                      }
                  }
              }
-
+ 
 -            /**
 -             * Couldn't merge format lists; auto-insert conversion filters
 -             * in reverse order to keep the order consistent with the list
@@ -85,7 +89,7 @@ index f029ac5c88..a3163a0033 100644
                  if (fffiltergraph(graph)->disable_auto_convert) {
                      av_log(log_ctx, AV_LOG_ERROR,
                             "The filters '%s' and '%s' do not have a common format "
-@@ -695,25 +687,56 @@ retry:
+@@ -714,26 +704,56 @@ retry:
                      return AVERROR(EINVAL);
                  }
  
@@ -151,19 +155,20 @@ index f029ac5c88..a3163a0033 100644
 +                }
              }
 -
--            /* if there is more than one auto filter, we may need another round
--             * to fully settle formats due to possible cross-incompatibilities
--             * between the auto filters themselves */
--            if (num_conv > 1)
+-            /* if there is an auto filter, we may need another round to fully
+-             * settle formats due to possible cross-incompatibilities between
+-             * the auto filters themselves, or between the auto filters and
+-             * a different attribute of the filter they are modifying */
+-            if (num_conv)
 -                goto retry;
          }
      }
  
 diff --git a/libavfilter/formats.c b/libavfilter/formats.c
-index 11a0f13ac6..df341160d8 100644
+index 3315922cc7..fee755a80d 100644
 --- a/libavfilter/formats.c
 +++ b/libavfilter/formats.c
-@@ -401,14 +401,32 @@ static const AVFilterFormatsMerger mergers_audio[] = {
+@@ -449,14 +449,32 @@ static const AVFilterFormatsMerger mergers_audio[] = {
      },
  };
  
@@ -195,12 +200,12 @@ index 11a0f13ac6..df341160d8 100644
 +    .conversion_filters = filters_audio,
  };
  
- const AVFilterNegotiation *ff_filter_get_negotiation(AVFilterLink *link)
+ const AVFilterNegotiation *ff_filter_get_negotiation(const AVFilterLink *link)
 diff --git a/libavfilter/formats.h b/libavfilter/formats.h
-index 0c92ecad3f..36312e16ea 100644
+index 45864a32db..c9aee87812 100644
 --- a/libavfilter/formats.h
 +++ b/libavfilter/formats.h
-@@ -521,6 +521,11 @@ typedef struct AVFilterFormatMerger {
+@@ -569,6 +569,11 @@ typedef struct AVFilterFormatMerger {
      unsigned conversion_opts_offset;
  } AVFilterFormatsMerger;
  
@@ -212,7 +217,7 @@ index 0c92ecad3f..36312e16ea 100644
  /**
   * Callbacks and properties to describe the steps of a format negotiation.
   *
-@@ -609,6 +614,8 @@ typedef struct AVFilterFormatMerger {
+@@ -657,6 +662,8 @@ typedef struct AVFilterFormatMerger {
  typedef struct AVFilterNegotiation {
      unsigned nb_mergers;
      const AVFilterFormatsMerger *mergers;
@@ -220,7 +225,7 @@ index 0c92ecad3f..36312e16ea 100644
 +    const AVFilterFormatsFilter *conversion_filters;
  } AVFilterNegotiation;
  
- const AVFilterNegotiation *ff_filter_get_negotiation(AVFilterLink *link);
+ const AVFilterNegotiation *ff_filter_get_negotiation(const AVFilterLink *link);
 -- 
-2.41.0.windows.1
+2.34.1
 

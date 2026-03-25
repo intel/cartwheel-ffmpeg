@@ -1,18 +1,18 @@
-From 555795fca429c639a74bd5c6f1abd173c3b1db7a Mon Sep 17 00:00:00 2001
+From 63f6efd9013629e98056eece4afbb3f0aaf30e96 Mon Sep 17 00:00:00 2001
 From: Ting Fu <ting.fu@intel.com>
 Date: Wed, 29 Jun 2022 07:46:44 +0000
-Subject: [PATCH] lavf/dnn: enable libtorch backend support FRVSR model
+Subject: [PATCH 15/37] lavf/dnn: enable libtorch backend support FRVSR model
 
 Signed-off-by: Ting Fu <ting.fu@intel.com>
 ---
- libavfilter/dnn/dnn_backend_torch.cpp | 44 ++++++++++++++++++++++++---
- 1 file changed, 40 insertions(+), 4 deletions(-)
+ libavfilter/dnn/dnn_backend_torch.cpp | 69 ++++++++++++++++++++++-----
+ 1 file changed, 57 insertions(+), 12 deletions(-)
 
 diff --git a/libavfilter/dnn/dnn_backend_torch.cpp b/libavfilter/dnn/dnn_backend_torch.cpp
-index ea493f5873..33921471a6 100644
+index 99f55165f2..7c226d8423 100644
 --- a/libavfilter/dnn/dnn_backend_torch.cpp
 +++ b/libavfilter/dnn/dnn_backend_torch.cpp
-@@ -36,6 +36,8 @@ extern "C" {
+@@ -35,6 +35,8 @@ extern "C" {
  #include "safe_queue.h"
  }
  
@@ -21,7 +21,7 @@ index ea493f5873..33921471a6 100644
  typedef struct THModel {
      DNNModel model;
      DnnContext *ctx;
-@@ -43,6 +45,7 @@ typedef struct THModel {
+@@ -42,6 +44,7 @@ typedef struct THModel {
      SafeQueue *request_queue;
      Queue *task_queue;
      Queue *lltask_queue;
@@ -29,7 +29,33 @@ index ea493f5873..33921471a6 100644
  } THModel;
  
  typedef struct THInferRequest {
-@@ -210,9 +213,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
+@@ -120,16 +123,17 @@ static void dnn_free_model_th(DNNModel **model)
+ 
+     th_model = (THModel *)(*model);
+ 
+-    if (th_model->request_queue) {
+-        while (ff_safe_queue_size(th_model->request_queue) != 0) {
+-            THRequestItem *item = (THRequestItem *)ff_safe_queue_pop_front(th_model->request_queue);
+-            destroy_request_item(&item);
+-        }
+-        ff_safe_queue_destroy(th_model->request_queue);
++    while (ff_safe_queue_size(th_model->request_queue) != 0) {
++        THRequestItem *item = (THRequestItem *)ff_safe_queue_pop_front(th_model->request_queue);
++        destroy_request_item(&item);
+     }
++    ff_safe_queue_destroy(th_model->request_queue);
+ 
+-    if (th_model->lltask_queue)
+-        ff_queue_destroy(th_model->lltask_queue);
++    while (ff_queue_size(th_model->lltask_queue) != 0) {
++        LastLevelTaskItem *item = (LastLevelTaskItem *)ff_queue_pop_front(th_model->lltask_queue);
++        av_freep(&item);
++    }
++    ff_queue_destroy(th_model->lltask_queue);
+     if (th_model->task_queue)
+         ff_queue_destroy(th_model->task_queue);
+ 
+@@ -206,9 +210,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
          avpriv_report_missing_feature(NULL, "model function type %d", th_model->model.func_type);
          break;
      }
@@ -48,7 +74,7 @@ index ea493f5873..33921471a6 100644
      return 0;
  
  err:
-@@ -256,7 +265,24 @@ static int th_start_inference(void *args)
+@@ -252,7 +262,24 @@ static int th_start_inference(void *args)
          *infer_request->input_tensor = infer_request->input_tensor->to(device);
      inputs.push_back(*infer_request->input_tensor);
  
@@ -74,7 +100,7 @@ index ea493f5873..33921471a6 100644
  
      return 0;
  }
-@@ -422,6 +448,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -420,6 +447,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
      DNNModel *model = NULL;
      THModel *th_model = NULL;
      THRequestItem *item = NULL;
@@ -82,7 +108,7 @@ index ea493f5873..33921471a6 100644
      const char *device_name = ctx->device ? ctx->device : "cpu";
  
      th_model = (THModel *)av_mallocz(sizeof(THModel));
-@@ -450,6 +477,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+@@ -452,6 +480,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
          av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
          goto fail;
      }
@@ -90,10 +116,14 @@ index ea493f5873..33921471a6 100644
  
      th_model->request_queue = ff_safe_queue_create();
      if (!th_model->request_queue) {
-@@ -480,6 +508,14 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
-         goto fail;
-     }
+@@ -477,7 +506,22 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+     item = NULL;
  
+     th_model->task_queue = ff_queue_create();
++    if (!th_model->task_queue) {
++        goto fail;
++    }
++
 +    if (!first_param.name.find("fnet")) {
 +        th_model->model_type = FRVSR;
 +    } else if (!first_param.name.find("spynet")) {
@@ -103,8 +133,20 @@ index ea493f5873..33921471a6 100644
 +    }
 +
      th_model->lltask_queue = ff_queue_create();
-     if (!th_model->lltask_queue) {
-         goto fail;
++    if (!th_model->lltask_queue) {
++        goto fail;
++    }
+ 
+     model->get_input = &get_input_th;
+     model->get_output = &get_output_th;
+@@ -488,6 +532,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
+ fail:
+     if (item) {
+         destroy_request_item(&item);
++        av_freep(&item);
+     }
+     dnn_free_model_th(&model);
+     return NULL;
 -- 
 2.34.1
 
