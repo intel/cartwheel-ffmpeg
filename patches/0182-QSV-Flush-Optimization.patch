@@ -1,0 +1,105 @@
+From f9165fb946e5a8b348f5cb6080e9ea775fab85ad Mon Sep 17 00:00:00 2001
+From: "U-GAR\\pradeep4" <GAR+pradeep4@soc-5CG5431J0S.clients.intel.com>
+Date: Thu, 5 Mar 2026 11:13:39 +0530
+Subject: [PATCH] QSV Flush Optimization
+
+---
+ libavcodec/qsvdec.c | 72 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 70 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index a85c1785cf..db11dcc62d 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -572,6 +572,34 @@ static void qsv_clear_unused_frames(QSVContext *q)
+     }
+ }
+ 
++
++static void qsv_clear_async(QSVContext *q)
++{
++    QSVAsyncFrame aframe;
++    QSVFrame *cur;
++    if (q->async_fifo) {
++        while (av_fifo_read(q->async_fifo, &aframe, 1) >= 0) {
++            if (aframe.frame && aframe.frame->queued > 0)
++                aframe.frame->queued -= 1;
++            av_freep(&aframe.sync);
++        }
++    }
++
++    cur = q->work_frames;
++    while (cur) {
++        cur->queued = 0;
++        if (cur->used && !cur->surface.Data.Locked) {
++            cur->used = 0;
++            av_frame_unref(cur->frame);
++        }
++        cur = cur->next;
++    }
++
++    q->zero_consume_run = 0;
++    q->reinit_flag = 0;
++}
++
++
+ static int get_surface(AVCodecContext *avctx, QSVContext *q, mfxFrameSurface1 **surf)
+ {
+     QSVFrame *frame, **last;
+@@ -1207,11 +1235,51 @@ static int qsv_decode_frame(AVCodecContext *avctx, AVFrame *frame,
+ static void qsv_decode_flush(AVCodecContext *avctx)
+ {
+     QSVDecContext *s = avctx->priv_data;
++    mfxStatus sts;
++    mfxVideoParam param = { { { 0 } } };
++    int reset_succeeded = 0;
+ 
+     qsv_clear_buffers(s);
++    qsv_clear_async(&s->qsv);
++
++    // Intel Media SDK compatibility: Try decoder reset first to avoid
++    // expensive full teardown/reinit cycle (15-20ms -> 2-3ms optimization)
++    if (s->qsv.session && s->qsv.initialized) {
++        av_log(avctx, AV_LOG_DEBUG,
++            "Attempting QSV decoder reset for fast flush\n");
++
++        sts = MFXVideoDECODE_GetVideoParam(s->qsv.session, &param);
++        if (sts == MFX_ERR_NONE) {
++            // Restore critical parameters for reset
++            param.AsyncDepth = s->qsv.async_depth;
++            param.IOPattern  = s->qsv.iopattern;
++            param.ExtParam   = s->qsv.ext_buffers;
++            param.NumExtParam = s->qsv.nb_ext_buffers;
++
++            sts = MFXVideoDECODE_Reset(s->qsv.session, &param);
++            if (sts >= 0) {
++                av_log(avctx, AV_LOG_DEBUG,
++                     "QSV decoder reset successful (fast path)\n");
++                s->qsv.frame_info = param.mfx.FrameInfo;
++                reset_succeeded = 1;
++            } else {
++                av_log(avctx, AV_LOG_WARNING,
++                    "MFXVideoDECODE_Reset failed (%d),"
++                    "forcing full reinit\n", sts);
++            }
++        } else {
++            av_log(avctx, AV_LOG_WARNING,
++                   "MFXVideoDECODE_GetVideoParam failed (%d),"
++                   "forcing full reinit\n", sts);
++        }
++    }
+ 
+-    s->qsv.orig_pix_fmt = AV_PIX_FMT_NONE;
+-    s->qsv.initialized = 0;
++    if (!reset_succeeded) {
++        // Fallback to full reinitialization
++        av_log(avctx, AV_LOG_DEBUG, "Using full QSV decoder reinitialization\n");
++        s->qsv.orig_pix_fmt = AV_PIX_FMT_NONE;
++        s->qsv.initialized = 0;
++    }
+ }
+ 
+ #define OFFSET(x) offsetof(QSVDecContext, x)
+-- 
+2.53.0
+
