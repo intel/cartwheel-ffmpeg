@@ -1,1 +1,70 @@
-README.cartwheel
+## THIS PROJECT IS ARCHIVED
+
+Intel will not provide or guarantee development of or support for this project, including but not limited to, maintenance, bug fixes, new releases or updates. 
+Patches to this project are no longer accepted by Intel.  
+If you have an ongoing need to use this project, are interested in independently developing it, or would like to maintain patches for the community, please create your own fork of the project.  
+
+contact: webadmin@linux.intel.com
+# cartwheel : ffmpeg
+
+Intel developer staging area for upstream patch contributions to [FFmpeg](https://github.com/ffmpeg/ffmpeg).
+
+The upstream project is tracked as a submodule in this repo.
+
+## upstream process
+To improve upstream patch quality and reduce patchset rebase efforts, we use the following process
+1. Send PR1 to https://github.com/intel-media-ci/ffmpeg, add module maintainers to Reviewers
+1. Got approval from one maintainer
+1. Wait for 1 more workday to see any objections. If it's an urgent issue, please ask another reviewer + 1 for you.
+1. Close PR1, and send it to the community, ping the community with some frequency if it's no response.
+1. If the community has no response in 4 weeks or it’s an urgent issue, send PR2 to https://github.com/intel/cartwheel-ffmpeg
+1. Provide upstream patch link, ping maintainers for merging
+1. Ping community until the patch merged in upstream
+
+
+## maintainers
+* @xhaihao @feiwan1 @xuguangxin for Linux and OneVPL
+* @galinart for Windows
+* @guoyejun @Semmer2 for DNN
+* @FocusLuo @Bin-CI for CI system
+
+## clone
+```shell
+$ git clone https://github.com/intel/cartwheel-ffmpeg --recursive
+```
+
+## apply patches
+```shell
+# at top-level directory
+$ git submodule update --init --recursive
+# at submodule directory
+$ cd ffmpeg
+# It is recommended to create a branch before applying the patches
+$ git checkout -b <my new branch>
+$ git am ../patches/*.patch
+```
+
+## build
+[how to]( https://github.com/intel/cartwheel-ffmpeg/wiki/How-to-build-cartwheel-ffmpeg)
+
+## rebase
+```shell
+# at top-level directory
+$ git pull --rebase --recurse-submodule
+```
+
+## administrators
+
+To update the submodule reference commit id to the latest upstream:
+
+```shell
+# at top-level directory
+$ git submodule update --remote --recursive
+$ git commit -sam "$(git diff --submodule | head -1 | sed 's/:$//')"
+```
+
+...verify the patches still apply successfully.  If they don't apply, fix them and include in new commit(s).
+
+## additional information
+
+For more information and examples about Git Submodules, see https://git-scm.com/book/en/v2/Git-Tools-Submodules
